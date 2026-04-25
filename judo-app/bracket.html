@@ -929,6 +929,8 @@ function sE(){
     prop(m,CB.matches);
   }else{m.wId=null;m.lId=null;m.status='pending';}
   cE(); render(CB);
+  // Auto-save to Supabase
+  if(CB.catDbId) saveMatchToDB(CB, eMid).catch(()=>{});
 }
 function rM(){
   if(!confirm('לאפס קרב?'))return;
@@ -994,42 +996,132 @@ function toast(msg){
 }
 
 // ─────────────────────────────────────────────────
-// DEMO
+// INIT — load from Supabase
 // ─────────────────────────────────────────────────
-const DEMOS=[
-  {name:'8 מתחרים', n:['דן כהן','אמיר לוי','יוסי מזרחי','תומר גרין','נועם ברק','עידן שפי','רון טל','בן מור']},
-  {name:'6 מתחרים', n:['אורי פלד','שי ברנע','לירון כץ','מתן הלוי','עמית גל','ניר שם-טוב']},
-  {name:'4 מתחרים', n:['אלון שוורץ','ידידיה בר','ליאור טל','שמעון כץ']},
-  {name:'16 מתחרים',n:['א1','א2','א3','א4','א5','א6','א7','א8','א9','א10','א11','א12','א13','א14','א15','א16']},
-];
+const bracketCache={};   // catDbId → bracket object
+let allCategories=[];    // [{id, name, competitors:[]}]
 
-// Cache: one bracket object per category index, built once and preserved
-const bracketCache={};
-
-function init(){
+async function init(){
   const tabs=document.getElementById('tabs');
-  tabs.innerHTML=DEMOS.map((d,i)=>`<div class="tab${i===0?' on':''}" onclick="ld(${i},this)">${d.name}</div>`).join('');
-  ld(0,tabs.querySelector('.tab'));
-}
+  const compId=localStorage.getItem('judo_active_comp');
 
-function ld(i,el){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  el.classList.add('on');
-
-  // Build bracket only if not already cached
-  if(!bracketCache[i]){
-    const d=DEMOS[i];
-    const comps=d.n.map((n,j)=>({id:i*100+j+1,name:n,club:'מועדון'}));
-    const br=buildBracket(comps);
-    br.catName=d.name;
-    bracketCache[i]=br;
+  if(!compId){
+    tabs.innerHTML='<div class="tab on">דמו</div>';
+    loadDemo();
+    return;
   }
 
-  render(bracketCache[i]);
+  tabs.innerHTML='<div style="padding:0 14px;font-size:11px;color:var(--txt2)">טוען...</div>';
+
+  try{
+    // Load categories + competitors for active competition
+    const cats = await DB.getCategories(compId);
+    if(!cats||!cats.length){
+      tabs.innerHTML='<div style="padding:0 14px;font-size:11px;color:var(--txt2)">אין קטגוריות — צור קטגוריות בניהול</div>';
+      return;
+    }
+    allCategories = cats;
+    tabs.innerHTML=cats.map((cat,i)=>
+      `<div class="tab${i===0?' on':''}" onclick="ldCat('${cat.id}',this)">${cat.name} (${cat.competitors?.length||0})</div>`
+    ).join('');
+    // Load first category
+    ldCat(cats[0].id, tabs.querySelector('.tab'));
+  }catch(e){
+    console.error('bracket init error:',e);
+    tabs.innerHTML='<div style="padding:0 14px;font-size:11px;color:var(--red)">שגיאת חיבור — טוען דמו</div>';
+    loadDemo();
+  }
+}
+
+function loadDemo(){
+  const comps=['דן כהן','אמיר לוי','יוסי מזרחי','תומר גרין','נועם ברק','עידן שפי','רון טל','בן מור']
+    .map((n,i)=>({id:i+1,name:n,club:'מועדון'}));
+  const br=buildBracket(comps);
+  br.catName='דמו';
+  render(br);
   setTimeout(fit,60);
 }
 
-init();
+async function ldCat(catId, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  if(el) el.classList.add('on');
+
+  // Use cached bracket if exists
+  if(bracketCache[catId]){
+    render(bracketCache[catId]);
+    setTimeout(fit,60);
+    return;
+  }
+
+  // Find category data
+  const cat=allCategories.find(c=>c.id===catId);
+  if(!cat){return;}
+
+  // Build competitors list from DB data
+  const comps=(cat.competitors||[]).map(cp=>({
+    id:cp.id, dbId:cp.id,
+    name:cp.name, club:cp.club||'',
+  }));
+
+  if(!comps.length){
+    toast('אין מתחרים בקטגוריה זו');
+    document.getElementById('br').innerHTML='<div style="padding:60px;color:var(--txt3);text-align:center">אין מתחרים בקטגוריה זו</div>';
+    return;
+  }
+
+  // Build bracket
+  const br=buildBracket(comps);
+  br.catName=cat.name;
+  br.catDbId=catId;
+
+  // Try to load existing match results from DB
+  try{
+    const savedMatches=await DB.getMatches(catId);
+    if(savedMatches&&savedMatches.length){
+      applyDBResults(br, savedMatches);
+    }
+  }catch(e){ console.warn('load matches:',e); }
+
+  bracketCache[catId]=br;
+  render(br);
+  setTimeout(fit,60);
+}
+
+// Apply saved DB results onto a bracket
+function applyDBResults(br, dbMatches){
+  dbMatches.forEach(dbM=>{
+    const m=br.matches.find(x=>x.id===dbM.match_num);
+    if(!m)return;
+    m.dbId=dbM.id;
+    if(dbM.status==='done'&&dbM.winner_id){
+      const wComp=br.comps.find(c=>c.dbId===dbM.winner_id);
+      const lComp=br.comps.find(c=>c.dbId!==(dbM.winner_id)&&(c.dbId===dbM.blue_id||c.dbId===dbM.white_id));
+      if(wComp){
+        m.wId=wComp.id; m.wComp=wComp;
+        m.lId=lComp?.id||null; m.lComp=lComp||null;
+        m.status='done';
+        if(dbM.score) m.sc=dbM.score;
+        prop(m,br.matches);
+      }
+    }
+  });
+}
+
+// Auto-save bracket results to Supabase when a match is saved
+async function saveMatchToDB(br, matchId){
+  const m=br.matches.find(x=>x.id===matchId);
+  if(!m||!br.catDbId)return;
+  try{
+    await DB.saveBracket(br.catDbId,[m]);
+  }catch(e){ console.warn('save match:',e); }
+}
+
+// Add db.js
+const dbScript=document.createElement('script');
+dbScript.src='db.js';
+document.head.appendChild(dbScript);
+dbScript.onload=()=>init();
+dbScript.onerror=()=>{console.warn('db.js not found, loading demo');loadDemo();};
 </script>
 </body>
 </html>
