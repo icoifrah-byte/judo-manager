@@ -558,16 +558,23 @@ function assignToCategory(comp,competitor){
   cat.method=getMethod(cat.competitors.length);
 }
 
-function addCatManual(){
+async function addCatManual(){
   const c=C();if(!c)return;
   const name=document.getElementById('cat-name-in').value.trim();
   if(!name){alert('נדרש שם');return;}
   if(c.categories.find(cat=>cat.name===name)){alert('קטגוריה קיימת');return;}
   const dur=document.getElementById('cat-dur-in').value;
-  c.categories.push({id:Date.now(),name,duration:dur?+dur:null,competitors:[],fromExcel:false,method:'knockout'});
+  const localCat={id:Date.now(),name,duration:dur?+dur:null,competitors:[],fromExcel:false,method:'knockout'};
+  c.categories.push(localCat);
   closeModal('add-cat-modal');
   document.getElementById('cat-name-in').value='';
   renderDash();showAlert('success','✓ קטגוריה נוספה');
+  if(c.dbId){
+    try{
+      const row=await DB.createCategory({competition_id:c.dbId,name,method:'knockout',status:'pending'});
+      if(row)localCat.dbId=row.id;
+    }catch(e){console.error('save category:',e);}
+  }
 }
 
 function removeCat(idx){
@@ -595,13 +602,14 @@ function genMatchesCat(catId){
 // ════════════════════════════════
 // COMPETITORS
 // ════════════════════════════════
-function addCompManual(){
+async function addCompManual(){
   const c=C();if(!c)return;
   const name=document.getElementById('ac-name').value.trim();
   const club=document.getElementById('ac-club').value.trim();
   if(!name||!club){alert('שם ומועדון חובה');return;}
+  const catName=document.getElementById('ac-cat').value.trim();
   const comp={id:Date.now()+Math.random(),name,club,
-    category:document.getElementById('ac-cat').value.trim(),
+    category:catName,
     tatami:document.getElementById('ac-tatami').value||null,
     fromExcel:false};
   c.competitors.push(comp);
@@ -610,6 +618,17 @@ function addCompManual(){
   document.getElementById('ac-name').value='';
   document.getElementById('ac-club').value='';
   renderDash();showAlert('success',`✓ ${name} נוסף`);
+  // Save to Supabase
+  if(c.dbId){
+    try{
+      const cat=c.categories.find(ct=>ct.name===catName);
+      const catDbId=cat?.dbId||null;
+      if(catDbId){
+        const row=await DB.upsertCompetitors([{competition_id:c.dbId,category_id:catDbId,name,club,seed:null}]);
+        if(row?.[0])comp.dbId=row[0].id;
+      }
+    }catch(e){console.error('save comp:',e);}
+  }
 }
 
 function removeComp(idx){
@@ -770,10 +789,11 @@ function renderImportUI(headers,sample,total){
   document.getElementById('import-preview').style.display='block';
 }
 
-function confirmImport(){
+async function confirmImport(){
   const c=C();if(!c)return;
   if(colMap.name===null){alert('חובה לבחור עמודת שם');return;}
   let added=0;
+  const newComps=[];
   rawRows.slice(1).forEach(row=>{
     const name=String(row[colMap.name]||'').trim();
     if(!name)return;
@@ -786,10 +806,37 @@ function confirmImport(){
     };
     c.competitors.push(comp);
     assignToCategory(c,comp);
+    newComps.push(comp);
     added++;
   });
   clearImport();renderDash();
-  showAlert('success',`✓ יובאו ${added} מתחרים, קטגוריות נוצרו אוטומטית`);
+  showAlert('success',`✓ יובאו ${added} מתחרים, שומר ל-Supabase...`);
+
+  if(c.dbId && newComps.length){
+    try{
+      // 1. Save new categories first
+      for(const cat of c.categories){
+        if(!cat.dbId){
+          const row=await DB.createCategory({competition_id:c.dbId,name:cat.name,method:cat.method||'knockout',status:'pending'});
+          if(row)cat.dbId=row.id;
+        }
+      }
+      // 2. Save competitors with category IDs
+      const rows=newComps.map(comp=>{
+        const cat=c.categories.find(ct=>ct.name===comp.category);
+        return {competition_id:c.dbId,category_id:cat?.dbId||null,name:comp.name,club:comp.club||'',seed:null};
+      }).filter(r=>r.category_id);
+      if(rows.length){
+        const saved=await DB.upsertCompetitors(rows);
+        // map dbIds back
+        if(saved) saved.forEach((row,i)=>{if(newComps[i])newComps[i].dbId=row.id;});
+      }
+      showAlert('success',`✓ ${added} מתחרים נשמרו ל-Supabase`);
+    }catch(e){
+      console.error('import save error:',e);
+      showAlert('error','⚠ שגיאה בשמירה ל-Supabase');
+    }
+  }
 }
 
 function clearImport(){
@@ -1071,8 +1118,8 @@ async function initFromDB(){
     for(const row of comps){
       const existing = S.competitions.find(c=>c.dbId===row.id);
       if(existing) continue;
-      S.competitions.push({
-        id: row.id,          // use uuid as id
+      const comp = {
+        id: row.id,
         dbId: row.id,
         name: row.name,
         date: row.date,
@@ -1087,7 +1134,43 @@ async function initFromDB(){
           match_duration: row.match_duration||180,
           ...DEF,
         }
-      });
+      };
+      S.competitions.push(comp);
+
+      // Load categories + competitors for this competition
+      try{
+        const cats = await DB.getCategories(row.id);
+        if(cats && cats.length){
+          for(const cat of cats){
+            const localCat = {
+              id: cat.id, dbId: cat.id,
+              name: cat.name, method: cat.method||'knockout',
+              status: cat.status||'pending',
+              competitors: [],
+              fromExcel: true,
+            };
+            comp.categories.push(localCat);
+            // Load competitors for this category
+            if(cat.competitors && cat.competitors.length){
+              for(const cp of cat.competitors){
+                const localComp = {
+                  id: cp.id, dbId: cp.id,
+                  name: cp.name, club: cp.club||'',
+                  category: cat.name,
+                  attend_status: cp.attend_status||'unknown',
+                  _late: cp.is_late||false,
+                  fromExcel: true,
+                };
+                // avoid duplicates
+                if(!comp.competitors.find(x=>x.dbId===cp.id)){
+                  comp.competitors.push(localComp);
+                }
+                localCat.competitors.push(cp.id);
+              }
+            }
+          }
+        }
+      }catch(e){ console.error('load cats/comps:',e); }
     }
     // Restore active competition
     const savedId = getActiveCompId();
