@@ -483,8 +483,57 @@ function tick(){
 }
 setInterval(()=>{tick();render();},5000); // re-render every 5s for countdowns
 
-document.getElementById('h-title').textContent=`שליטה — ${STATE.competition.name}`;
-render();
+async function loadRealMatches(){
+  const compId=localStorage.getItem('judo_active_comp');
+  if(!compId){ document.getElementById('h-title').textContent='שליטה — דמו'; render(); return; }
+
+  try{
+    const cats=await DB.getCategories(compId);
+    if(!cats||!cats.length){ render(); return; }
+
+    const compConf=JSON.parse(localStorage.getItem('judo_config')||'{}');
+    const tCount=compConf.tatami_count||3;
+    STATE.tatami=[];
+    for(let i=1;i<=tCount;i++) STATE.tatami.push({id:i,matches:[]});
+
+    for(const cat of cats){
+      const matches=await DB.getMatches(cat.id);
+      if(!matches) continue;
+      matches.sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
+      matches.forEach(m=>{
+        const tid=(m.tatami_id||1);
+        const t=STATE.tatami.find(x=>x.id===tid);
+        if(!t) return;
+        const bName=cat.competitors?.find(c=>c.id===m.blue_id)?.name||null;
+        const wName=cat.competitors?.find(c=>c.id===m.white_id)?.name||null;
+        t.matches.push({
+          id:m.id, dbId:m.id,
+          blue:bName, white:wName,
+          bRole:null,bRef:null,wRole:null,wRef:null,
+          category:cat.name, stage:m.stage||'קרב',
+          matchNum:m.match_num,
+          status:m.status||'pending',
+          susp:m.susp||null,
+        });
+      });
+    }
+    // Get comp name
+    const comps=await DB.getCompetitions();
+    const comp=comps?.find(c=>c.id===compId);
+    document.getElementById('h-title').textContent=`שליטה — ${comp?.name||'תחרות'}`;
+    render();
+  }catch(e){
+    console.error('control load error:',e);
+    document.getElementById('h-title').textContent='שליטה — שגיאת חיבור';
+    render();
+  }
+}
+
+const s=document.createElement('script');
+s.src='db.js';
+document.head.appendChild(s);
+s.onload=loadRealMatches;
+s.onerror=()=>{ document.getElementById('h-title').textContent='שליטה — דמו'; render(); };
 </script>
 </body>
 </html>
