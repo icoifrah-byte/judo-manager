@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>הדמייה — סגנון צדדים v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:#0d0e14;color:#f0f0f0;font-family:'Heebo',sans-serif;overflow:hidden;}
+
+/* Mirror toggle */
+.mirror-toggle{
+  position:fixed;top:6px;right:8px;z-index:99;
+  padding:4px 10px;border-radius:4px;border:1px solid #2a2d3a;
+  background:rgba(255,255,255,.06);color:#8a8fa0;font-size:11px;
+  font-family:'Heebo',sans-serif;font-weight:600;cursor:pointer;
+}
+.mirror-toggle.on{background:rgba(155,89,182,.2);color:#c084fc;border-color:#9b59b6;}
+
+/* MAIN LAYOUT */
+.screen{
+  height:100vh;
+  display:flex;flex-direction:column;
+  transition:transform .3s;
+}
+/* Mirror: flip entire screen horizontally, then un-flip text */
+.screen.mirrored{transform:scaleX(-1);}
+.screen.mirrored .cname,
+.screen.mirrored .cmeta,
+.screen.mirrored .iwy-lbl,
+.screen.mirrored .iwy-num,
+.screen.mirrored .clock-val,
+.screen.mirrored .osae-val,
+.screen.mirrored .banner-txt{transform:scaleX(-1);}
+
+/* BANNER */
+.banner{
+  height:50px;flex-shrink:0;
+  background:#111318;border-bottom:2px solid #1e2130;
+  display:flex;align-items:center;justify-content:center;
+}
+.banner-txt{font-size:13px;font-weight:600;color:#8a8fa0;letter-spacing:.5px;}
+
+/* TWO HALVES */
+.halves{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0;}
+
+.half{display:flex;flex-direction:column;}
+.half.blue{background:#0d1f3d;}
+.half.white{background:#12121c;border-left:2px solid #1e2130;}
+
+/* name strip */
+.name-strip{
+  padding:10px 16px;flex-shrink:0;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.cname{font-size:16px;font-weight:700;line-height:1.2;}
+.blue .cname{color:#7ab0ff;}
+.white .cname{color:#d0d0d0;}
+.cmeta{font-size:10px;color:#3a3f50;margin-top:2px;letter-spacing:.3px;}
+
+/* IWY SCORE AREA — fills remaining space */
+.score-area{
+  flex:1;display:flex;align-items:stretch;min-height:0;
+}
+.iwy-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none;position:relative;
+  border-right:1px solid rgba(255,255,255,.06);
+}
+.iwy-item:last-child{border-right:none;}
+.iwy-item:active{background:rgba(255,255,255,.04);}
+.iwy-lbl{
+  font-size:11px;font-weight:700;letter-spacing:1px;
+  color:#2a2d3a;margin-bottom:4px;
+}
+.iwy-num{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(60px,12vw,110px);
+  line-height:1;
+}
+.iwy-item.I .iwy-num{color:#e84a4a;}
+.iwy-item.W .iwy-num{color:#e8c84a;}
+.iwy-item.Y .iwy-num{color:#7ab8ff;}
+
+/* SHIDO ROW */
+.shido-row{
+  display:flex;justify-content:center;gap:10px;
+  padding:8px 12px 12px;flex-shrink:0;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.shido-sq{
+  width:24px;height:24px;border-radius:4px;
+  border:2px solid #2a2d3a;background:transparent;
+  cursor:pointer;transition:all .15s;
+}
+.shido-sq.on{background:#e8c84a;border-color:#e8c84a;}
+
+/* TIMER BAR */
+.timer-bar{
+  height:140px;flex-shrink:0;
+  background:#111318;border-top:2px solid #1e2130;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;
+}
+/* main clock */
+.clock-val{
+  font-family:'Bebas Neue',sans-serif;font-size:72px;
+  letter-spacing:4px;color:#f0f0f0;line-height:1;cursor:pointer;
+  user-select:none;
+}
+.clock-val:active{opacity:.7;}
+/* osaekomi row */
+.osae-row{
+  display:flex;align-items:center;gap:12px;
+}
+.osae-side-sq{
+  width:22px;height:22px;border-radius:4px;cursor:pointer;
+  transition:all .15s;
+}
+.osae-side-sq.blue-sq{background:#1a4fa8;border:2px solid #2a6fd8;}
+.osae-side-sq.blue-sq.sel{background:#2a6fd8;box-shadow:0 0 8px #2a6fd8;}
+.osae-side-sq.white-sq{background:#2a2a38;border:2px solid #4a4a5a;}
+.osae-side-sq.white-sq.sel{background:#c0c0c0;border-color:#e0e0e0;box-shadow:0 0 8px #c0c0c0;}
+.osae-center{display:flex;flex-direction:column;align-items:center;}
+.osae-val{
+  font-family:'Bebas Neue',sans-serif;font-size:36px;
+  letter-spacing:2px;color:#3a3f50;line-height:1;cursor:pointer;
+  user-select:none;
+}
+.osae-val:active{opacity:.7;}
+.osae-lbl{font-size:8px;color:#2a2d3a;letter-spacing:1.5px;margin-top:-2px;}
+</style>
+</head>
+<body>
+
+<button class="mirror-toggle" id="mirrorBtn" onclick="toggleMirror()">⇄ מראה</button>
+
+<div class="screen" id="screen">
+
+  <!-- BANNER -->
+  <div class="banner">
+    <span class="banner-txt">סבב 1 · קטגוריה U15 -60 · מזרן 2</span>
+  </div>
+
+  <!-- HALVES -->
+  <div class="halves">
+
+    <!-- BLUE LEFT -->
+    <div class="half blue">
+      <div class="name-strip">
+        <div class="cname">נועם ברק</div>
+        <div class="cmeta">מועדון שיבוץ · U15 -60</div>
+      </div>
+      <div class="score-area">
+        <div class="iwy-item I" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
+          <div class="iwy-lbl">I</div>
+          <div class="iwy-num">0</div>
+        </div>
+        <div class="iwy-item W" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
+          <div class="iwy-lbl">W</div>
+          <div class="iwy-num">1</div>
+        </div>
+        <div class="iwy-item Y" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
+          <div class="iwy-lbl">Y</div>
+          <div class="iwy-num">0</div>
+        </div>
+      </div>
+      <div class="shido-row">
+        <div class="shido-sq on"></div>
+        <div class="shido-sq"></div>
+        <div class="shido-sq"></div>
+      </div>
+    </div>
+
+    <!-- WHITE RIGHT -->
+    <div class="half white">
+      <div class="name-strip">
+        <div class="cname">דן כהן</div>
+        <div class="cmeta">מועדון הירוק · U15 -60</div>
+      </div>
+      <div class="score-area">
+        <div class="iwy-item I" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
+          <div class="iwy-lbl">I</div>
+          <div class="iwy-num">0</div>
+        </div>
+        <div class="iwy-item W" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
+          <div class="iwy-lbl">W</div>
+          <div class="iwy-num">0</div>
+        </div>
+        <div class="iwy-item Y" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
+          <div class="iwy-lbl">Y</div>
+          <div class="iwy-num">2</div>
+        </div>
+      </div>
+      <div class="shido-row">
+        <div class="shido-sq on"></div>
+        <div class="shido-sq on"></div>
+        <div class="shido-sq"></div>
+      </div>
+    </div>
+
+  </div><!-- /halves -->
+
+  <!-- TIMER BAR -->
+  <div class="timer-bar">
+    <!-- Main clock — click to start/stop -->
+    <div class="clock-val" onclick="toggleClock(this)">2:47</div>
+    <!-- Osaekomi: [blue sq] [00 OSAEKOMI] [white sq] -->
+    <div class="osae-row">
+      <div class="osae-side-sq blue-sq sel" onclick="selectOsae('blue')" title="שייך לכחול"></div>
+      <div class="osae-center">
+        <div class="osae-val" onclick="toggleOsae(this)">00</div>
+        <div class="osae-lbl">OSAEKOMI</div>
+      </div>
+      <div class="osae-side-sq white-sq" onclick="selectOsae('white')" title="שייך ללבן"></div>
+    </div>
+  </div>
+
+</div><!-- /screen -->
+
+<script>
+let mirrored=false;
+function toggleMirror(){
+  mirrored=!mirrored;
+  document.getElementById('screen').classList.toggle('mirrored',mirrored);
+  document.getElementById('mirrorBtn').classList.toggle('on',mirrored);
+}
+// shido toggle demo
+document.querySelectorAll('.shido-sq').forEach(sq=>{
+  sq.addEventListener('click',()=>sq.classList.toggle('on'));
+});
+// demo clock toggle
+function toggleClock(el){el.style.color=el.style.color==='#e8c84a'?'#f0f0f0':'#e8c84a';}
+function toggleOsae(el){el.style.color=el.style.color==='#e8c84a'?'#3a3f50':'#e8c84a';}
+function selectOsae(side){
+  document.querySelector('.blue-sq').classList.toggle('sel',side==='blue');
+  document.querySelector('.white-sq').classList.toggle('sel',side==='white');
+}
+</script>
+</body>
+</html>

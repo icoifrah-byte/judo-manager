@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="he" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bracket — Judo Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0f13;--surface:#161820;--surface2:#1e2028;--border:#2a2d38;
+  --accent:#e8c84a;--red:#e84a4a;--green:#4ae89a;--purple:#9b59b6;
+  --text:#f0f0f0;--text2:#8a8fa0;--text3:#5a5f70;
+  --bc:#3a7bd5;--wc:#aaaaaa;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;display:flex;flex-direction:column;}
+.topbar{height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:10px;flex-shrink:0;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--accent);}
+.sep{width:1px;height:22px;background:var(--border);}
+.cname{font-size:14px;font-weight:700;}
+.cinfo{font-size:11px;color:var(--text2);}
+.sp{flex:1;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:6px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.bp{background:var(--accent);color:#000;}
+.bs{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.bsm{padding:4px 10px;font-size:11px;}
+.tabs{height:34px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:stretch;padding:0 18px;overflow-x:auto;flex-shrink:0;}
+.tab{padding:0 14px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;display:flex;align-items:center;transition:all .15s;}
+.tab:hover{color:var(--text);}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);}
+.ws{flex:1;overflow:auto;position:relative;}
+#ow{display:inline-block;transform-origin:top left;position:relative;}
+#sv{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
+/* slots */
+.slot{width:160px;height:28px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;gap:5px;padding:0 7px;font-size:11px;font-weight:500;}
+.slot:first-of-type{border-radius:4px 4px 0 0;border-bottom-color:var(--bg);}
+.slot:last-of-type{border-radius:0 0 4px 4px;}
+.slot.wn{background:rgba(232,200,74,.08);border-color:rgba(232,200,74,.45);}
+.slot.wn .sn{color:var(--accent);font-weight:700;}
+.slot.bye{opacity:.35;}
+.slot.emp{border-style:dashed;cursor:pointer;}
+.slot.emp:hover{border-color:var(--accent);background:rgba(232,200,74,.06);}
+.slot.drg{cursor:grab;}
+.slot.drg:hover{border-color:#4a9de8;}
+.slot.dov{border-color:var(--accent)!important;background:rgba(232,200,74,.12);}
+.sbar{width:3px;height:18px;border-radius:2px;flex-shrink:0;}
+.sn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sne{color:var(--text3);font-style:italic;font-size:10px;}
+.ssc{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--text2);min-width:24px;text-align:center;}
+.sscw{color:var(--accent);}
+.ssh{font-size:9px;color:var(--red);}
+/* match unit */
+.mu{position:absolute;}
+.mbg{position:absolute;top:-14px;left:0;font-size:9px;font-weight:700;color:var(--text3);white-space:nowrap;}
+.mbg.r{color:var(--purple);}
+.mbg.f{color:var(--accent);}
+.mact{position:absolute;top:50%;right:-24px;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;opacity:0;transition:opacity .15s;pointer-events:none;}
+.mu:hover .mact{opacity:1;pointer-events:all;}
+.abt{width:20px;height:20px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.abt:hover{color:var(--text);}
+.plbl{position:absolute;top:50%;right:-82px;transform:translateY(-50%);font-size:10px;font-weight:700;white-space:nowrap;pointer-events:none;}
+.sdot{position:absolute;bottom:2px;right:3px;font-size:8px;color:var(--accent);}
+.slbl{position:absolute;font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:2px;}
+/* legend */
+.lgnd{height:28px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 18px;flex-shrink:0;}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
+/* modals */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
+.ov.h{display:none;}
+.md{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;}
+.mdl{max-width:560px;}
+.mh{padding:16px 16px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.mt{font-size:15px;font-weight:700;}
+.mb{padding:0 16px 16px;}
+.mf{padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;}
+.fg label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;}
+.fc{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px 10px;color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;outline:none;width:100%;}
+.fc:focus{border-color:var(--accent);}
+.dv{height:1px;background:var(--border);margin:10px 0;}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sl{font-size:11px;font-weight:700;margin-bottom:6px;}
+.slb{color:var(--bc);}.slw{color:var(--wc);}
+.si{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;}
+.sw label{display:block;font-size:9px;color:var(--text2);text-align:center;margin-bottom:2px;}
+.sw input{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 2px;color:var(--text);text-align:center;font-family:'Bebas Neue',sans-serif;font-size:16px;width:100%;outline:none;}
+.sw input:focus{border-color:var(--accent);}
+.wr{display:flex;gap:6px;margin-top:8px;}
+.wb{flex:1;padding:7px;border-radius:5px;border:2px solid var(--border);background:transparent;color:var(--text2);font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .12s;}
+.wbb{border-color:var(--bc);background:rgba(58,123,213,.15);color:#6a9fe0;}
+.wbw{border-color:var(--wc);background:rgba(170,170,170,.12);color:var(--wc);}
+.wbn{border-color:var(--text2);color:var(--text);}
+.spr{font-size:11px;color:var(--green);text-align:center;min-height:16px;margin:4px 0;}
+.ar{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.aw{padding:8px 10px;border-radius:5px;font-size:11px;margin-bottom:8px;background:rgba(232,200,74,.1);border:1px solid rgba(232,200,74,.3);color:var(--accent);}
+.ro{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;margin-bottom:5px;transition:border-color .12s;}
+.ro.on{border-color:var(--accent);background:rgba(232,200,74,.05);}
+.spkr{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin-top:8px;}
+.spk{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;transition:all .12s;text-align:center;}
+.spk:hover{border-color:var(--accent);}
+.spk.oc{opacity:.4;cursor:not-allowed;pointer-events:none;}
+.spk.pk{border-color:var(--accent);background:rgba(232,200,74,.07);}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">JUDO</div><div class="sep"></div>
+  <div class="cname" id="tbn">—</div>
+  <div class="cinfo" id="tbi"></div>
+  <div class="sp"></div>
+  <div style="display:flex;gap:5px;align-items:center">
+    <button class="btn bs bsm" onclick="z(-1)">−</button>
+    <span id="zl" style="font-size:11px;color:var(--text2);min-width:34px;text-align:center">100%</span>
+    <button class="btn bs bsm" onclick="z(1)">+</button>
+    <button class="btn bs bsm" style="margin-left:5px" onclick="fit()">⊡</button>
+    <button class="btn bp bsm" onclick="location.href='index.html'">← ניהול</button>
+  </div>
+</div>
+<div class="tabs" id="tabs"></div>
+<div style="display:flex;flex:1;overflow:hidden;min-height:0;">
+  <div class="ws" id="ws" style="flex:1;overflow:auto;position:relative;">
+    <div id="ow"><svg id="sv"></svg><div id="br"></div></div>
+  </div>
+  <div id="rpanel" style="width:190px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:2px;color:rgba(232,200,74,.55);padding:10px 12px 8px;border-bottom:1px solid var(--border);">RESULTS</div>
+    <div id="rlist"></div>
+  </div>
+</div>
+<div class="lgnd">
+  <div class="li"><div style="width:8px;height:8px;border-radius:2px;background:var(--surface);border:1px solid var(--border)"></div>ממתין</div>
+  <div class="li"><div style="width:8px;height:8px;border-radius:2px;background:var(--green)"></div>הסתיים</div>
+  <div class="li"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#e8c84a" stroke-width="1.5"/></svg>זוכה</div>
+  <div class="li"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#9b59b6" stroke-width="1" stroke-dasharray="3 2"/></svg>ניחומים</div>
+  <div style="flex:1"></div>
+  <div style="font-size:10px;color:var(--text3)">סיבוב 1: גרור להחלפה · לחץ לעריכה</div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="ov h" id="eov">
+  <div class="md">
+    <div class="mh"><div class="mt" id="etit">עריכת קרב</div><button class="btn bs bsm" onclick="cE()">✕</button></div>
+    <div class="mb">
+      <div id="ewrn"></div>
+      <div class="sg">
+        <div><div class="sl slb" id="ebn">כחול</div>
+          <div class="si">
+            <div class="sw"><label>I</label><input type="number" id="bi" min="0" max="1" value="0" oninput="aW()"></div>
+            <div class="sw"><label>W</label><input type="number" id="bw" min="0" max="9" value="0" oninput="aW()"></div>
+            <div class="sw"><label>Y</label><input type="number" id="by" min="0" max="9" value="0" oninput="aW()"></div>
+            <div class="sw"><label>S</label><input type="number" id="bs" min="0" max="3" value="0" oninput="aW()"></div>
+          </div>
+        </div>
+        <div><div class="sl slw" id="ewn">לבן</div>
+          <div class="si">
+            <div class="sw"><label>I</label><input type="number" id="wi" min="0" max="1" value="0" oninput="aW()"></div>
+            <div class="sw"><label>W</label><input type="number" id="ww" min="0" max="9" value="0" oninput="aW()"></div>
+            <div class="sw"><label>Y</label><input type="number" id="wy" min="0" max="9" value="0" oninput="aW()"></div>
+            <div class="sw"><label>S</label><input type="number" id="ws" min="0" max="3" value="0" oninput="aW()"></div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:3px">I=Ippon · W=Waza-ari · Y=Yuko · S=Shido</div>
+      <div class="dv"></div>
+      <div class="fg"><label>זוכה</label>
+        <div class="wr">
+          <button class="wb" id="wbb" onclick="pW('blue')">כחול</button>
+          <button class="wb" id="wbn" onclick="pW('none')" style="border-color:var(--text3);color:var(--text3)">—</button>
+          <button class="wb" id="wbw" onclick="pW('white')">לבן</button>
+        </div>
+      </div>
+      <div class="spr" id="spr"></div>
+      <div class="dv"></div>
+      <div class="ar">
+        <button class="btn bs bsm" onclick="oSE()">⏸ השהה</button>
+        <button class="btn bsm" style="background:rgba(232,74,74,.12);color:var(--red);border:1px solid rgba(232,74,74,.25)" onclick="rM()">↺ אפס</button>
+        <button class="btn bsm" style="background:rgba(232,74,74,.12);color:var(--red);border:1px solid rgba(232,74,74,.25)" onclick="rmP()">🗑 הסר</button>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bs bsm" onclick="cE()">ביטול</button>
+      <button class="btn bp bsm" onclick="sE()">✓ שמור</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUSPEND MODAL -->
+<div class="ov h" id="sov">
+  <div class="md">
+    <div class="mh"><div class="mt">⏸ השהיית קרב</div><button class="btn bs bsm" onclick="document.getElementById('sov').classList.add('h')">✕</button></div>
+    <div class="mb">
+      <label class="ro on" id="ro1"><input type="radio" name="st" value="m" checked onchange="stC(this)"><div><b style="font-size:12px">אחרי X קרבות</b></div></label>
+      <label class="ro" id="ro2"><input type="radio" name="st" value="t" onchange="stC(this)"><div><b style="font-size:12px">אחרי X דקות</b></div></label>
+      <div id="smi" style="margin-top:8px"><div class="fg"><label>קרבות</label><input type="number" class="fc" id="sn" value="3" min="1"></div></div>
+      <div id="sti" style="display:none;margin-top:8px"><div class="fg"><label>דקות</label><input type="number" class="fc" id="sm" value="15" min="1"></div></div>
+    </div>
+    <div class="mf">
+      <button class="btn bs bsm" onclick="document.getElementById('sov').classList.add('h')">ביטול</button>
+      <button class="btn bp bsm" onclick="cS()">✓ השהה</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="ov h" id="aov">
+  <div class="md mdl">
+    <div class="mh"><div class="mt">➕ הוסף מתחרה — סיבוב 1 בלבד</div><button class="btn bs bsm" onclick="document.getElementById('aov').classList.add('h')">✕</button></div>
+    <div class="mb">
+      <div class="fg"><label>שם *</label><input type="text" class="fc" id="an" placeholder="שם מלא"></div>
+      <div class="fg"><label>מועדון</label><input type="text" class="fc" id="ac"></div>
+      <div class="dv"></div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">בחר מיקום פנוי:</div>
+      <div class="spkr" id="asp"></div>
+    </div>
+    <div class="mf">
+      <button class="btn bs bsm" onclick="document.getElementById('aov').classList.add('h')">ביטול</button>
+      <button class="btn bp bsm" onclick="cA()">✓ הוסף</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────
+const SW=160, SH=28, MH=SH*2+1;  // match height = 2 slots + 1px divider
+const CW=210;   // x distance between winner columns
+const VG=18;    // vertical gap between matches in same column
+const PX=48, PY=60; // canvas padding
+
+// ─────────────────────────────────────────────────
+// SEEDS (from spec)
+// ─────────────────────────────────────────────────
+const SEEDS={
+  4:[1,2,3,4],
+  8:[1,8,4,5,3,6,2,7],
+  16:[1,16,8,9,5,12,4,13,3,14,6,11,7,10,2,15],
+  32:[1,32,16,17,8,25,9,24,5,28,12,21,4,29,13,20,3,30,14,19,6,27,11,22,7,26,10,23,2,31,15,18],
+};
+function np2(n){return n<=4?4:n<=8?8:n<=16?16:32;}
+
+// Stage name for a winner column, counting back from final
+// nWCols=total winner columns. col=0 is first round, col=nWCols-1 is final.
+function wStage(col, nWCols){
+  const fromEnd = nWCols-1-col; // 0=final,1=semi,2=quarter,3=eighth,4=1/16
+  const names=['גמר','חצי גמר','רבע גמר','שמינית גמר','1/16'];
+  return names[fromEnd]||'קרב';
+}
+
+// ─────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────
+let CB=null, eMid=null, eW=null, sMid=null, aT=null, zoom=1, dSrc=null;
+
+// ─────────────────────────────────────────────────
+// BUILD BRACKET
+// ─────────────────────────────────────────────────
+function buildBracket(comps){
+  if(comps.length<2)return null;
+  if(comps.length<=3)return buildLeague(comps);
+  return buildKO(comps);
+}
+
+function buildLeague(comps){
+  let id=1; const ms=[];
+  const pairs=comps.length===2?[[0,1],[0,1]]:[[0,1],[1,2],[0,2]];
+  pairs.forEach(([a,b])=>ms.push(mk(id++,'ליגה','L',null,comps[a],comps[b])));
+  return{type:'league',size:comps.length,matches:ms,comps:[...comps]};
+}
+
+// mk: create a match object
+// type: 'W'=winners, 'F'=final, 'R'=repechage, 'L'=league
+// wcol: winner bracket column index (null for rep/league)
+function mk(id,stage,type,wcol,bC,wC){
+  const both=!!(bC&&wC), one=!both&&!!(bC||wC);
+  return{
+    id,stage,type,wcol,
+    bC:bC||null, wC:wC||null,
+    status:both?'pending':one?'bye':'empty',
+    wId:one?(bC?bC.id:wC.id):null, lId:null,
+    wComp:one?(bC||wC):null, lComp:null,
+    sc:{bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0},
+    wTo:null, lTo:null, place:null, susp:null,
+    x:0, y:0,
+  };
+}
+
+function buildKO(comps){
+  const sz=np2(comps.length);
+  const seeds=SEEDS[sz];
+  const slots=seeds.map(s=>comps[s-1]||null); // null = bye
+  // Number of winner columns: sz=4→2, sz=8→3, sz=16→4, sz=32→5
+  const nWC=Math.log2(sz)+1; // wait: sz=4 has matches in 2 cols(0,1). log2(4)=2. We want 2 cols total.
+  // Actually: nWC = log2(sz) because:
+  //   sz=4:  col0(2 matches), col1(final) → 2 cols → log2(4)=2 ✓
+  //   sz=8:  col0(4), col1(2), col2(final) → 3 cols → log2(8)=3 ✓
+  //   sz=16: col0(8), col1(4), col2(2), col3(final) → 4 cols → log2(16)=4 ✓
+  const nwc=Math.log2(sz);
+  let id=1; const ms=[];
+
+  // helper: make winner match
+  const W=(col,bC,wC)=>mk(id++,wStage(col,nwc),col===nwc-1?'F':'W',col,bC,wC);
+  // helper: make rep match
+  const R=(st)=>mk(id++,st,'R',null,null,null);
+  // helper: wire links onto a match
+  const lk=(m,wt,lt)=>{if(wt)m.wTo={id:wt[0],s:wt[1]};if(lt)m.lTo={id:lt[0],s:lt[1]};};
+  // helper: wire by id into ms array
+  const lki=(tid,wt,lt)=>{const m=ms.find(x=>x.id===tid);if(m)lk(m,wt,lt);};
+
+  if(sz===4){
+    // ── 4 players, 4 matches ──
+    // M1: s0 vs s1    M2: s2 vs s3
+    // M3: L1 vs L2    (ניחומים — מקום 3/4)
+    // M4: W1 vs W2    (גמר)
+    const [m1,m2,m3,m4]=[W(0,slots[0],slots[1]),W(0,slots[2],slots[3]),R('ניחומים'),W(1,null,null)];
+    lk(m1,[4,'blue'],[3,'blue']);
+    lk(m2,[4,'white'],[3,'white']);
+    m3.place='3rd'; m4.place='final';
+    ms.push(m1,m2,m3,m4);
+  }
+  else if(sz===8){
+    // ── 8 players, 11 matches ──
+    // col0: M1(s0vs1) M2(s2vs3) M3(s4vs5) M4(s6vs7)
+    // rep:  M5(L1vsL2)  M6(L3vsL4)
+    // col1: M7(W1vsW2)  M8(W3vsW4)
+    // rep:  M9(L8vsW5)  M10(W6vsL7)
+    // col2: M11 (final)
+    const [m1,m2,m3,m4]=[W(0,slots[0],slots[1]),W(0,slots[2],slots[3]),W(0,slots[4],slots[5]),W(0,slots[6],slots[7])];
+    const [m5,m6]=[R('ניחומים'),R('ניחומים')];
+    const [m7,m8]=[W(1,null,null),W(1,null,null)];
+    const [m9,m10]=[R('ניחומים'),R('ניחומים')];
+    const m11=W(2,null,null);
+    lk(m1,[7,'blue'], [5,'blue']);   // W1→M7b, L1→M5b
+    lk(m2,[7,'white'],[5,'white']);  // W2→M7w, L2→M5w
+    lk(m3,[8,'blue'], [6,'blue']);   // W3→M8b, L3→M6b
+    lk(m4,[8,'white'],[6,'white']);  // W4→M8w, L4→M6w
+    lk(m5,[9,'white'],null);         // W5→M9w
+    lk(m6,[10,'blue'],null);         // W6→M10b
+    lk(m7,[11,'blue'],[10,'white']); // W7→M11b, L7→M10w
+    lk(m8,[11,'white'],[9,'blue']);  // W8→M11w, L8→M9b
+    m9.place='3rd'; m10.place='3rd'; m11.place='final';
+    ms.push(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11);
+  }
+  else{ // sz===16
+    // ── 16 players, 27 matches — exact per spec ──
+    //
+    // WINNERS:
+    //   col0 M1-M8:  שמינית גמר
+    //   col1 M13-16: רבע גמר   (W1vsW2, W3vsW4, W5vsW6, W7vsW8)
+    //   col2 M21-22: חצי גמר   (W13vsW14, W15vsW16)
+    //   col3 M25:    גמר
+    //
+    // CONSOLATION (per spec table):
+    //   M9:  L1 vs L2   → winner → M20 white
+    //   M10: L3 vs L4   → winner → M19 white
+    //   M11: L5 vs L6   → winner → M18 white
+    //   M12: L7 vs L8   → winner → M17 white
+    //   M17: L16 vs W12 → winner → M23 blue
+    //   M18: L15 vs W11 → winner → M23 white
+    //   M19: L14 vs W10 → winner → M24 blue
+    //   M20: L13 vs W9  → winner → M24 white
+    //   M23: W17 vs W18 → winner → M26 white
+    //   M24: W19 vs W20 → winner → M27 blue
+    //   M26: L22 vs W23 → place 3rd
+    //   M27: W24 vs L21 → place 3rd
+
+    // col0: M1-M8
+    for(let i=0;i<8;i++) ms.push(W(0,slots[i*2]||null,slots[i*2+1]||null)); // ids 1-8
+
+    // early rep: M9-M12
+    ms.push(R('ניחומים')); // 9:  L1 vs L2
+    ms.push(R('ניחומים')); // 10: L3 vs L4
+    ms.push(R('ניחומים')); // 11: L5 vs L6
+    ms.push(R('ניחומים')); // 12: L7 vs L8
+
+    // col1: M13-M16
+    ms.push(W(1,null,null)); // 13: W1 vs W2
+    ms.push(W(1,null,null)); // 14: W3 vs W4
+    ms.push(W(1,null,null)); // 15: W5 vs W6
+    ms.push(W(1,null,null)); // 16: W7 vs W8
+
+    // mid rep: M17-M20
+    ms.push(R('ניחומים')); // 17: L16 vs W12
+    ms.push(R('ניחומים')); // 18: L15 vs W11
+    ms.push(R('ניחומים')); // 19: L14 vs W10
+    ms.push(R('ניחומים')); // 20: L13 vs W9
+
+    // col2: M21-M22
+    ms.push(W(2,null,null)); // 21: W13 vs W14
+    ms.push(W(2,null,null)); // 22: W15 vs W16
+
+    // late rep: M23-M24
+    ms.push(R('ניחומים')); // 23: W17 vs W18
+    ms.push(R('ניחומים')); // 24: W19 vs W20
+
+    // col3: M25
+    ms.push(W(3,null,null)); // 25: W21 vs W22 — גמר
+
+    // bronze: M26-M27
+    ms.push(R('מקום 3')); // 26: L22 vs W23
+    ms.push(R('מקום 3')); // 27: W24 vs L21
+
+    // ── WIRE WINNERS TREE ──
+    // col0 → col1 (winner) + early_rep (loser)
+    lki(1,[13,'blue'], [9,'blue']);    // W1→M13b, L1→M9b
+    lki(2,[13,'white'],[9,'white']);   // W2→M13w, L2→M9w
+    lki(3,[14,'blue'], [10,'blue']);   // W3→M14b, L3→M10b
+    lki(4,[14,'white'],[10,'white']);  // W4→M14w, L4→M10w
+    lki(5,[15,'blue'], [11,'blue']);   // W5→M15b, L5→M11b
+    lki(6,[15,'white'],[11,'white']);  // W6→M15w, L6→M11w
+    lki(7,[16,'blue'], [12,'blue']);   // W7→M16b, L7→M12b
+    lki(8,[16,'white'],[12,'white']);  // W8→M16w, L8→M12w
+
+    // col1 → col2 (winner) + mid_rep (loser)
+    // spec: M17=L16vsW12, M18=L15vsW11, M19=L14vsW10, M20=L13vsW9
+    // → L13→M20b,  L14→M19b,  L15→M18b,  L16→M17b
+    lki(13,[21,'blue'], [20,'blue']);   // W13→M21b, L13→M20b
+    lki(14,[21,'white'],[19,'blue']);   // W14→M21w, L14→M19b
+    lki(15,[22,'blue'], [18,'blue']);   // W15→M22b, L15→M18b
+    lki(16,[22,'white'],[17,'blue']);   // W16→M22w, L16→M17b
+
+    // early_rep → mid_rep (spec: W9→M20w, W10→M19w, W11→M18w, W12→M17w)
+    lki(9, [17,'white'],null);   // W9→M17w
+    lki(10,[18,'white'],null);   // W10→M18w
+    lki(11,[19,'white'],null);   // W11→M19w
+    lki(12,[20,'white'],null);   // W12→M20w
+
+    // mid_rep → late_rep
+    lki(17,[23,'blue'], null);   // W17→M23b
+    lki(18,[23,'white'],null);   // W18→M23w
+    lki(19,[24,'blue'], null);   // W19→M24b
+    lki(20,[24,'white'],null);   // W20→M24w
+
+    // col2 → final (winner) + bronze (loser)
+    // spec: M26=L22vsW23, M27=W24vsL21
+    lki(21,[25,'blue'], [27,'white']); // W21→M25b, L21→M27w
+    lki(22,[25,'white'],[26,'blue']);  // W22→M25w, L22→M26b
+
+    // late_rep → bronze
+    lki(23,[26,'white'],null);   // W23→M26w
+    lki(24,[27,'blue'], null);   // W24→M27b
+
+    ms[24].place='final'; ms[25].place='3rd'; ms[26].place='3rd';
+  }
+
+  ms.forEach(m=>{
+    // Only auto-advance true BYE slots (one side filled, other side has NO feeder at all)
+    if(m.status==='bye') prop(m,ms);
+    else if(m.status==='pending'||m.status==='empty') chk(m,ms);
+  });
+  return{type:'knockout',size:sz,matches:ms,comps:[...comps]};
+}
+
+// ─────────────────────────────────────────────────
+// LAYOUT — deterministic pixel positions
+//
+// WINNERS BRACKET:
+//   Column c gets x = PX + c*CW
+//   Col-0 matches: y = PY + i*(MH+VG)  where i = position in column
+//   Col-1+ matches: y = midpoint of the y-centers of their two col-0 feeders
+//
+// CONSOLATION BRACKET:
+//   Starts at y = (winners bottom) + REP_GAP
+//   For each rep match, we assign a logical "rep row":
+//     - Early rep (fed by col-0 losers): same row index as their feeders' midpoint in col-0
+//     - Later rep: midpoint of their two feeders in the consolation
+//   x = same column as the deepest (highest-x) feeder, so lines are always right-to-left
+// ─────────────────────────────────────────────────
+const REP_GAP=60;
+
+function layout(br){
+  if(!br)return;
+  if(br.type==='league'){
+    br.matches.forEach((m,i)=>{m.x=PX;m.y=PY+i*(MH+VG+4);});
+    return;
+  }
+  const ms=br.matches;
+  const wMs=ms.filter(m=>m.type==='W'||m.type==='F');
+  const rMs=ms.filter(m=>m.type==='R');
+
+  // ── STEP 1: Winner bracket positions ──
+  // Group by wcol, sorted
+  const byC={};
+  wMs.forEach(m=>{(byC[m.wcol]||(byC[m.wcol]=[])).push(m);});
+  const cols=Object.keys(byC).map(Number).sort((a,b)=>a-b);
+
+  // col 0: evenly spaced vertically
+  (byC[0]||[]).forEach((m,i)=>{
+    m.x=PX;
+    m.y=PY+i*(MH+VG);
+  });
+
+  // each subsequent col: x=colIdx*CW+PX, y=midpoint of the two matches that feed it
+  for(let ci=1;ci<cols.length;ci++){
+    const col=cols[ci];
+    (byC[col]||[]).forEach(m=>{
+      m.x=PX+ci*CW;
+      // feeders = matches whose wTo points to this match
+      const feeders=wMs.filter(f=>f.wTo?.id===m.id);
+      if(feeders.length===2){
+        // midpoint of the centers of the two feeder matches
+        m.y=(feeders[0].y+MH/2+feeders[1].y+MH/2)/2-MH/2;
+      } else if(feeders.length===1){
+        m.y=feeders[0].y;
+      } else {
+        m.y=PY;
+      }
+    });
+  }
+
+  if(rMs.length===0){br._repY=null;return;}
+
+  // ── STEP 2: Find winners bottom, set rep section start ──
+  const wBot=Math.max(...wMs.map(m=>m.y+MH));
+  br._repY=wBot+REP_GAP;
+  const RY0=br._repY+26; // actual y start for first rep match
+
+  // ── STEP 3: Consolation positions ──
+  // Strategy: assign y in two passes.
+  // Pass 1: for each rep match, compute y from its feeders' centers (iteratively).
+  // Pass 2: de-overlap matches at the same x.
+
+  // Init all rep at spread positions so the loop has starting values
+  rMs.forEach((m,i)=>{m.x=PX;m.y=RY0+i*(MH+VG);});
+
+  // 3 iterations to resolve positions
+  for(let pass=0;pass<3;pass++){
+    rMs.forEach(m=>{
+      // feeders = any match (winner or rep) that sends winner OR loser HERE
+      const feeders=ms.filter(f=>f.id!==m.id&&(f.wTo?.id===m.id||f.lTo?.id===m.id));
+      if(feeders.length===0)return;
+      // x = one column AFTER the deepest feeder
+      // (rep match result is always one step to the right of its inputs)
+      const maxFeedX=Math.max(...feeders.map(f=>f.x));
+      m.x=maxFeedX+CW;
+      if(feeders.length>=2){
+        const ys=feeders.map(f=>f.y+MH/2);
+        m.y=(Math.min(...ys)+Math.max(...ys))/2-MH/2;
+      } else {
+        m.y=feeders[0].y;
+      }
+      // Ensure rep matches don't float above rep section
+      if(m.y<RY0)m.y=RY0;
+    });
+  }
+
+  // De-overlap: at each x, sort by y, push apart any overlapping
+  const byX={};
+  rMs.forEach(m=>{const k=Math.round(m.x);(byX[k]||(byX[k]=[])).push(m);});
+  Object.values(byX).forEach(g=>{
+    g.sort((a,b)=>a.y-b.y);
+    for(let i=1;i<g.length;i++){
+      const need=g[i-1].y+MH+VG;
+      if(g[i].y<need)g[i].y=need;
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────
+function render(br){
+  CB=br; layout(br);
+  const root=document.getElementById('br');
+  const svg=document.getElementById('sv');
+  root.innerHTML=''; svg.innerHTML='';
+  if(!br){root.innerHTML='<div style="padding:60px;color:var(--text3)">בחר קטגוריה</div>';return;}
+
+  const ms=br.matches;
+  const maxX=Math.max(...ms.map(m=>m.x))+SW+110;
+  const maxY=Math.max(...ms.map(m=>m.y))+MH+60;
+  const ow=document.getElementById('ow');
+  ow.style.width=maxX+'px'; ow.style.height=maxY+'px';
+  svg.setAttribute('width',maxX); svg.setAttribute('height',maxY);
+
+  // Section labels + divider
+  if(br.type==='knockout'){
+    addLbl(root,'WINNERS BRACKET',PX,8,'rgba(232,200,74,.5)');
+    if(br._repY){
+      addLbl(root,'CONSOLATION BRACKET',PX,br._repY,'rgba(155,89,182,.55)');
+      const d=document.createElement('div');
+      d.style.cssText=`position:absolute;top:${br._repY-7}px;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(155,89,182,.2),transparent)`;
+      root.appendChild(d);
+    }
+  }
+
+  // Draw SVG connectors (behind cards)
+  ms.forEach(m=>drawLine(m,ms,svg));
+  // Draw match cards
+  ms.forEach(m=>root.appendChild(card(m,br)));
+
+  // Update topbar
+  const done=ms.filter(m=>m.status==='done').length;
+  const tot=ms.filter(m=>m.status!=='bye'&&m.status!=='empty').length;
+  document.getElementById('tbn').textContent=br.catName||'—';
+  document.getElementById('tbi').textContent=`${br.comps.length} מתחרים · ${done}/${tot} קרבות`;
+  renderResults(br);
+}
+
+function renderResults(br){
+  const el=document.getElementById('rlist');
+  if(!el)return;
+  if(!br){el.innerHTML='';return;}
+  const ms=br.matches;
+
+  // Determine place for each competitor
+  const places=[];
+
+  // 1st & 2nd: from final match
+  const fin=ms.find(m=>m.place==='final');
+  if(fin&&fin.status==='done'){
+    const w=fin.wComp, l=fin.lComp||ms.find(x=>x.id===fin.id)?.lComp;
+    const lC=fin.lComp||(fin.lId?(fin.lId===fin.bC?.id?fin.bC:fin.wC):null);
+    if(w) places.push({place:1,comp:w});
+    if(lC) places.push({place:2,comp:lC});
+  }
+
+  // League: sort by wins
+  if(br.type==='league'){
+    const scores={};
+    br.comps.forEach(c=>scores[c.id]={comp:c,pts:0,wins:0});
+    ms.forEach(m=>{
+      if(m.status!=='done')return;
+      if(m.wComp) scores[m.wComp.id].pts+=2;
+      if(m.lComp) scores[m.lComp.id].pts+=0;
+    });
+    const sorted=Object.values(scores).sort((a,b)=>b.pts-a.pts);
+    sorted.forEach((s,i)=>places.push({place:i+1,comp:s.comp,pts:s.pts}));
+    el.innerHTML=sorted.map((s,i)=>`
+      <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+        <div style="width:18px;height:18px;border-radius:50%;${placeStyle(i+1)};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+        <div style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.comp.name}</div>
+        <div style="font-size:10px;color:var(--text2)">${s.pts}pt</div>
+      </div>`).join('');
+    return;
+  }
+
+  // Knockout: collect places from match results
+  // 3rd place: winners of matches with place='3rd'
+  const bronzeMs=ms.filter(m=>m.place==='3rd');
+  bronzeMs.forEach(m=>{
+    if(m.status==='done'&&m.wComp) places.push({place:3,comp:m.wComp});
+    if(m.status==='done'&&m.lComp) places.push({place:5,comp:m.lComp});
+  });
+  // Semi losers who haven't been placed: place 5 (if only 1 bronze match) or already handled
+  // All others still in it
+  const placed=new Set(places.map(p=>p.comp?.id));
+  const stillIn=ms.filter(m=>m.status==='pending'&&(m.bC||m.wC));
+
+  // Eliminate: anyone whose match is done and wasn't the winner and isn't in repechage
+  // i.e. lost in repechage (lTo===null and not 3rd place winner)
+  ms.filter(m=>m.status==='done'&&m.type==='R'&&!m.place).forEach(m=>{
+    if(m.lComp&&!placed.has(m.lComp.id)) places.push({place:7,comp:m.lComp});
+  });
+
+  // Sort and deduplicate
+  const seen=new Set();
+  const sorted=places
+    .filter(p=>{if(!p.comp||seen.has(p.comp.id))return false;seen.add(p.comp.id);return true;})
+    .sort((a,b)=>a.place-b.place);
+
+  if(sorted.length===0){
+    el.innerHTML='<div style="padding:16px 12px;font-size:11px;color:var(--text3);text-align:center">תוצאות יופיעו כאן</div>';
+    return;
+  }
+  el.innerHTML=sorted.map(p=>`
+    <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+      <div style="width:18px;height:18px;border-radius:50%;${placeStyle(p.place)};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.place}</div>
+      <div style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.comp.name}</div>
+    </div>`).join('');
+}
+function placeStyle(p){
+  if(p===1)return 'background:rgba(245,197,24,.2);color:#f5c518';
+  if(p===2)return 'background:rgba(160,160,160,.2);color:#c0c0c0';
+  if(p===3)return 'background:rgba(176,100,44,.2);color:#c07840';
+  return 'background:var(--surface2);color:var(--text3)';
+}
+
+function addLbl(root,txt,x,y,color){
+  const el=document.createElement('div');
+  el.className='slbl';
+  el.style.cssText=`left:${x}px;top:${y}px;color:${color}`;
+  el.textContent=txt;
+  root.appendChild(el);
+}
+
+// ── L-shaped SVG connector ──
+// Goes: right-center of from-match → midX → target y → left of to-match
+function drawLine(m,ms,svg){
+  const draw=(x1,y1,x2,y2,color,dashed)=>{
+    const mx=(x1+x2)/2;
+    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d',`M${x1} ${y1} H${mx} V${y2} H${x2}`);
+    p.setAttribute('fill','none'); p.setAttribute('stroke',color);
+    p.setAttribute('stroke-width',dashed?'1':'1.5');
+    if(dashed)p.setAttribute('stroke-dasharray','4 3');
+    p.setAttribute('opacity','0.42');
+    svg.appendChild(p);
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',x1);c.setAttribute('cy',y1);
+    c.setAttribute('r','2.5');c.setAttribute('fill',color);c.setAttribute('opacity','0.5');
+    svg.appendChild(c);
+  };
+  if(m.wTo){
+    const t=ms.find(x=>x.id===m.wTo.id);
+    if(t) draw(m.x+SW, m.y+MH/2, t.x, t.y+(m.wTo.s==='blue'?SH/2:SH+1+SH/2), '#e8c84a', false);
+  }
+  if(m.lTo){
+    const t=ms.find(x=>x.id===m.lTo.id);
+    if(t) draw(m.x+SW, m.y+MH/2, t.x, t.y+(m.lTo.s==='blue'?SH/2:SH+1+SH/2), '#9b59b6', true);
+  }
+}
+
+// ── Match card DOM element ──
+function card(m,br){
+  const isR1=m.wcol===0&&m.type==='W';
+  const bWin=m.wId&&m.wId===m.bC?.id;
+  const wWin=m.wId&&m.wId===m.wC?.id;
+  const done=m.status==='done';
+
+  const div=document.createElement('div');
+  div.className='mu';
+  div.style.cssText=`left:${m.x}px;top:${m.y}px;width:${SW}px;cursor:pointer;`;
+
+  div.innerHTML=`
+    <div class="mbg${m.type==='R'?' r':''}${m.place==='final'?' f':''}">#${m.id} ${m.stage}</div>
+    ${srow(m,'blue', isR1,bWin,done?`${m.sc.bI}${m.sc.bW}${m.sc.bY}`:'',m.sc?.bS)}
+    <div style="height:1px;background:var(--bg)"></div>
+    ${srow(m,'white',isR1,wWin,done?`${m.sc.wI}${m.sc.wW}${m.sc.wY}`:'',m.sc?.wS)}
+    ${m.place==='final'?'<div class="plbl" style="color:var(--accent)">🥇 אלוף</div>':''}
+    ${m.place==='3rd'?'<div class="plbl" style="color:#c07840">🥉 מקום 3</div>':''}
+    <div class="mact">
+      <div class="abt" onclick="event.stopPropagation();oE(${m.id})">✏</div>
+      <div class="abt" onclick="event.stopPropagation();oS(${m.id})">⏸</div>
+    </div>
+    ${m.susp?'<div class="sdot">⏸</div>':''}
+  `;
+  div.addEventListener('click',()=>oE(m.id));
+
+  if(isR1){
+    div.querySelectorAll('.slot.drg').forEach(sl=>{
+      const s=sl.dataset.s;
+      sl.addEventListener('dragstart',e=>{dSrc={mid:m.id,s};e.dataTransfer.effectAllowed='move';sl.style.opacity='.4';});
+      sl.addEventListener('dragend',()=>sl.style.opacity='');
+      sl.addEventListener('dragover',e=>{e.preventDefault();sl.classList.add('dov');});
+      sl.addEventListener('dragleave',()=>sl.classList.remove('dov'));
+      sl.addEventListener('drop',e=>{
+        e.preventDefault();sl.classList.remove('dov');
+        if(dSrc&&!(dSrc.mid===m.id&&dSrc.s===s))swap(dSrc,{mid:m.id,s});
+        dSrc=null;
+      });
+    });
+  }
+  return div;
+}
+
+function srow(m,side,r1,win,sc,shido){
+  const c=side==='blue'?m.bC:m.wC;
+  let cls='slot'+(win?' wn':'')+(m.status==='bye'&&!c?' bye':'')+((!c&&r1)?' emp':'')+(c&&r1?' drg':'');
+  const bar=side==='blue'?'background:var(--wc)':'background:var(--bc)';
+  const nm=c?`<span class="sn">${c.name}</span>`
+    :(r1?`<span class="sn sne" onclick="event.stopPropagation();oA(${m.id},'${side}')">+ הוסף</span>`
+        :`<span class="sn sne">—</span>`);
+  return `<div class="${cls}" data-s="${side}" draggable="${!!(c&&r1)}">
+    <div class="sbar" style="${bar}"></div>${nm}
+    ${sc!==undefined&&sc!==''?`<span class="ssc${win?' sscw':''}">${sc}</span>`:''}
+    ${shido?`<span class="ssh">×${shido}</span>`:''}
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────
+// DRAG SWAP (R1 only)
+// ─────────────────────────────────────────────────
+function swap(src,dst){
+  if(!CB)return;
+  const sm=CB.matches.find(x=>x.id===src.mid), dm=CB.matches.find(x=>x.id===dst.mid);
+  if(!sm||!dm)return;
+  const sk=src.s==='blue'?'bC':'wC', dk=dst.s==='blue'?'bC':'wC';
+  // Clear any bye-propagation from old state before swapping
+  [sm,dm].forEach(m=>{
+    if(m.status==='bye'&&m.wId){
+      if(m.wTo)clrD(m.wTo.id,m.wId,CB.matches);
+      if(m.lTo)clrD(m.lTo.id,m.lId,CB.matches);
+    }
+    m.wId=null;m.wComp=null;m.lId=null;m.lComp=null;m.status='empty';
+  });
+  [sm[sk],dm[dk]]=[dm[dk],sm[sk]];
+  // Re-evaluate each match with new comp assignments
+  [sm,dm].forEach(m=>{
+    if(m.bC&&m.wC){m.status='pending';m.wId=null;}
+    else{m.status='empty';m.wId=null;}
+    chk(m,CB.matches);
+  });
+  render(CB);
+}
+
+// ─────────────────────────────────────────────────
+// ADD COMPETITOR
+// ─────────────────────────────────────────────────
+function oA(mid,side){
+  aT={mid,side};
+  const r1=CB.matches.filter(m=>m.wcol===0&&m.type==='W');
+  document.getElementById('asp').innerHTML=r1.flatMap(m=>
+    ['blue','white'].map(s=>{
+      const c=s==='blue'?m.bC:m.wC, cur=m.id===mid&&s===side;
+      return `<div class="spk${c?' oc':''}${cur?' pk':''}" onclick="pA(this,${m.id},'${s}')">
+        <div style="font-size:9px;color:var(--text3)">#${m.id} ${s==='blue'?'כחול':'לבן'}</div>
+        <div style="font-size:11px;font-weight:600">${c?c.name:'פנוי'}</div>
+      </div>`;
+    })
+  ).join('');
+  document.getElementById('aov').classList.remove('h');
+}
+function pA(el,mid,side){
+  if(el.classList.contains('oc'))return;
+  aT={mid,side};
+  document.querySelectorAll('.spk').forEach(e=>e.classList.remove('pk'));
+  el.classList.add('pk');
+}
+function cA(){
+  const name=document.getElementById('an').value.trim();
+  if(!name||!aT){alert('נדרש שם ומיקום');return;}
+  const m=CB.matches.find(x=>x.id===aT.mid); if(!m)return;
+  const c={id:Date.now(),name,club:document.getElementById('ac').value.trim()};
+  CB.comps.push(c);
+  if(aT.side==='blue')m.bC=c; else m.wC=c;
+  if(m.bC&&m.wC){m.status='pending';m.wId=null;}
+  else{m.status='bye';m.wId=c.id;m.wComp=c;prop(m,CB.matches);}
+  document.getElementById('aov').classList.add('h');
+  document.getElementById('an').value='';document.getElementById('ac').value='';
+  render(CB); toast('✓ '+name);
+}
+
+// ─────────────────────────────────────────────────
+// PROPAGATION
+// ─────────────────────────────────────────────────
+function prop(m,ms){
+  if(!m.wId)return;
+  const wC=m.wComp||(m.wId===m.bC?.id?m.bC:m.wC);
+  const lC=m.lComp||(m.lId?(m.lId===m.bC?.id?m.bC:m.wC):null);
+  if(m.wTo&&wC){const nx=ms.find(x=>x.id===m.wTo.id);if(nx){if(m.wTo.s==='blue')nx.bC=wC;else nx.wC=wC;chk(nx,ms);}}
+  if(m.lTo&&lC){const nx=ms.find(x=>x.id===m.lTo.id);if(nx){if(m.lTo.s==='blue')nx.bC=lC;else nx.wC=lC;chk(nx,ms);}}
+}
+
+// A slot is a "true bye" (will never be filled) if no other match feeds into it.
+// If a match has a feeder that could fill the empty slot, we wait — don't auto-advance.
+function hasFeed(m, side, ms){
+  // Is there any match that sends its winner or loser to (m, side)?
+  return ms.some(f=>
+    f.id!==m.id && (
+      (f.wTo?.id===m.id && f.wTo.s===side) ||
+      (f.lTo?.id===m.id && f.lTo.s===side)
+    )
+  );
+}
+
+function chk(m,ms){
+  if(m.bC&&m.wC){
+    // Both slots filled — if was bye, reset to pending
+    if(m.status==='bye'){m.status='pending';m.wId=null;m.wComp=null;m.lId=null;m.lComp=null;}
+    return;
+  }
+  if(m.bC&&!m.wC){
+    // Blue filled, white empty — only auto-advance if white will NEVER be filled
+    if(!hasFeed(m,'white',ms)){m.status='bye';m.wId=m.bC.id;m.wComp=m.bC;m.lId=null;prop(m,ms);}
+    // else: wait for white feeder
+    return;
+  }
+  if(!m.bC&&m.wC){
+    // White filled, blue empty — only auto-advance if blue will NEVER be filled
+    if(!hasFeed(m,'blue',ms)){m.status='bye';m.wId=m.wC.id;m.wComp=m.wC;m.lId=null;prop(m,ms);}
+    // else: wait for blue feeder
+    return;
+  }
+}
+
+// ─────────────────────────────────────────────────
+// EDIT MATCH
+// ─────────────────────────────────────────────────
+function oE(mid){
+  if(!CB)return;
+  const m=CB.matches.find(x=>x.id===mid); if(!m)return;
+  eMid=mid; eW=m.wId?(m.wId===m.bC?.id?'blue':'white'):null;
+  document.getElementById('etit').textContent=`קרב #${mid} — ${m.stage}`;
+  document.getElementById('ebn').textContent=m.bC?.name||'כחול';
+  document.getElementById('ewn').textContent=m.wC?.name||'לבן';
+  const sc=m.sc||{};
+  ['i','w','y','s'].forEach(k=>{
+    document.getElementById('b'+k).value=sc['b'+k.toUpperCase()]||0;
+    document.getElementById('w'+k).value=sc['w'+k.toUpperCase()]||0;
+  });
+  document.getElementById('ewrn').innerHTML=(!m.bC||!m.wC)?'<div class="aw">⚠ קרב ממתין למתחרים</div>':'';
+  pW(eW||'none');
+  document.getElementById('spr').textContent='';
+  document.getElementById('eov').classList.remove('h');
+}
+function pW(s){
+  eW=s==='none'?null:s;
+  document.getElementById('wbb').className='wb'+(s==='blue'?' wbb':'');
+  document.getElementById('wbw').className='wb'+(s==='white'?' wbw':'');
+  document.getElementById('wbn').className='wb'+(s==='none'?' wbn':'');
+  document.getElementById('wbn').style.cssText=s==='none'?'border-color:var(--text2);color:var(--text)':'border-color:var(--text3);color:var(--text3)';
+}
+function aW(){
+  const v=k=>+document.getElementById(k).value;
+  const bI=v('bi'),bW=v('bw'),bY=v('by'),bS=v('bs'),wI=v('wi'),wW=v('ww'),wY=v('wy'),wS=v('ws');
+  let aw=null;
+  if(bI||bW>=2||wS>=3)aw='blue';
+  else if(wI||wW>=2||bS>=3)aw='white';
+  else if(bW!==wW)aw=bW>wW?'blue':'white';
+  else if(bY!==wY)aw=bY>wY?'blue':'white';
+  if(aw){pW(aw);const m=CB?.matches.find(x=>x.id===eMid);document.getElementById('spr').textContent='זוכה: '+(aw==='blue'?m?.bC?.name:m?.wC?.name);}
+  else document.getElementById('spr').textContent='';
+}
+function sE(){
+  if(!CB||eMid===null)return;
+  const m=CB.matches.find(x=>x.id===eMid); if(!m)return;
+  const ow=m.wId, ol=m.lId;
+  m.sc={bI:+document.getElementById('bi').value,bW:+document.getElementById('bw').value,
+        bY:+document.getElementById('by').value,bS:+document.getElementById('bs').value,
+        wI:+document.getElementById('wi').value,wW:+document.getElementById('ww').value,
+        wY:+document.getElementById('wy').value,wS:+document.getElementById('ws').value};
+  if(eW){
+    const wC=eW==='blue'?m.bC:m.wC, lC=eW==='blue'?m.wC:m.bC;
+    m.wId=wC?.id||null; m.wComp=wC; m.lId=lC?.id||null; m.lComp=lC; m.status='done';
+    if(ow!==m.wId){if(m.wTo)clrD(m.wTo.id,ow,CB.matches);if(m.lTo)clrD(m.lTo.id,ol,CB.matches);}
+    prop(m,CB.matches);
+  }else{m.wId=null;m.lId=null;m.status='pending';}
+  cE(); render(CB);
+}
+function rM(){
+  if(!confirm('לאפס קרב?'))return;
+  const m=CB?.matches.find(x=>x.id===eMid); if(!m)return;
+  const ow=m.wId,ol=m.lId;
+  m.status='pending';m.wId=null;m.lId=null;m.sc={bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0};
+  if(m.wTo)clrD(m.wTo.id,ow,CB.matches);if(m.lTo)clrD(m.lTo.id,ol,CB.matches);
+  cE();render(CB);toast('קרב אופס');
+}
+function rmP(){
+  const m=CB?.matches.find(x=>x.id===eMid); if(!m)return;
+  const side=eW||'blue', rem=side==='blue'?m.bC:m.wC, stay=side==='blue'?m.wC:m.bC;
+  if(!rem){alert('אין מתחרה');return;}
+  if(!confirm('להסיר '+rem.name+'?'))return;
+  if(m.wTo)clrD(m.wTo.id,rem.id,CB.matches);if(m.lTo)clrD(m.lTo.id,rem.id,CB.matches);
+  if(side==='blue')m.bC=null;else m.wC=null;
+  m.status='bye';m.wId=stay?.id||null;m.wComp=stay;m.lId=null;
+  prop(m,CB.matches);cE();render(CB);toast(rem.name+' הוסר');
+}
+function cE(){document.getElementById('eov').classList.add('h');eMid=null;eW=null;}
+function clrD(mid,pid,ms){
+  if(!mid||!pid)return;
+  const m=ms.find(x=>x.id===mid);if(!m)return;
+  if(m.bC?.id===pid)m.bC=null;if(m.wC?.id===pid)m.wC=null;
+  if(m.wId===pid){const ow=m.wId,ol=m.lId;m.wId=null;m.lId=null;m.status='pending';
+    if(m.wTo)clrD(m.wTo.id,ow,ms);if(m.lTo)clrD(m.lTo.id,ol,ms);}
+}
+
+// ─────────────────────────────────────────────────
+// SUSPEND
+// ─────────────────────────────────────────────────
+function oS(mid){sMid=mid;document.getElementById('sov').classList.remove('h');}
+function oSE(){sMid=eMid;document.getElementById('sov').classList.remove('h');}
+function stC(el){
+  document.getElementById('smi').style.display=el.value==='m'?'block':'none';
+  document.getElementById('sti').style.display=el.value==='t'?'block':'none';
+  document.querySelectorAll('.ro').forEach(o=>o.classList.remove('on'));
+  el.closest('.ro').classList.add('on');
+}
+function cS(){
+  if(!CB||!sMid)return;
+  const m=CB.matches.find(x=>x.id===sMid);if(!m)return;
+  const type=document.querySelector('input[name="st"]:checked').value;
+  m.susp={type,n:+(type==='m'?document.getElementById('sn').value:document.getElementById('sm').value)};
+  document.getElementById('sov').classList.add('h');render(CB);toast('קרב #'+m.id+' הושהה');
+}
+
+// ─────────────────────────────────────────────────
+// ZOOM
+// ─────────────────────────────────────────────────
+function z(d){zoom=Math.min(2,Math.max(.3,+(zoom+d*.1).toFixed(1)));document.getElementById('ow').style.transform=`scale(${zoom})`;document.getElementById('zl').textContent=Math.round(zoom*100)+'%';}
+function fit(){
+  const ws=document.getElementById('ws'), ms=CB?.matches||[];if(!ms.length)return;
+  const mxX=Math.max(...ms.map(m=>m.x))+SW+110, mxY=Math.max(...ms.map(m=>m.y))+MH+60;
+  zoom=Math.min(ws.clientWidth/mxX,ws.clientHeight/mxY,1)*.88;
+  document.getElementById('ow').style.transform=`scale(${zoom})`;
+  document.getElementById('zl').textContent=Math.round(zoom*100)+'%';
+}
+function toast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:36px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;font-size:12px;color:var(--green);z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.5)';
+  t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+// ─────────────────────────────────────────────────
+// DEMO
+// ─────────────────────────────────────────────────
+const DEMOS=[
+  {name:'8 מתחרים', n:['דן כהן','אמיר לוי','יוסי מזרחי','תומר גרין','נועם ברק','עידן שפי','רון טל','בן מור']},
+  {name:'6 מתחרים', n:['אורי פלד','שי ברנע','לירון כץ','מתן הלוי','עמית גל','ניר שם-טוב']},
+  {name:'4 מתחרים', n:['אלון שוורץ','ידידיה בר','ליאור טל','שמעון כץ']},
+  {name:'16 מתחרים',n:['א1','א2','א3','א4','א5','א6','א7','א8','א9','א10','א11','א12','א13','א14','א15','א16']},
+];
+
+// Cache: one bracket object per category index, built once and preserved
+const bracketCache={};
+
+function init(){
+  const tabs=document.getElementById('tabs');
+  tabs.innerHTML=DEMOS.map((d,i)=>`<div class="tab${i===0?' on':''}" onclick="ld(${i},this)">${d.name}</div>`).join('');
+  ld(0,tabs.querySelector('.tab'));
+}
+
+function ld(i,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+
+  // Build bracket only if not already cached
+  if(!bracketCache[i]){
+    const d=DEMOS[i];
+    const comps=d.n.map((n,j)=>({id:i*100+j+1,name:n,club:'מועדון'}));
+    const br=buildBracket(comps);
+    br.catName=d.name;
+    bracketCache[i]=br;
+  }
+
+  render(bracketCache[i]);
+  setTimeout(fit,60);
+}
+
+init();
+</script>
+</body>
+</html>

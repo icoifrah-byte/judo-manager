@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>שליטה — Judo Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0b0f;--surface:#111318;--surface2:#191c24;--border:#1e2130;
+  --acc:#e8c84a;--red:#e84a4a;--grn:#4ae89a;--pur:#9b59b6;
+  --txt:#f0f0f0;--txt2:#8a8fa0;--txt3:#3a3f50;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* HEADER */
+.header{flex-shrink:0;height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:12px;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--acc);}
+.h-title{font-size:14px;font-weight:700;flex:1;}
+.h-sub{font-size:11px;color:var(--txt2);}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:6px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.btn-primary{background:var(--acc);color:#000;}
+.btn-secondary{background:var(--surface2);color:var(--txt);border:1px solid var(--border);}
+.btn-secondary:hover{border-color:var(--txt2);}
+.btn-sm{padding:4px 9px;font-size:11px;}
+.btn-icon{padding:4px 7px;font-size:12px;}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:18px;}
+
+/* TATAMI COLUMNS */
+.tatami-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;align-items:start;}
+
+/* TATAMI CARD */
+.tatami-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:visible;}
+.tc-header{padding:9px 14px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;border-radius:12px 12px 0 0;}
+.tc-num{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--txt2);}
+.tc-count{font-size:10px;color:var(--txt3);flex:1;}
+.tc-header-btns{display:flex;gap:4px;}
+
+/* MATCH ROWS */
+.match-row{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;position:relative;transition:background .15s;}
+.match-row:last-child{border-bottom:none;}
+.match-row:hover{background:rgba(255,255,255,.02);}
+
+/* row type colors */
+.row-win{background:rgba(74,232,154,.05);}
+.row-live{background:rgba(232,200,74,.05);}
+.row-susp{background:rgba(155,89,182,.05);}
+.row-late{background:rgba(232,200,74,.04);border-right:2px solid rgba(232,200,74,.4);}
+
+/* dot indicators */
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-win{background:var(--grn);}
+.dot-live{background:var(--acc);animation:blink .8s infinite;}
+.dot-up{background:var(--border);}
+.dot-susp{background:var(--pur);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.15;}}
+
+/* row number */
+.rnum{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--txt3);min-width:16px;text-align:center;flex-shrink:0;}
+
+/* match info */
+.minfo{flex:1;min-width:0;}
+.mnames{font-size:12px;font-weight:600;display:flex;align-items:center;flex-wrap:wrap;gap:3px;}
+.nm-blue{color:#6a9fe0;}.nm-white{color:var(--txt2);}.nm-vs{color:var(--txt3);font-size:10px;}
+.nm-unknown{color:var(--txt3);font-size:11px;font-style:italic;}
+.mmeta{font-size:10px;color:var(--txt3);margin-top:1px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+
+/* badges */
+.badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;white-space:nowrap;}
+.badge-W{background:rgba(232,200,74,.12);color:var(--acc);}
+.badge-R{background:rgba(155,89,182,.12);color:#b07fda;}
+.badge-F{background:rgba(232,74,74,.15);color:#ff8080;}
+.badge-live{background:rgba(232,200,74,.2);color:var(--acc);}
+.badge-susp{background:rgba(155,89,182,.2);color:#b07fda;}
+.badge-late{background:rgba(232,200,74,.15);color:var(--acc);}
+.badge-win{background:rgba(74,232,154,.12);color:var(--grn);}
+
+/* ACTION BUTTONS (appear on hover) */
+.row-actions{display:flex;gap:3px;flex-shrink:0;}
+.act{width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--txt2);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.act:hover{color:var(--txt);border-color:var(--txt2);}
+.act.danger:hover{color:var(--red);border-color:rgba(232,74,74,.4);}
+.act.warn:hover{color:var(--acc);border-color:rgba(232,200,74,.4);}
+.act.purple:hover{color:#b07fda;border-color:rgba(155,89,182,.4);}
+
+/* MODALS */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.ov.h{display:none;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;}
+.mh{padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.mt{font-size:15px;font-weight:700;}
+.mb{padding:0 16px 16px;}
+.mf{padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.fg label{font-size:10px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.4px;}
+.fc{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px 10px;color:var(--txt);font-family:'Heebo',sans-serif;font-size:13px;outline:none;width:100%;}
+.fc:focus{border-color:var(--acc);}
+.dv{height:1px;background:var(--border);margin:10px 0;}
+.ro{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;margin-bottom:5px;transition:border-color .12s;}
+.ro.on{border-color:var(--acc);background:rgba(232,200,74,.05);}
+.ro input{accent-color:var(--acc);}
+
+/* suspended countdown badge */
+.susp-countdown{font-size:9px;font-weight:700;color:#b07fda;}
+
+/* empty tatami */
+.tc-idle{padding:16px 14px;text-align:center;font-size:11px;color:var(--txt3);}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">JUDO</div>
+  <div class="h-title" id="h-title">שליטה בתחרות</div>
+  <div style="flex:1"></div>
+  <button class="btn btn-secondary btn-sm" onclick="location.href='index.html'">← ניהול</button>
+</div>
+
+<div class="content">
+  <div class="tatami-grid" id="tatami-grid"></div>
+</div>
+
+<!-- MODAL: MOVE MATCH -->
+<div class="ov h" id="move-ov">
+  <div class="modal">
+    <div class="mh"><div class="mt">↔ העבר קרב למזרן אחר</div><button class="btn btn-secondary btn-sm" onclick="closeModal('move-ov')">✕</button></div>
+    <div class="mb">
+      <div id="move-match-info" style="background:var(--surface2);border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:14px;color:var(--txt2);"></div>
+      <div class="fg"><label>מזרן יעד</label>
+        <select class="fc" id="move-tatami">
+          <option value="1">מזרן 1</option>
+          <option value="2">מזרן 2</option>
+          <option value="3">מזרן 3</option>
+        </select>
+      </div>
+      <div class="fg"><label>מיקום בתור (1 = ראשון)</label>
+        <input type="number" class="fc" id="move-pos" value="1" min="1">
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('move-ov')">ביטול</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmMove()">✓ העבר</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SUSPEND MATCH -->
+<div class="ov h" id="susp-ov">
+  <div class="modal">
+    <div class="mh"><div class="mt">⏸ השהיית קרב</div><button class="btn btn-secondary btn-sm" onclick="closeModal('susp-ov')">✕</button></div>
+    <div class="mb">
+      <div id="susp-match-info" style="background:var(--surface2);border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:14px;color:var(--txt2);"></div>
+      <label class="ro on" id="so-matches">
+        <input type="radio" name="stype" value="matches" checked onchange="stChange(this)">
+        <div><div style="font-weight:600;font-size:12px">לאחר X קרבות</div><div style="font-size:10px;color:var(--txt2)">הקרב יחזור לתור אחרי כמות קרבות מוגדרת</div></div>
+      </label>
+      <label class="ro" id="so-time">
+        <input type="radio" name="stype" value="time" onchange="stChange(this)">
+        <div><div style="font-weight:600;font-size:12px">לאחר X דקות</div><div style="font-size:10px;color:var(--txt2)">הקרב יחזור לתור אחרי זמן (טיימר ברקע)</div></div>
+      </label>
+      <div id="susp-m-wrap" style="margin-top:10px;">
+        <div class="fg"><label>מספר קרבות</label><input type="number" class="fc" id="susp-n" value="3" min="1" max="50"></div>
+      </div>
+      <div id="susp-t-wrap" style="display:none;margin-top:10px;">
+        <div class="fg"><label>דקות</label><input type="number" class="fc" id="susp-mins" value="15" min="1" max="180"></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('susp-ov')">ביטול</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmSuspend()">⏸ השהה</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+// STAGE LABELS
+// ═══════════════════════════════════
+const SL={
+  eighth:'שמינית גמר', quarter:'רבע גמר', semi:'חצי גמר', final:'גמר', league:'ליגה',
+  rep_eighth:'שמינית ניחומים', rep_quarter:'רבע ניחומים',
+  rep_semi:'חצי ניחומים', rep_bronze:'מקום 3', rep_final:'גמר ניחומים',
+};
+const ST={
+  eighth:'W',quarter:'W',semi:'W',final:'F',league:'W',
+  rep_eighth:'R',rep_quarter:'R',rep_semi:'R',rep_bronze:'R',rep_final:'R',
+};
+const sl=s=>SL[s]||s;
+const st=s=>ST[s]||'W';
+function badge(s){return `<span class="badge badge-${st(s)}">${sl(s)}</span>`;}
+function cname(name,role,ref){
+  if(name)return{k:true,t:name};
+  if(!ref)return{k:false,t:'?'};
+  return{k:false,t:`${role==='loser'?'מפסיד':'מנצח'} #${ref}`};
+}
+
+// ═══════════════════════════════════
+// STATE
+// ═══════════════════════════════════
+// Each tatami has a queue of matches
+// Each match: {id, blue, white, bRole, bRef, wRole, wRef, category, stage, matchNum, status, susp}
+// status: 'live'|'pending'|'done'|'suspended'
+// susp: {type:'matches'|'time', n, setAt, remaining} | null
+
+let STATE = {
+  competition:{name:'אליפות ילדים 2025', tatami_count:3},
+  tatami:[
+    {id:1, matches:[
+      {id:'1-1',blue:'דן כהן',    white:null,     bRole:null,    bRef:null, wRole:'winner',wRef:7,
+       category:'U15 -60', stage:'semi', matchNum:7, status:'live', susp:null},
+      {id:'1-2',blue:'עידן שפי',  white:null,     bRole:'winner',bRef:3,    wRole:'winner',wRef:4,
+       category:'U15 -60', stage:'final', matchNum:11, status:'pending', susp:null},
+      {id:'1-3',blue:null,        white:null,     bRole:'winner',bRef:5,    wRole:'winner',wRef:6,
+       category:'U15 -60', stage:'rep_semi', matchNum:9, status:'suspended',
+       susp:{type:'matches',n:3,remaining:3,setAt:Date.now()}},
+      {id:'1-4',blue:null,        white:null,     bRole:'loser', bRef:7,    wRole:'winner',wRef:9,
+       category:'U15 -60', stage:'rep_bronze', matchNum:13, status:'pending', susp:null},
+    ]},
+    {id:2, matches:[
+      {id:'2-1',blue:'אמיר לוי',  white:'יוסי מזרחי',bRole:null,bRef:null,wRole:null,wRef:null,
+       category:'U18 -73', stage:'quarter', matchNum:3, status:'live', susp:null},
+      {id:'2-2',blue:null,        white:'בן מור',    bRole:'winner',bRef:3,wRole:'winner',wRef:4,
+       category:'U18 -73', stage:'semi', matchNum:7, status:'pending', susp:null},
+      {id:'2-3',blue:'אמיר לוי',  white:null,        bRole:null,bRef:null,wRole:'winner',wRef:7,
+       category:'U18 -73', stage:'final', matchNum:11, status:'pending', susp:null},
+    ]},
+    {id:3, matches:[
+      {id:'3-1',blue:'אורי פלד',  white:'שי ברנע',   bRole:null,bRef:null,wRole:null,wRef:null,
+       category:'U15 -66', stage:'eighth', matchNum:1, status:'pending', susp:null},
+      {id:'3-2',blue:'לירון כץ',  white:'מתן הלוי',  bRole:null,bRef:null,wRole:null,wRef:null,
+       category:'U15 -66', stage:'eighth', matchNum:2, status:'pending', susp:null},
+      {id:'3-3',blue:null,        white:null,         bRole:'winner',bRef:1,wRole:'winner',wRef:2,
+       category:'U15 -66', stage:'quarter', matchNum:5, status:'pending', susp:null},
+    ]},
+  ],
+};
+
+let movingMatchId=null, suspendingMatchId=null;
+
+// ═══════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════
+function findMatch(mid){
+  for(const t of STATE.tatami){
+    const m=t.matches.find(x=>x.id===mid);
+    if(m)return{match:m,tatami:t};
+  }
+  return null;
+}
+
+function matchDisplay(m){
+  const b=cname(m.blue,m.bRole,m.bRef);
+  const w=cname(m.white,m.wRole,m.wRef);
+  return `${b.t} מול ${w.t} · ${sl(m.stage)} · קרב #${m.matchNum}`;
+}
+
+// ═══════════════════════════════════
+// RENDER
+// ═══════════════════════════════════
+function render(){
+  document.getElementById('tatami-grid').innerHTML=
+    STATE.tatami.map(t=>renderTatami(t)).join('');
+}
+
+function renderTatami(t){
+  const nonDone=t.matches.filter(m=>m.status!=='done');
+  const liveM=t.matches.find(m=>m.status==='live');
+
+  let rows='';
+  let rowIdx=0;
+
+  t.matches.forEach(m=>{
+    if(m.status==='done'){
+      // show last done as green row
+      const b=cname(m.blue,m.bRole,m.bRef), w=cname(m.white,m.wRole,m.wRef);
+      rows+=`<div class="match-row row-win">
+        <div class="dot dot-win"></div>
+        <div class="minfo">
+          <div class="mnames"><span class="nm-blue">${b.t}</span><span class="nm-vs">מול</span><span class="nm-white">${w.t}</span></div>
+          <div class="mmeta">${m.category} <span class="badge badge-win">הסתיים</span></div>
+        </div>
+      </div>`;
+      return;
+    }
+
+    rowIdx++;
+    const b=cname(m.blue,m.bRole,m.bRef), w=cname(m.white,m.wRole,m.wRef);
+    const isLive=m.status==='live';
+    const isSusp=m.status==='suspended';
+    const hasLatePlayer=false; // hook for attendance
+
+    let rowClass=isLive?'row-live':isSusp?'row-susp':'';
+    let dotClass=isLive?'dot-live':isSusp?'dot-susp':'dot-up';
+
+    const suspInfo=isSusp&&m.susp
+      ?`<span class="susp-countdown badge-susp badge">${m.susp.type==='matches'?m.susp.remaining+' קרבות':Math.max(0,m.susp.remaining)+'d'}</span>`
+      :'';
+
+    const statusBadge=isLive
+      ?`<span class="badge badge-live">● פעיל</span>`
+      :isSusp?`<span class="badge badge-susp">⏸ מושהה</span>`:'';
+
+    rows+=`<div class="match-row ${rowClass}" id="mr-${m.id}">
+      <div class="dot ${dotClass}"></div>
+      ${!isLive?`<div class="rnum">${rowIdx}</div>`:''}
+      <div class="minfo">
+        <div class="mnames">
+          <span class="${b.k?'nm-blue':'nm-unknown'}">${b.t}</span>
+          <span class="nm-vs">מול</span>
+          <span class="${w.k?'nm-white':'nm-unknown'}">${w.t}</span>
+        </div>
+        <div class="mmeta">${m.category} ${badge(m.stage)} · קרב #${m.matchNum} ${statusBadge} ${suspInfo}</div>
+      </div>
+      <div class="row-actions">
+        ${!isLive?`<button class="act warn" onclick="openMove('${m.id}')" title="העבר מזרן">↔</button>`:''}
+        ${!isLive?`<button class="act purple" onclick="openSuspend('${m.id}')" title="השהה">${isSusp?'▶':'⏸'}</button>`:''}
+      </div>
+    </div>`;
+  });
+
+  if(!rows){
+    rows='<div class="tc-idle">אין קרבות ממתינים</div>';
+  }
+
+  return `<div class="tatami-card">
+    <div class="tc-header">
+      <div class="tc-num">מזרן ${t.id}</div>
+      <div class="tc-count">${nonDone.length} קרבות</div>
+      <div class="tc-header-btns">
+        <button class="btn btn-secondary btn-sm" onclick="addMatchToTatami(${t.id})" title="הוסף קרב">+</button>
+      </div>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+// ═══════════════════════════════════
+// MOVE MATCH
+// ═══════════════════════════════════
+function openMove(mid){
+  movingMatchId=mid;
+  const {match,tatami}=findMatch(mid)||{};
+  if(!match)return;
+  document.getElementById('move-match-info').textContent=matchDisplay(match);
+  // populate tatami options
+  const sel=document.getElementById('move-tatami');
+  sel.innerHTML=STATE.tatami.map(t=>`<option value="${t.id}"${t.id===tatami.id?' selected':''}>מזרן ${t.id}</option>`).join('');
+  // set position to end of target
+  document.getElementById('move-pos').value=1;
+  document.getElementById('move-ov').classList.remove('h');
+}
+
+function confirmMove(){
+  if(!movingMatchId)return;
+  const {match,tatami:srcTatami}=findMatch(movingMatchId)||{};
+  if(!match)return;
+  const dstId=+document.getElementById('move-tatami').value;
+  const pos=Math.max(1,+document.getElementById('move-pos').value);
+  const dstTatami=STATE.tatami.find(t=>t.id===dstId);
+  if(!dstTatami)return;
+
+  // Remove from source
+  srcTatami.matches=srcTatami.matches.filter(m=>m.id!==movingMatchId);
+
+  // Insert at position in destination (skip done matches)
+  const nonDoneIdx=dstTatami.matches.filter(m=>m.status!=='done').length;
+  const insertAt=Math.min(pos-1, nonDoneIdx);
+  // find actual array index for the insert position among non-done
+  let count=0,arrayIdx=dstTatami.matches.length;
+  for(let i=0;i<dstTatami.matches.length;i++){
+    if(dstTatami.matches[i].status==='done')continue;
+    if(count===insertAt){arrayIdx=i;break;}
+    count++;
+  }
+  dstTatami.matches.splice(arrayIdx,0,match);
+
+  closeModal('move-ov');
+  render();
+}
+
+// ═══════════════════════════════════
+// SUSPEND MATCH
+// ═══════════════════════════════════
+function openSuspend(mid){
+  const {match}=findMatch(mid)||{};
+  if(!match)return;
+
+  // If already suspended, un-suspend
+  if(match.status==='suspended'){
+    match.status='pending';
+    match.susp=null;
+    render();
+    return;
+  }
+
+  suspendingMatchId=mid;
+  document.getElementById('susp-match-info').textContent=matchDisplay(match);
+  document.getElementById('susp-ov').classList.remove('h');
+}
+
+function confirmSuspend(){
+  if(!suspendingMatchId)return;
+  const {match,tatami}=findMatch(suspendingMatchId)||{};
+  if(!match)return;
+
+  const type=document.querySelector('input[name="stype"]:checked').value;
+  const n=type==='matches'?+document.getElementById('susp-n').value:+document.getElementById('susp-mins').value;
+
+  match.status='suspended';
+  match.susp={type,n,remaining:n,setAt:Date.now()};
+
+  // Move suspended match to end of queue (after all pending)
+  const idx=tatami.matches.indexOf(match);
+  if(idx!==-1){
+    tatami.matches.splice(idx,1);
+    tatami.matches.push(match);
+  }
+
+  closeModal('susp-ov');
+  render();
+
+  // If time-based, start countdown
+  if(type==='time') startSuspTimer(match,tatami);
+}
+
+function startSuspTimer(match,tatami){
+  const endTime=Date.now()+match.susp.n*60*1000;
+  const iv=setInterval(()=>{
+    if(!match.susp||match.status!=='suspended'){clearInterval(iv);return;}
+    const rem=Math.ceil((endTime-Date.now())/1000);
+    match.susp.remaining=Math.max(0,rem);
+    if(rem<=0){
+      // bring back to next in queue
+      match.status='pending';
+      match.susp=null;
+      // move to first pending position
+      const idx=tatami.matches.indexOf(match);
+      if(idx!==-1){
+        tatami.matches.splice(idx,1);
+        // insert before first pending
+        const firstPending=tatami.matches.findIndex(m=>m.status==='pending');
+        tatami.matches.splice(firstPending===-1?tatami.matches.length:firstPending,0,match);
+      }
+      clearInterval(iv);
+    }
+    render();
+  },1000);
+}
+
+function stChange(el){
+  document.getElementById('susp-m-wrap').style.display=el.value==='matches'?'block':'none';
+  document.getElementById('susp-t-wrap').style.display=el.value==='time'?'block':'none';
+  document.querySelectorAll('.ro').forEach(r=>r.classList.remove('on'));
+  el.closest('.ro').classList.add('on');
+}
+
+function closeModal(id){document.getElementById(id).classList.add('h');}
+
+function addMatchToTatami(tId){
+  // placeholder for future integration with bracket
+  alert(`הוספת קרב ידנית למזרן ${tId} — בשלב הבא יתחבר לעץ התחרות`);
+}
+
+// ═══════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════
+function tick(){
+  // update remaining time for time-based suspensions
+  STATE.tatami.forEach(t=>t.matches.forEach(m=>{
+    if(m.status==='suspended'&&m.susp?.type==='time'){
+      const rem=Math.ceil((m.susp.setAt+m.susp.n*60*1000-Date.now())/1000);
+      m.susp.remaining=Math.max(0,rem);
+    }
+  }));
+}
+setInterval(()=>{tick();render();},5000); // re-render every 5s for countdowns
+
+document.getElementById('h-title').textContent=`שליטה — ${STATE.competition.name}`;
+render();
+</script>
+</body>
+</html>

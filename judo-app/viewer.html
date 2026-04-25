@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>תצוגת צופים — Judo Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0b0f;--surface:#111318;--surface2:#191c24;--border:#1e2130;
+  --acc:#e8c84a;--red:#e84a4a;--grn:#4ae89a;--pur:#9b59b6;
+  --txt:#f0f0f0;--txt2:#8a8fa0;--txt3:#3a3f50;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── HEADER ── */
+.header{flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:12px;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:var(--acc);}
+.h-title{font-size:14px;font-weight:700;flex:1;}
+.h-sub{font-size:10px;color:var(--txt2);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:blink 1s infinite;display:inline-block;margin-left:4px;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.15;}}
+.h-clock{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--txt2);letter-spacing:1px;}
+
+/* ── TABS ── */
+.tabs{flex-shrink:0;background:var(--surface);border-bottom:2px solid var(--border);display:flex;padding:0 20px;gap:0;}
+.tab{padding:10px 18px;font-size:13px;font-weight:600;color:var(--txt2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap;}
+.tab:hover{color:var(--txt);}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc);}
+
+/* ── PAGE CONTENT ── */
+.pages{flex:1;overflow:hidden;position:relative;}
+.page{display:none;height:100%;overflow-y:auto;padding:20px;}
+.page.active{display:block;}
+
+/* ── TATAMI COLUMN LAYOUT (main tab) ── */
+.tatami-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;align-items:start;}
+.tatami-col{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.col-hdr{padding:8px 14px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.col-hdr-num{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--txt2);}
+.col-hdr-n{font-size:10px;color:var(--txt3);}
+
+/* rows */
+.row{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.row:last-child{border-bottom:none;}
+.row.row-win{background:rgba(74,232,154,.05);}
+.row.row-live{background:rgba(232,200,74,.05);}
+.rdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.rdot-win{background:var(--grn);}
+.rdot-live{background:var(--acc);animation:blink .8s infinite;}
+.rnum{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--txt3);min-width:18px;text-align:center;}
+.rinfo{flex:1;}
+.rname{font-size:12px;font-weight:700;}
+.rmeta{font-size:10px;color:var(--txt3);margin-top:1px;}
+.rname-win{color:var(--grn);}
+.rname-live{color:var(--acc);}
+.rup-blue{color:#6a9fe0;}.rup-white{color:var(--txt2);}.rup-vs{color:var(--txt3);font-size:10px;margin:0 3px;}
+
+.stage-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;white-space:nowrap;flex-shrink:0;}
+.stage-W{background:rgba(232,200,74,.12);color:var(--acc);}
+.stage-R{background:rgba(155,89,182,.12);color:#b07fda;}
+.stage-F{background:rgba(232,74,74,.15);color:#ff8080;}
+
+/* ── CATEGORIES PAGE ── */
+.search-wrap{position:relative;max-width:400px;margin-bottom:16px;}
+.search-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--txt);font-family:'Heebo',sans-serif;font-size:13px;outline:none;transition:border-color .15s;}
+.search-input:focus{border-color:var(--acc);}
+.search-drop{display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:50;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.5);max-height:300px;overflow-y:auto;}
+.drop-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;transition:background .12s;}
+.drop-item:last-child{border-bottom:none;}
+.drop-item:hover{background:var(--surface2);}
+
+/* category cards grid — same style as bracket cat cards */
+.cats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
+.cat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;}
+.cat-card:hover{border-color:var(--acc);background:rgba(232,200,74,.04);}
+.cat-card-name{font-size:15px;font-weight:700;margin-bottom:6px;}
+.cat-card-meta{font-size:11px;color:var(--txt2);margin-bottom:8px;}
+.cat-card-chips{display:flex;flex-wrap:wrap;gap:4px;}
+.chip{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;transition:all .12s;}
+.chip:hover{border-color:var(--acc);color:var(--acc);}
+.method-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-right:auto;}
+.mb-w{background:rgba(232,200,74,.12);color:var(--acc);}
+.mb-r{background:rgba(155,89,182,.12);color:#b07fda;}
+.badge-ready{background:rgba(74,232,154,.12);color:var(--grn);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;}
+.badge-wait{background:rgba(232,74,74,.1);color:var(--red);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;}
+
+/* ── STATS PAGE ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;}
+.club-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;align-items:center;gap:14px;}
+.club-rank{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--txt3);min-width:36px;text-align:center;}
+.club-rank.r1{color:#f5c518;}
+.club-rank.r2{color:#c0c0c0;}
+.club-rank.r3{color:#c07840;}
+.club-info{flex:1;}
+.club-name{font-size:15px;font-weight:700;margin-bottom:6px;}
+.medals{display:flex;gap:8px;}
+.medal{display:flex;align-items:center;gap:4px;font-family:'Bebas Neue',sans-serif;font-size:18px;}
+.medal-g{color:#f5c518;}
+.medal-s{color:#c0c0c0;}
+.medal-b{color:#c07840;}
+.medal-lbl{font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.5px;}
+.medal-wrap{display:flex;flex-direction:column;align-items:center;}
+
+/* ── BRACKET OVERLAY ── */
+#bracket-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;flex-direction:column;}
+#bracket-overlay.show{display:flex;}
+.ov-header{height:48px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;}
+.ov-title{font-size:14px;font-weight:700;flex:1;}
+.ov-body{flex:1;overflow:auto;padding:20px;}
+.match-row{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;}
+.match-row.highlight{border-color:rgba(232,200,74,.4);}
+.mr-players{flex:1;}
+.mr-player{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+.mr-player:last-child{margin-bottom:0;}
+.mr-dot-b{width:8px;height:8px;border-radius:50%;background:#0033aa;flex-shrink:0;}
+.mr-dot-w{width:8px;height:8px;border-radius:50%;background:#d0d0d0;flex-shrink:0;}
+.mr-name{font-size:13px;}
+.mr-name.hl{font-weight:800;color:var(--acc);}
+.mr-name.unknown{color:var(--txt3);font-style:italic;}
+.mr-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.close-btn{background:var(--surface2);border:1px solid var(--border);color:var(--txt);border-radius:6px;padding:5px 12px;font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">JUDO</div>
+  <div>
+    <div class="h-title" id="h-title">תחרות ג'ודו <span class="live-dot"></span></div>
+    <div class="h-sub" id="h-sub"></div>
+  </div>
+  <div style="flex:1"></div>
+  <div class="h-clock" id="h-clock"></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('main',this)">🏠 קרבות</div>
+  <div class="tab" onclick="switchTab('cats',this)">🏷️ קטגוריות</div>
+  <div class="tab" onclick="switchTab('stats',this)">🏆 סטטיסטיקה</div>
+</div>
+
+<!-- PAGES -->
+<div class="pages">
+
+  <!-- MAIN: matches by tatami -->
+  <div class="page active" id="page-main">
+    <div class="tatami-grid" id="tatami-grid"></div>
+  </div>
+
+  <!-- CATEGORIES -->
+  <div class="page" id="page-cats">
+    <div class="search-wrap">
+      <input class="search-input" type="text" placeholder="🔍 חיפוש לפי שם שחקן..." oninput="searchComp(this.value)" id="search-inp">
+      <div class="search-drop" id="search-drop"></div>
+    </div>
+    <div class="cats-grid" id="cats-grid"></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="page" id="page-stats">
+    <div style="margin-bottom:16px;font-size:13px;color:var(--txt2)">מדליות לפי מועדון</div>
+    <table id="stats-table" style="width:100%;max-width:700px;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--txt3);letter-spacing:.5px;">#</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--txt3);letter-spacing:.5px;">מועדון</th>
+          <th style="padding:8px 12px;text-align:center;font-size:13px;">🥇</th>
+          <th style="padding:8px 12px;text-align:center;font-size:13px;">🥈</th>
+          <th style="padding:8px 12px;text-align:center;font-size:13px;">🥉</th>
+          <th style="padding:8px 12px;text-align:center;font-size:11px;font-weight:700;color:var(--txt3);">סה"כ</th>
+        </tr>
+      </thead>
+      <tbody id="stats-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- BRACKET OVERLAY -->
+<div id="bracket-overlay">
+  <div class="ov-header">
+    <div class="ov-title" id="ov-title">עץ תחרות</div>
+    <button class="close-btn" onclick="closeBracket()">✕ סגור</button>
+  </div>
+  <div class="ov-body" id="ov-body"></div>
+</div>
+
+<script>
+// ═══════════════════════════
+// DEMO DATA
+// ═══════════════════════════
+const COMP = {name:"אליפות ילדים 2025", date:"23.4.2025"};
+
+const TATAMI = [
+  {
+    id:1,
+    lastWinner:{name:'דן כהן', side:'white', how:'Ippon', category:'U15 -60'},
+    active:{blue:'נועם ברק', white:'תומר גרין', category:'U15 -60', stage:'semi', matchNum:7},
+    upcoming:[
+      {blue:'עידן שפי', white:null, bRole:'winner', bRef:3, wRole:'winner', wRef:4, category:'U15 -60', stage:'final', matchNum:11},
+      {blue:null, white:null, bRole:'winner', bRef:5, wRole:'winner', wRef:6, category:'U15 -60', stage:'rep_semi', matchNum:9},
+      {blue:null, white:null, bRole:'loser', bRef:7, wRole:'winner', wRef:9, category:'U15 -60', stage:'rep_bronze', matchNum:13},
+      {blue:null, white:null, bRole:'loser', bRef:8, wRole:'winner', wRef:10, category:'U15 -60', stage:'rep_bronze', matchNum:14},
+    ],
+  },
+  {
+    id:2,
+    lastWinner:{name:'אמיר לוי', side:'blue', how:'Waza-ari×2', category:'U18 -73'},
+    active:{blue:'יוסי מזרחי', white:'רון טל', category:'U18 -73', stage:'quarter', matchNum:3},
+    upcoming:[
+      {blue:null, white:'בן מור', bRole:'winner', bRef:3, wRole:'winner', wRef:4, category:'U18 -73', stage:'semi', matchNum:7},
+      {blue:null, white:null, bRole:'loser', bRef:3, wRole:'loser', wRef:4, category:'U18 -73', stage:'rep_eighth', matchNum:5},
+      {blue:'אמיר לוי', white:null, bRole:null, bRef:null, wRole:'winner', wRef:7, category:'U18 -73', stage:'final', matchNum:11},
+      {blue:null, white:null, bRole:'winner', bRef:5, wRole:'loser', wRef:7, category:'U18 -73', stage:'rep_semi', matchNum:9},
+    ],
+  },
+  {
+    id:3,
+    lastWinner:null,
+    active:null,
+    upcoming:[
+      {blue:'אורי פלד', white:'שי ברנע', bRole:null, bRef:null, wRole:null, wRef:null, category:'U15 -66', stage:'eighth', matchNum:1},
+      {blue:'לירון כץ', white:'מתן הלוי', bRole:null, bRef:null, wRole:null, wRef:null, category:'U15 -66', stage:'eighth', matchNum:2},
+      {blue:null, white:null, bRole:'winner', bRef:1, wRole:'winner', wRef:2, category:'U15 -66', stage:'quarter', matchNum:5},
+      {blue:null, white:null, bRole:'loser', bRef:1, wRole:'loser', wRef:2, category:'U15 -66', stage:'rep_eighth', matchNum:3},
+      {blue:'עמית גל', white:'ניר שם-טוב', category:'Senior', stage:'eighth', matchNum:1},
+      {blue:'יובל נגר', white:'בועז עמר', category:'Senior', stage:'eighth', matchNum:2},
+    ],
+  },
+];
+
+// Categories with full competitor list
+const CATEGORIES = [
+  {name:'U15 -60', method:'knockout', comps:['נועם ברק','דן כהן','תומר גרין','עידן שפי','רון טל','בן מור'], status:'live'},
+  {name:'U18 -73', method:'knockout', comps:['אמיר לוי','יוסי מזרחי','רון טל','בן מור'], status:'live'},
+  {name:'U15 -66', method:'knockout', comps:['אורי פלד','שי ברנע','לירון כץ','מתן הלוי'], status:'pending'},
+  {name:'Senior',  method:'league',   comps:['עמית גל','ניר שם-טוב','יובל נגר','בועז עמר','אסף רז'], status:'pending'},
+];
+
+// Results for stats
+const RESULTS = [
+  {winner:'דן כהן',   club:'מועדון הירוק', place:1, category:'U15 -60'},
+  {winner:'נועם ברק', club:'מועדון שיבוץ', place:2, category:'U15 -60'},
+  {winner:'אמיר לוי', club:'קלאב פייט',    place:1, category:'U18 -73'},
+  {winner:'רון טל',   club:'דוג\'ו ראשון', place:3, category:'U18 -73'},
+  {winner:'יוסי מזרחי',club:'דוג\'ו ראשון',place:3, category:'U18 -73'},
+  {winner:'אורי פלד', club:'מועדון שיבוץ', place:1, category:'U15 -66'},
+];
+
+// ═══════════════════════════
+// HELPERS
+// ═══════════════════════════
+const STAGE_INFO = {
+  'eighth':      {lbl:'שמינית גמר',          type:'W'},
+  'quarter':     {lbl:'רבע גמר',              type:'W'},
+  'semi':        {lbl:'חצי גמר',              type:'W'},
+  'final':       {lbl:'גמר',                  type:'F'},
+  'rep_eighth':  {lbl:'שמינית גמר ניחומים',   type:'R'},
+  'rep_quarter': {lbl:'רבע גמר ניחומים',      type:'R'},
+  'rep_semi':    {lbl:'חצי גמר ניחומים',      type:'R'},
+  'rep_bronze':  {lbl:'מקום 3',               type:'R'},
+  'rep_final':   {lbl:'גמר ניחומים',          type:'R'},
+  'league':      {lbl:'ליגה',                  type:'W'},
+};
+const si = s => STAGE_INFO[s] || {lbl:s, type:'W'};
+
+function compStr(name, role, ref){
+  if(name) return {known:true, text:name};
+  if(!ref) return {known:false, text:'?'};
+  const r = role==='loser'?'מפסיד':'מנצח';
+  return {known:false, text:`${r} #${ref}`};
+}
+
+function stageBadgeHTML(s){
+  const {lbl,type}=si(s);
+  return `<span class="stage-badge stage-${type}">${lbl}</span>`;
+}
+
+// ═══════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════
+function switchTab(id, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('page-'+id).classList.add('active');
+  if(id==='cats') renderCats();
+  if(id==='stats') renderStats();
+}
+
+// ═══════════════════════════
+// MAIN TAB — tatami columns
+// ═══════════════════════════
+function renderMain(){
+  document.getElementById('tatami-grid').innerHTML = TATAMI.map(t => {
+    let rows = '';
+    let count = (t.active?1:0) + t.upcoming.length;
+
+    // green: last winner
+    if(t.lastWinner){
+      const lw=t.lastWinner;
+      rows+=`<div class="row row-win">
+        <div class="rdot rdot-win"></div>
+        <div class="rinfo">
+          <div class="rname rname-win">✓ ${lw.name}</div>
+          <div class="rmeta">${lw.category} · ${lw.how}</div>
+        </div>
+      </div>`;
+    }
+
+    // yellow: active
+    if(t.active){
+      const a=t.active;
+      rows+=`<div class="row row-live">
+        <div class="rdot rdot-live"></div>
+        <div class="rinfo" style="flex:1">
+          <div class="rname rname-live">
+            <span class="rup-blue">${a.blue}</span>
+            <span class="rup-vs">מול</span>
+            <span class="rup-white">${a.white}</span>
+          </div>
+          <div class="rmeta">${a.category} · ${si(a.stage).lbl} · קרב #${a.matchNum}</div>
+        </div>
+        ${stageBadgeHTML(a.stage)}
+      </div>`;
+    }
+
+    // upcoming rows
+    t.upcoming.forEach((u,i)=>{
+      const b=compStr(u.blue,u.bRole,u.bRef);
+      const w=compStr(u.white,u.wRole,u.wRef);
+      rows+=`<div class="row">
+        <div class="rnum">${i+1+(t.active?1:0)}</div>
+        <div class="rinfo" style="flex:1">
+          <div style="font-size:12px;font-weight:600;display:flex;align-items:center;flex-wrap:wrap;">
+            <span class="${b.known?'rup-blue':''}" style="${!b.known?'color:var(--txt3)':''}">${b.text}</span>
+            <span class="rup-vs">מול</span>
+            <span class="${w.known?'rup-white':''}" style="${!w.known?'color:var(--txt3)':''}">${w.text}</span>
+          </div>
+          <div class="rmeta">${u.category} · ${si(u.stage).lbl} · קרב #${u.matchNum}</div>
+        </div>
+        ${stageBadgeHTML(u.stage)}
+      </div>`;
+    });
+
+    if(!t.active && !t.upcoming.length && !t.lastWinner){
+      rows='<div style="padding:18px;text-align:center;font-size:12px;color:var(--txt3)">ממתין לקרב הבא</div>';
+    }
+
+    return `<div class="tatami-col">
+      <div class="col-hdr">
+        <div class="col-hdr-num">מזרן ${t.id}</div>
+        <div class="col-hdr-n">${count} קרבות ממתינים</div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════
+// CATEGORIES TAB
+// ═══════════════════════════
+function renderCats(filter=''){
+  const fl=filter.toLowerCase();
+  const grid=document.getElementById('cats-grid');
+
+  let cats=CATEGORIES;
+  if(fl){
+    // highlight categories that contain matching competitors
+    cats=CATEGORIES.filter(c=>c.comps.some(n=>n.toLowerCase().includes(fl)));
+  }
+
+  grid.innerHTML=cats.map(cat=>{
+    const compsToShow=fl
+      ? cat.comps.filter(n=>n.toLowerCase().includes(fl))
+      : cat.comps;
+    const method=cat.method==='league'
+      ?'<span class="method-badge mb-r">ליגה</span>'
+      :'<span class="method-badge mb-w">נוקאאוט</span>';
+    const readyBadge=cat.status==='live'
+      ?'<span class="badge-ready">פעיל</span>'
+      :'<span class="badge-wait">ממתין</span>';
+
+    const chips=compsToShow.map(n=>{
+      const isMatch=fl&&n.toLowerCase().includes(fl);
+      return `<div class="chip" onclick="openBracket('${n}','${cat.name}')"
+        style="${isMatch?'border-color:var(--acc);color:var(--acc);background:rgba(232,200,74,.07)':''}"
+      >${n}</div>`;
+    }).join('');
+
+    return `<div class="cat-card" onclick="openBracket(null,'${cat.name}')">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div class="cat-card-name">${cat.name}</div>
+        ${method}${readyBadge}
+      </div>
+      <div class="cat-card-meta">${cat.comps.length} מתחרים</div>
+      <div class="cat-card-chips">${chips}</div>
+    </div>`;
+  }).join('');
+}
+
+function searchComp(val){
+  const drop=document.getElementById('search-drop');
+  if(!val.trim()){drop.style.display='none';renderCats('');return;}
+  renderCats(val);
+  const q=val.toLowerCase();
+  const matches=[];
+  CATEGORIES.forEach(cat=>{
+    cat.comps.filter(n=>n.toLowerCase().includes(q))
+      .forEach(n=>matches.push({name:n,cat:cat.name}));
+  });
+  if(!matches.length){drop.style.display='none';return;}
+  drop.innerHTML=matches.map(m=>`
+    <div class="drop-item" onclick="openBracket('${m.name}','${m.cat}')">
+      <div>
+        <div style="font-size:13px;font-weight:600">${m.name}</div>
+        <div style="font-size:10px;color:var(--txt2)">${m.cat}</div>
+      </div>
+      <div style="font-size:11px;color:var(--acc)">עץ →</div>
+    </div>`).join('');
+  drop.style.display='block';
+}
+
+document.addEventListener('click',e=>{
+  if(!document.querySelector('.search-wrap').contains(e.target))
+    document.getElementById('search-drop').style.display='none';
+});
+
+// ═══════════════════════════
+// STATS TAB
+// ═══════════════════════════
+function renderStats(){
+  const clubs={};
+  RESULTS.forEach(r=>{
+    if(!clubs[r.club]) clubs[r.club]={name:r.club,g:0,s:0,b:0};
+    if(r.place===1) clubs[r.club].g++;
+    else if(r.place===2) clubs[r.club].s++;
+    else if(r.place===3) clubs[r.club].b++;
+  });
+  const sorted=Object.values(clubs).sort((a,b)=>b.g-a.g||b.s-a.s||b.b-a.b);
+
+  const rankColor=r=>r===1?'#f5c518':r===2?'#c0c0c0':r===3?'#c07840':'var(--txt3)';
+  const numStyle="font-family:'Bebas Neue',sans-serif;font-size:20px;text-align:center;";
+
+  document.getElementById('stats-tbody').innerHTML=sorted.map((c,i)=>{
+    const rk=i+1;
+    const rowBg=rk<=3?`background:rgba(255,255,255,.02)`:'';
+    return `<tr style="border-bottom:1px solid var(--border);${rowBg}">
+      <td style="padding:10px 12px;${numStyle}color:${rankColor(rk)}">${rk}</td>
+      <td style="padding:10px 12px;font-size:14px;font-weight:700;">${c.name}</td>
+      <td style="${numStyle}color:#f5c518;padding:10px 8px;">${c.g}</td>
+      <td style="${numStyle}color:#c0c0c0;padding:10px 8px;">${c.s}</td>
+      <td style="${numStyle}color:#c07840;padding:10px 8px;">${c.b}</td>
+      <td style="${numStyle}color:var(--txt2);padding:10px 8px;">${c.g+c.s+c.b}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════
+// BRACKET OVERLAY
+// ═══════════════════════════
+function openBracket(playerName, catName){
+  document.getElementById('search-drop').style.display='none';
+  const cat=CATEGORIES.find(c=>c.name===catName);
+  const title=playerName ? `${playerName} — ${catName}` : catName;
+  document.getElementById('ov-title').textContent=title;
+
+  // Collect all matches for this category
+  const allMatches=[];
+  TATAMI.forEach(t=>{
+    if(t.active&&t.active.category===catName) allMatches.push({...t.active,status:'active'});
+    t.upcoming.filter(u=>u.category===catName).forEach(u=>allMatches.push({...u,status:'upcoming'}));
+  });
+
+  const STAGE_ORDER=['eighth','rep_eighth','quarter','rep_quarter','semi','rep_semi','final','rep_bronze','rep_final','league'];
+  const grouped={};
+  allMatches.forEach(m=>{ (grouped[m.stage]||(grouped[m.stage]=[])).push(m); });
+
+  let html='';
+  STAGE_ORDER.filter(s=>grouped[s]).forEach(s=>{
+    const {lbl,type}=si(s);
+    html+=`<div style="margin-bottom:20px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:2px;color:var(--txt3);
+        margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);">${lbl}</div>`;
+    grouped[s].forEach(m=>{
+      const b=compStr(m.blue,m.bRole,m.bRef);
+      const w=compStr(m.white,m.wRole,m.wRef);
+      const hlB=playerName&&m.blue===playerName;
+      const hlW=playerName&&m.white===playerName;
+      const isHL=hlB||hlW;
+      const statusBadge=m.status==='active'
+        ?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(232,200,74,.15);color:var(--acc)">פעיל</span>`
+        :`<span style="font-size:9px;color:var(--txt3)">קרב #${m.matchNum}</span>`;
+      html+=`<div class="match-row${isHL?' highlight':''}">
+        <div class="mr-players">
+          <div class="mr-player">
+            <div class="mr-dot-b"></div>
+            <div class="mr-name${hlB?' hl':''}${!b.known?' unknown':''}">${b.text}</div>
+          </div>
+          <div class="mr-player">
+            <div class="mr-dot-w"></div>
+            <div class="mr-name${hlW?' hl':''}${!w.known?' unknown':''}">${w.text}</div>
+          </div>
+        </div>
+        <div class="mr-right">${statusBadge}${stageBadgeHTML(s)}</div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+
+  if(!html) html='<div style="color:var(--txt3);text-align:center;padding:40px">אין מידע</div>';
+  document.getElementById('ov-body').innerHTML=html;
+  document.getElementById('bracket-overlay').classList.add('show');
+}
+
+function closeBracket(){
+  document.getElementById('bracket-overlay').classList.remove('show');
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeBracket(); });
+
+// ═══════════════════════════
+// CLOCK
+// ═══════════════════════════
+function tick(){
+  const n=new Date();
+  document.getElementById('h-clock').textContent=
+    `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+}
+setInterval(tick,1000); tick();
+
+// ═══════════════════════════
+// INIT
+// ═══════════════════════════
+document.getElementById('h-title').innerHTML=`${COMP.name} <span class="live-dot"></span>`;
+document.getElementById('h-sub').textContent=`${COMP.date} · ${TATAMI.length} מזרנים`;
+renderMain();
+renderCats();
+</script>
+</body>
+</html>

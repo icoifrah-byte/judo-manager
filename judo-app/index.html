@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Judo Manager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e0f13;--surface:#161820;--surface2:#1e2028;--border:#2a2d38;--accent:#e8c84a;--accent2:#4a9de8;--red:#e84a4a;--green:#4ae89a;--gold:#f5c518;--purple:#9b59b6;--text:#f0f0f0;--text2:#8a8fa0;--text3:#5a5f70;--radius:10px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+.topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;position:sticky;top:0;z-index:100;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--accent);}
+.logo span{color:var(--text2);font-size:13px;letter-spacing:1px;margin-right:8px;font-family:'Heebo',sans-serif;font-weight:400;}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 56px);}
+.sidebar{background:var(--surface);border-left:1px solid var(--border);padding:16px 0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+.sidebar-section{padding:8px 16px 4px;font-size:10px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;font-weight:600;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;border-right:3px solid transparent;transition:all .15s;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:rgba(232,200,74,.08);color:var(--accent);border-right-color:var(--accent);}
+.nav-icon{font-size:16px;width:20px;text-align:center;}
+.nav-divider{height:1px;background:var(--border);margin:8px 16px;}
+.comp-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;color:var(--text2);font-size:12px;border-right:3px solid transparent;transition:all .15s;}
+.comp-item:hover{background:var(--surface2);color:var(--text);}
+.comp-item.active{color:var(--accent);border-right-color:var(--accent);background:rgba(232,200,74,.06);}
+.comp-item-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.main{padding:24px;overflow-y:auto;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:8px;}
+.page-title{font-size:22px;font-weight:700;}
+.page-title span{color:var(--text2);font-size:14px;font-weight:400;margin-right:8px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.card-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-grid.cols1{grid-template-columns:1fr;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-group label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.form-control{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;outline:none;transition:border-color .15s;width:100%;}
+.form-control:focus{border-color:var(--accent);}
+.form-control option{background:var(--surface2);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-info{flex:1;}
+.toggle-label{font-size:13px;font-weight:500;}
+.toggle-desc{font-size:11px;color:var(--text2);margin-top:2px;}
+.toggle{position:relative;width:40px;height:22px;cursor:pointer;flex-shrink:0;}
+.toggle input{display:none;}
+.toggle-track{position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s;}
+.toggle input:checked+.toggle-track{background:var(--accent);}
+.toggle-thumb{position:absolute;top:3px;right:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none;}
+.toggle input:checked~.toggle-thumb{transform:translateX(-18px);}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:6px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#000;}.btn-primary:hover{background:#f0d460;}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}.btn-secondary:hover{border-color:var(--text2);}
+.btn-danger{background:rgba(232,74,74,.15);color:var(--red);border:1px solid rgba(232,74,74,.3);}.btn-danger:hover{background:rgba(232,74,74,.25);}
+.btn-ghost{background:transparent;color:var(--text2);}.btn-ghost:hover{color:var(--text);background:var(--surface2);}
+.btn-purple{background:rgba(155,89,182,.2);color:var(--purple);border:1px solid rgba(155,89,182,.3);}.btn-purple:hover{background:rgba(155,89,182,.3);}
+.btn-sm{padding:5px 10px;font-size:12px;}.btn-lg{padding:12px 24px;font-size:15px;}.btn-icon{padding:6px 8px;}
+.import-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.import-zone:hover,.import-zone.drag-over{border-color:var(--accent);background:rgba(232,200,74,.05);}
+.import-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead tr{border-bottom:2px solid var(--border);}
+th{text-align:right;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:hover{background:var(--surface2);}
+td{padding:9px 12px;font-size:13px;}
+.td-actions{display:flex;gap:4px;justify-content:flex-end;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-yellow{background:rgba(232,200,74,.15);color:var(--accent);}
+.badge-blue{background:rgba(74,157,232,.15);color:var(--accent2);}
+.badge-green{background:rgba(74,232,154,.15);color:var(--green);}
+.badge-red{background:rgba(232,74,74,.15);color:var(--red);}
+.badge-gray{background:var(--border);color:var(--text2);}
+.badge-purple{background:rgba(155,89,182,.15);color:var(--purple);}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.stat-val{font-size:28px;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;}
+.stat-label{font-size:11px;color:var(--text2);margin-top:2px;font-weight:500;}
+.alert{padding:12px 16px;border-radius:6px;font-size:13px;display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;}
+.alert-success{background:rgba(74,232,154,.1);border:1px solid rgba(74,232,154,.3);color:var(--green);}
+.alert-error{background:rgba(232,74,74,.1);border:1px solid rgba(232,74,74,.3);color:var(--red);}
+.alert-info{background:rgba(74,157,232,.1);border:1px solid rgba(74,157,232,.3);color:var(--accent2);}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:20px;flex-wrap:wrap;}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;}
+.modal-overlay.hidden{display:none;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;}
+.modal-lg{max-width:700px;}
+.modal-header{padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.modal-title{font-size:16px;font-weight:700;}
+.modal-body{padding:0 20px 20px;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.divider{height:1px;background:var(--border);margin:16px 0;}
+.weight-tag{display:inline-block;background:rgba(74,157,232,.12);color:var(--accent2);border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;}
+.display-option{border:2px solid var(--border);border-radius:8px;padding:16px 12px;cursor:pointer;transition:all .2s;text-align:center;}
+.display-option:hover{border-color:var(--text2);}
+.display-option.selected{border-color:var(--accent);background:rgba(232,200,74,.08);}
+.display-option .icon{font-size:28px;margin-bottom:6px;}
+.display-option .label{font-size:12px;font-weight:600;}
+.cat-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;}
+.cat-card-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.cat-card-title{font-size:14px;font-weight:600;}
+.cat-competitors{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
+.comp-chip{background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:3px 10px;font-size:12px;display:flex;align-items:center;gap:4px;}
+.remove-chip{cursor:pointer;color:var(--text3);font-size:10px;}.remove-chip:hover{color:var(--red);}
+.champ-card{background:linear-gradient(135deg,rgba(245,197,24,.07),rgba(155,89,182,.07));border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:16px;margin-bottom:10px;}
+.champ-card-title{font-size:14px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.tatami-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.tatami-num{width:36px;height:36px;border-radius:8px;background:var(--accent);color:#000;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.tatami-info{flex:1;}
+.tatami-name{font-weight:600;font-size:13px;}
+.tatami-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+.code-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:8px;color:var(--accent);text-align:center;}
+.method-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;}
+.method-league{background:rgba(74,157,232,.15);color:var(--accent2);}
+.method-knockout{background:rgba(232,200,74,.15);color:var(--accent);}
+
+/* ── ATTENDANCE ── */
+.att-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;transition:all .2s;}
+.att-row.att-arrived{background:rgba(74,232,154,.07);border-color:rgba(74,232,154,.25);}
+.att-row.att-absent{background:rgba(232,74,74,.07);border-color:rgba(232,74,74,.2);opacity:.75;}
+.att-row.att-late{background:rgba(232,200,74,.07);border-color:rgba(232,200,74,.25);}
+.att-name{flex:1;font-size:13px;font-weight:600;}
+.att-meta{font-size:11px;color:var(--text2);}
+.att-late-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(232,200,74,.15);color:var(--accent);}
+.att-btn{width:32px;height:32px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .12s;flex-shrink:0;}
+.att-btn:active{transform:scale(.88);}
+.att-btn-late{background:rgba(232,200,74,.15);color:var(--accent);}
+.att-btn-late.on{background:rgba(232,200,74,.3);border:1px solid var(--accent);}
+.att-btn-absent{background:rgba(232,74,74,.12);color:var(--red);}
+.att-btn-absent.on{background:rgba(232,74,74,.3);}
+.att-btn-arrived{background:rgba(74,232,154,.12);color:var(--green);}
+.att-btn-arrived.on{background:rgba(74,232,154,.3);}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.screen{display:none;}.screen.active{display:block;}
+.empty-state{text-align:center;padding:40px;color:var(--text2);}
+.empty-icon{font-size:40px;margin-bottom:8px;}
+.empty-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.empty-sub{font-size:13px;}
+.chk-label{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;transition:border-color .15s;}
+.chk-label:hover{border-color:var(--purple);}
+.chk-label input:checked+span{color:var(--purple);font-weight:700;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">JUDO <span>MANAGER</span></div>
+  <div style="flex:1"></div>
+  <div style="display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;">
+    <div style="width:32px;height:32px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">מ</div>
+    <span>מנהל</span>
+  </div>
+</div>
+
+<div class="layout">
+<div class="sidebar">
+  <div class="sidebar-section">ניווט</div>
+  <div class="nav-item active" id="nav-admin" onclick="showScreen('admin',this)"><span class="nav-icon">🏠</span>ניהול תחרות</div>
+  <div class="nav-item" onclick="showScreen('bracket',this)"><span class="nav-icon">🌳</span>עץ תחרות</div>
+  <div class="nav-item" onclick="location.href='referee-login.html'"><span class="nav-icon">⚖️</span>מסך שופט</div>
+  <div class="nav-item" onclick="showScreen('viewer',this)"><span class="nav-icon">📺</span>תצוגת צופים</div>
+  <div class="nav-item" onclick="showScreen('attend',this)"><span class="nav-icon">✅</span>נוכחות</div>
+  <div class="nav-item" onclick="location.href='control.html'"><span class="nav-icon">🎛️</span>שליטה בתחרות</div>
+  <div class="nav-divider"></div>
+  <div class="sidebar-section">תחרויות</div>
+  <div id="sidebar-comps"></div>
+  <div style="padding:8px 16px;">
+    <button class="btn btn-secondary" style="width:100%;justify-content:center;" onclick="openModal('new-comp-modal')">+ תחרות חדשה</button>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ADMIN SCREEN -->
+<div class="screen active" id="screen-admin">
+  <div class="page-header">
+    <div class="page-title" id="admin-title">בחר תחרות <span>או צור חדשה</span></div>
+    <div style="display:flex;gap:8px;" id="admin-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportExcel()">⬇ ייצוא Excel</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCompetition()">🗑 מחק תחרות</button>
+    </div>
+  </div>
+  <div id="no-comp"><div class="empty-state"><div class="empty-icon">🥋</div><div class="empty-title">אין תחרות פעילה</div><div class="empty-sub">צור תחרות חדשה מהתפריט הצדדי</div></div></div>
+  <div id="comp-dash" style="display:none">
+    <div id="alert-area"></div>
+    <div class="stats-row" id="stats-row"></div>
+    <div class="tabs" id="main-tabs">
+      <div class="tab active" onclick="switchTab('t-comp',this)">👥 מתחרים</div>
+      <div class="tab" onclick="switchTab('t-cat',this)">🏷️ קטגוריות</div>
+      <div class="tab" onclick="switchTab('t-tatami',this)">🟩 מזרנים</div>
+      <div class="tab" onclick="switchTab('t-champ',this)">👑 אלוף האלופים</div>
+      <div class="tab" onclick="switchTab('t-settings',this)">⚙️ הגדרות</div>
+    </div>
+
+    <!-- COMPETITORS -->
+    <div id="t-comp">
+      <div class="card">
+        <div class="card-header"><div class="card-title">📥 ייבוא מ-Excel</div></div>
+        <div class="import-zone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event)">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+          <div style="font-size:32px;margin-bottom:8px">📊</div>
+          <div style="font-weight:600;margin-bottom:4px">גרור קובץ Excel לכאן</div>
+          <div style="font-size:12px;color:var(--text2)">עמודות נדרשות: שם מלא · קטגוריה (U18 -73) · מועדון · מזרן (אופציונלי)</div>
+        </div>
+        <div id="import-preview" style="display:none;margin-top:16px">
+          <div id="import-map"></div>
+          <div id="import-table" style="margin-top:12px"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button class="btn btn-secondary" onclick="clearImport()">ביטול</button>
+            <button class="btn btn-primary" onclick="confirmImport()">✓ ייבוא <span id="import-count"></span> מתחרים</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">👥 מתחרים <span id="comp-total" style="font-size:12px;color:var(--text2);font-weight:400"></span></div>
+          <button class="btn btn-secondary btn-sm" onclick="openModal('add-comp-modal')">+ הוסף ידנית</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>#</th><th>שם</th><th>מועדון</th><th>קטגוריה</th><th>מזרן</th><th></th></tr></thead>
+          <tbody id="comp-tbody"></tbody></table>
+          <div id="comp-empty" class="empty-state"><div class="empty-icon">👤</div><div class="empty-title">אין מתחרים</div><div class="empty-sub">ייבא מ-Excel או הוסף ידנית</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div id="t-cat" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--text2)">קטגוריות נוצרות אוטומטית מהייבוא. אפשר להוסיף ידנית ולצרף מתחרים.</div>
+        <button class="btn btn-secondary btn-sm" onclick="openModal('add-cat-modal')">+ קטגוריה חדשה</button>
+      </div>
+      <div id="cat-list"></div>
+      <div id="cat-empty" class="empty-state"><div class="empty-icon">🏷️</div><div class="empty-title">אין קטגוריות</div></div>
+    </div>
+
+    <!-- TATAMI -->
+    <div id="t-tatami" style="display:none">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🟩 מספר מזרנים פעילים</div></div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+          <button class="btn btn-secondary" onclick="changeTatami(-1)" style="font-size:18px;padding:6px 14px">−</button>
+          <div style="font-size:36px;font-weight:700;font-family:'Bebas Neue',sans-serif;min-width:48px;text-align:center" id="tatami-num">2</div>
+          <button class="btn btn-secondary" onclick="changeTatami(1)" style="font-size:18px;padding:6px 14px">+</button>
+          <div style="font-size:12px;color:var(--text2);flex:1">שינוי מספר מזרנים יחלק מחדש מתחרים ממזרנים שנמחקו</div>
+        </div>
+        <div id="tatami-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px">🖥️ תצוגת שעון שיפוט</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="display-option selected" id="disp-rows" onclick="selectDisplay('rows')">
+            <div class="icon">☰</div><div class="label">שורות</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">כחול למעלה / לבן למטה</div>
+          </div>
+          <div class="display-option" id="disp-sides" onclick="selectDisplay('sides')">
+            <div class="icon">◧</div><div class="label">צדדים</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">כחול שמאל / לבן ימין</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAMPION OF CHAMPIONS -->
+    <div id="t-champ" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--text2)">טורניר נוקאאוט ללא ניחומים. האלוף מכל קטגוריה שנבחרת נכנס.</div>
+        <button class="btn btn-purple btn-sm" onclick="openChampModal()">+ טורניר חדש</button>
+      </div>
+      <div id="champ-list"></div>
+      <div id="champ-empty" class="empty-state"><div class="empty-icon">👑</div><div class="empty-title">אין טורניר אלוף האלופים</div><div class="empty-sub">בחר קטגוריות וצור טורניר מיוחד</div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="t-settings" style="display:none">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px">⚙️ הגדרות תחרות</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">גולדן סקור</div><div class="toggle-desc">בתיקו – המשחק ממשיך עד ניקוד ראשון (ברירת מחדל: פעיל)</div></div>
+          <label class="toggle"><input type="checkbox" id="set-golden" checked onchange="setSetting('golden_score',this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Bye אקראי</div><div class="toggle-desc">מספר אי-זוגי בנוקאאוט → קידום אקראי לשלב הבא</div></div>
+          <label class="toggle"><input type="checkbox" id="set-bye" checked onchange="setSetting('random_bye',this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">ניקוד יוקו</div><div class="toggle-desc">5–9 שניות ריתוק = יוקו</div></div>
+          <label class="toggle"><input type="checkbox" id="set-yuko" checked onchange="setSetting('yuko_enabled',this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+        </div>
+        <div class="divider"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>זמן קרב ברירת מחדל (שניות)</label><input type="number" class="form-control" id="set-dur" value="180" min="60" max="600" onchange="setSetting('match_duration',+this.value)"></div>
+          <div class="form-group">
+            <label>קוד שיפוט (ברירת מחדל: 1234)</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" class="form-control" id="set-code" value="1234" maxlength="8" onchange="setSetting('ref_code',this.value)">
+              <button class="btn btn-secondary btn-sm" onclick="genCode()" title="קוד אקראי">🎲</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:6px">קוד שיפוט:</div>
+          <div class="code-box" id="code-display">1234</div>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-secondary btn-sm" onclick="location.href='referee-login.html'">⚖️ פתח מסך שופט</button>
+          <span style="font-size:11px;color:var(--text2)">שתף קוד זה עם השופטים</span>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OTHER SCREENS -->
+<div class="screen" id="screen-attend">
+<div class="page-header">
+  <div>
+    <div class="page-title">נוכחות <span id="att-comp-name"></span></div>
+  </div>
+</div>
+<!-- STATS ROW -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;" id="att-stats-row">
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--text);" id="att-n-total">0</div>
+    <div style="font-size:11px;color:var(--text2);">לא ידוע</div>
+  </div>
+  <div style="background:var(--surface2);border:1px solid rgba(74,232,154,.3);border-radius:10px;padding:14px;text-align:center;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--green);" id="att-n-arrived">0</div>
+    <div style="font-size:11px;color:var(--text2);">הגיעו</div>
+  </div>
+  <div style="background:var(--surface2);border:1px solid rgba(232,200,74,.3);border-radius:10px;padding:14px;text-align:center;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--accent);" id="att-n-late">0</div>
+    <div style="font-size:11px;color:var(--text2);">מתעכבים</div>
+  </div>
+  <div style="background:var(--surface2);border:1px solid rgba(232,74,74,.3);border-radius:10px;padding:14px;text-align:center;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--red);" id="att-n-absent">0</div>
+    <div style="font-size:11px;color:var(--text2);">לא מגיעים</div>
+  </div>
+</div>
+<!-- FILTER + SORT -->
+<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+  <input type="text" id="att-search" placeholder="🔍 חיפוש לפי שם..." oninput="renderAttendance()"
+    style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;outline:none;flex:1;max-width:280px;">
+  <div style="display:flex;gap:4px;margin-right:auto;">
+    <button onclick="attSort('alpha')" id="att-sort-alpha" class="btn btn-secondary btn-sm" style="font-size:11px;">א-ב</button>
+    <button onclick="attSort('cat')"   id="att-sort-cat"   class="btn btn-secondary btn-sm" style="font-size:11px;">קטגוריה</button>
+    <button onclick="attSort('status')" id="att-sort-status" class="btn btn-secondary btn-sm" style="font-size:11px;">סטטוס</button>
+  </div>
+</div>
+<!-- LIST -->
+<div id="att-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+<div id="att-empty" class="empty-state" style="display:none;">
+  <div class="empty-icon">👥</div>
+  <div class="empty-title">אין מתחרים</div>
+  <div class="empty-sub">בחר תחרות ויבא מתחרים</div>
+</div>
+</div>
+
+<div class="screen" id="screen-bracket"><div class="page-header"><div class="page-title">עץ תחרות</div></div><div class="empty-state"><div class="empty-icon">🌳</div><div class="empty-title">בשלב הבא</div></div></div>
+<div class="screen" id="screen-referee"><div class="page-header"><div class="page-title">מסך שופט</div></div><div class="empty-state"><div class="empty-icon">⚖️</div><div class="empty-title">בשלב הבא</div></div></div>
+<div class="screen" id="screen-viewer"><div class="page-header"><div class="page-title">תצוגת צופים</div></div><div class="empty-state"><div class="empty-icon">📺</div><div class="empty-title">בשלב הבא</div></div></div>
+</div>
+</div>
+
+<!-- MODAL: NEW COMP -->
+<div class="modal-overlay hidden" id="new-comp-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">תחרות חדשה</div><button class="btn btn-ghost btn-sm" onclick="closeModal('new-comp-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid cols1" style="gap:14px">
+        <div class="form-group"><label>שם התחרות *</label><input type="text" class="form-control" id="nc-name" placeholder="אליפות תל אביב 2025"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>תאריך</label><input type="date" class="form-control" id="nc-date"></div>
+          <div class="form-group"><label>מיקום</label><input type="text" class="form-control" id="nc-loc" placeholder="עיר / אולם"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('new-comp-modal')">ביטול</button>
+      <button class="btn btn-primary" onclick="createCompetition()">צור תחרות →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD COMPETITOR -->
+<div class="modal-overlay hidden" id="add-comp-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">הוסף מתחרה</div><button class="btn btn-ghost btn-sm" onclick="closeModal('add-comp-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid cols1" style="gap:14px">
+        <div class="form-group"><label>שם מלא *</label><input type="text" class="form-control" id="ac-name"></div>
+        <div class="form-group"><label>מועדון *</label><input type="text" class="form-control" id="ac-club"></div>
+        <div class="form-group"><label>קטגוריה (לדוגמה: U18 -73)</label><input type="text" class="form-control" id="ac-cat" placeholder="U18 -73"></div>
+        <div class="form-group"><label>מזרן (אופציונלי)</label><select class="form-control" id="ac-tatami"><option value="">אוטומטי</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('add-comp-modal')">ביטול</button>
+      <button class="btn btn-primary" onclick="addCompManual()">+ הוסף</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD CATEGORY -->
+<div class="modal-overlay hidden" id="add-cat-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">קטגוריה חדשה</div><button class="btn btn-ghost btn-sm" onclick="closeModal('add-cat-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid cols1" style="gap:14px">
+        <div class="form-group"><label>שם קטגוריה * (לדוגמה: U18 -73)</label><input type="text" class="form-control" id="cat-name-in" placeholder="U18 -73"></div>
+        <div class="form-group"><label>זמן קרב מיוחד (שניות, ריק = ברירת מחדל)</label><input type="number" class="form-control" id="cat-dur-in" placeholder="180"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('add-cat-modal')">ביטול</button>
+      <button class="btn btn-primary" onclick="addCatManual()">+ הוסף</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CHAMPION OF CHAMPIONS -->
+<div class="modal-overlay hidden" id="champ-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header"><div class="modal-title">👑 טורניר אלוף האלופים</div><button class="btn btn-ghost btn-sm" onclick="closeModal('champ-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid cols1" style="gap:16px">
+        <div class="form-group"><label>שם הטורניר</label><input type="text" class="form-control" id="champ-name" placeholder="אלוף האלופים 2025"></div>
+        <div class="form-group">
+          <label>בחר קטגוריות – האלוף מכל קטגוריה ייכנס</label>
+          <div id="champ-cats" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:40px"></div>
+        </div>
+        <div id="champ-prev" style="display:none">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:6px">מתחרים שייכנסו (אלוף כל קטגוריה):</div>
+          <div id="champ-prev-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('champ-modal')">ביטול</button>
+      <button class="btn btn-purple" onclick="createChamp()">👑 צור טורניר</button>
+    </div>
+  </div>
+</div>
+
+<script src="db.js"></script>
+<script>
+// ════════════════════════════════
+// STATE
+// ════════════════════════════════
+const S={competitions:[],activeId:null};
+const DEF={golden_score:true,random_bye:true,yuko_enabled:true,match_duration:180,ref_code:'1234'};
+
+const C=()=>S.competitions.find(c=>c.id===S.activeId)||null;
+
+function openModal(id){document.getElementById(id).classList.remove('hidden');}
+function closeModal(id){document.getElementById(id).classList.add('hidden');}
+
+function showScreen(name,el){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el)el.classList.add('active');
+  if(name==='attend') renderAttendance();
+}
+
+function switchTab(id,el){
+  ['t-comp','t-cat','t-tatami','t-champ','t-settings'].forEach(t=>{
+    const el=document.getElementById(t);if(el)el.style.display='none';
+  });
+  document.getElementById(id).style.display='block';
+  document.querySelectorAll('#main-tabs .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ════════════════════════════════
+// COMPETITIONS
+// ════════════════════════════════
+function createCompetition(){
+  const name=document.getElementById('nc-name').value.trim();
+  if(!name){alert('נדרש שם');return;}
+  const comp={
+    id:Date.now(),name,
+    date:document.getElementById('nc-date').value,
+    location:document.getElementById('nc-loc').value,
+    competitors:[],categories:[],
+    tatami_count:2,champions:[],display:'rows',
+    settings:{...DEF}
+  };
+  S.competitions.push(comp);
+  S.activeId=comp.id;
+  closeModal('new-comp-modal');
+  document.getElementById('nc-name').value='';
+  renderSidebar();renderDash();
+  showAlert('success','✓ תחרות נוצרה בהצלחה');
+}
+
+function selectComp(id){
+  S.activeId=id;renderSidebar();renderDash();
+  showScreen('admin',document.getElementById('nav-admin'));
+}
+
+function deleteCompetition(){
+  const c=C();if(!c)return;
+  if(!confirm(`למחוק את "${c.name}"? פעולה בלתי הפיכה.`))return;
+  S.competitions=S.competitions.filter(x=>x.id!==S.activeId);
+  S.activeId=null;renderSidebar();renderDash();
+}
+
+function setSetting(key,val){
+  const c=C();if(!c)return;
+  c.settings[key]=val;
+  if(key==='ref_code'){document.getElementById('code-display').textContent=val;document.getElementById('set-code').value=val;}
+  saveConfigToStorage();
+}
+
+function genCode(){
+  setSetting('ref_code',String(Math.floor(1000+Math.random()*9000)));
+}
+
+function saveConfigToStorage(){
+  const c=C(); if(!c) return;
+  try{
+    localStorage.setItem('judo_config', JSON.stringify({
+      ref_code: c.settings.ref_code,
+      tatami_count: c.tatami_count,
+      match_duration: c.settings.match_duration,
+    }));
+  }catch(e){}
+}
+
+// ════════════════════════════════
+// CATEGORY LOGIC
+// ════════════════════════════════
+function getMethod(n){return n<=3?'league':'knockout';}
+function methodLabel(m){
+  return m==='league'
+    ?'<span class="method-badge method-league">ליגה (2–3)</span>'
+    :'<span class="method-badge method-knockout">נוקאאוט + ניחומים כפול</span>';
+}
+
+function assignToCategory(comp,competitor){
+  if(!competitor.category)return;
+  let cat=comp.categories.find(c=>c.name===competitor.category);
+  if(!cat){
+    cat={id:Date.now()+Math.random(),name:competitor.category,duration:null,competitors:[],fromExcel:competitor.fromExcel};
+    comp.categories.push(cat);
+  }
+  if(!cat.competitors.some(id=>String(id)===String(competitor.id)))
+    cat.competitors.push(competitor.id);
+  cat.method=getMethod(cat.competitors.length);
+}
+
+function addCatManual(){
+  const c=C();if(!c)return;
+  const name=document.getElementById('cat-name-in').value.trim();
+  if(!name){alert('נדרש שם');return;}
+  if(c.categories.find(cat=>cat.name===name)){alert('קטגוריה קיימת');return;}
+  const dur=document.getElementById('cat-dur-in').value;
+  c.categories.push({id:Date.now(),name,duration:dur?+dur:null,competitors:[],fromExcel:false,method:'knockout'});
+  closeModal('add-cat-modal');
+  document.getElementById('cat-name-in').value='';
+  renderDash();showAlert('success','✓ קטגוריה נוספה');
+}
+
+function removeCat(idx){
+  const c=C();if(!c)return;
+  if(!confirm('למחוק קטגוריה?'))return;
+  c.categories.splice(idx,1);renderDash();
+}
+
+function removeFromCat(catId,compId){
+  const c=C();if(!c)return;
+  const cat=c.categories.find(ct=>String(ct.id)===String(catId));
+  if(!cat)return;
+  cat.competitors=cat.competitors.filter(id=>String(id)!==String(compId));
+  cat.method=getMethod(cat.competitors.length);
+  renderDash();
+}
+
+function genMatchesCat(catId){
+  const c=C();if(!c)return;
+  const cat=c.categories.find(ct=>String(ct.id)===String(catId));
+  if(!cat)return;
+  showAlert('success',`✓ קרבות נוצרו לקטגוריה ${cat.name} (${cat.method==='league'?'ליגה':'נוקאאוט + ניחומים'})`);
+}
+
+// ════════════════════════════════
+// COMPETITORS
+// ════════════════════════════════
+function addCompManual(){
+  const c=C();if(!c)return;
+  const name=document.getElementById('ac-name').value.trim();
+  const club=document.getElementById('ac-club').value.trim();
+  if(!name||!club){alert('שם ומועדון חובה');return;}
+  const comp={id:Date.now()+Math.random(),name,club,
+    category:document.getElementById('ac-cat').value.trim(),
+    tatami:document.getElementById('ac-tatami').value||null,
+    fromExcel:false};
+  c.competitors.push(comp);
+  assignToCategory(c,comp);
+  closeModal('add-comp-modal');
+  document.getElementById('ac-name').value='';
+  document.getElementById('ac-club').value='';
+  renderDash();showAlert('success',`✓ ${name} נוסף`);
+}
+
+function removeComp(idx){
+  const c=C();if(!c)return;
+  const removed=c.competitors.splice(idx,1)[0];
+  c.categories.forEach(cat=>{cat.competitors=cat.competitors.filter(id=>String(id)!==String(removed.id));cat.method=getMethod(cat.competitors.length);});
+  c.categories=c.categories.filter(cat=>cat.competitors.length>0||!cat.fromExcel);
+  renderDash();
+}
+
+function editCompTatami(idx){
+  const c=C();if(!c)return;
+  const comp=c.competitors[idx];
+  const t=prompt(`מזרן עבור ${comp.name} (1–${c.tatami_count}):`,comp.tatami||'');
+  if(t===null)return;
+  const n=parseInt(t);
+  comp.tatami=(n>=1&&n<=c.tatami_count)?String(n):null;
+  renderDash();
+}
+
+// ════════════════════════════════
+// TATAMI
+// ════════════════════════════════
+function changeTatami(d){
+  const c=C();if(!c)return;
+  const newN=Math.max(1,Math.min(20,c.tatami_count+d));
+  if(newN<c.tatami_count){
+    let ri=1;
+    c.competitors.forEach(comp=>{
+      if(parseInt(comp.tatami)>newN){comp.tatami=String(ri);ri=ri%newN+1;}
+    });
+    showAlert('info',`ℹ️ מתחרים ממזרן ${c.tatami_count} חולקו למזרנים 1–${newN}`);
+  }
+  c.tatami_count=newN;
+  renderDash();
+  updateTatamiSelect();
+  saveConfigToStorage();
+}
+
+function updateTatamiSelect(){
+  const c=C();if(!c)return;
+  const sel=document.getElementById('ac-tatami');
+  sel.innerHTML='<option value="">אוטומטי</option>'+
+    Array.from({length:c.tatami_count},(_,i)=>`<option value="${i+1}">מזרן ${i+1}</option>`).join('');
+}
+
+function selectDisplay(type){
+  const c=C();if(!c)return;
+  c.display=type;
+  document.getElementById('disp-rows').classList.toggle('selected',type==='rows');
+  document.getElementById('disp-sides').classList.toggle('selected',type==='sides');
+}
+
+// ════════════════════════════════
+// CHAMPION OF CHAMPIONS
+// ════════════════════════════════
+function openChampModal(){
+  const c=C();if(!c)return;
+  document.getElementById('champ-cats').innerHTML=c.categories.map(cat=>`
+    <label class="chk-label">
+      <input type="checkbox" value="${cat.id}" onchange="updateChampPrev()">
+      <span>${cat.name} (${cat.competitors.length})</span>
+    </label>
+  `).join('');
+  document.getElementById('champ-prev').style.display='none';
+  openModal('champ-modal');
+}
+
+function updateChampPrev(){
+  const c=C();if(!c)return;
+  const ids=[...document.querySelectorAll('#champ-cats input:checked')].map(i=>i.value);
+  const prev=document.getElementById('champ-prev');
+  if(!ids.length){prev.style.display='none';return;}
+  prev.style.display='block';
+  const winners=ids.map(id=>{
+    const cat=c.categories.find(ct=>String(ct.id)===id);
+    if(!cat||!cat.competitors.length)return null;
+    const winner=c.competitors.find(comp=>String(comp.id)===String(cat.competitors[0]));
+    return winner?{name:winner.name,cat:cat.name}:null;
+  }).filter(Boolean);
+  document.getElementById('champ-prev-list').innerHTML=winners.map(w=>
+    `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px"><strong>${w.name}</strong> <span style="color:var(--text2)">${w.cat}</span></div>`
+  ).join('');
+}
+
+function createChamp(){
+  const c=C();if(!c)return;
+  const name=document.getElementById('champ-name').value.trim()||'אלוף האלופים';
+  const catIds=[...document.querySelectorAll('#champ-cats input:checked')].map(i=>i.value);
+  if(catIds.length<2){alert('יש לבחור לפחות 2 קטגוריות');return;}
+  c.champions.push({id:Date.now(),name,cat_ids:catIds});
+  closeModal('champ-modal');
+  document.getElementById('champ-name').value='';
+  renderDash();showAlert('success',`✓ טורניר "${name}" נוצר`);
+}
+
+function deleteChamp(idx){
+  const c=C();if(!c)return;
+  c.champions.splice(idx,1);renderDash();
+}
+
+// ════════════════════════════════
+// EXCEL IMPORT
+// ════════════════════════════════
+let rawRows=[],colMap={name:null,category:null,club:null,tatami:null};
+
+function handleDrop(e){e.preventDefault();document.querySelector('.import-zone').classList.remove('drag-over');processFile(e.dataTransfer.files[0]);}
+function handleFile(e){processFile(e.target.files[0]);}
+
+function processFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    rawRows=XLSX.utils.sheet_to_json(ws,{header:1}).filter(r=>r.some(c=>c!==undefined&&c!==''));
+    if(rawRows.length<2){showAlert('error','הקובץ ריק');return;}
+    autoDetect(rawRows[0]);
+    renderImportUI(rawRows[0],rawRows.slice(1,6),rawRows.length-1);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function autoDetect(headers){
+  colMap={name:null,category:null,club:null,tatami:null};
+  headers.forEach((h,i)=>{
+    const l=String(h).toLowerCase();
+    if(colMap.name===null&&/שם|name/.test(l))colMap.name=i;
+    if(colMap.category===null&&/קטגוריה|category|cat/.test(l))colMap.category=i;
+    if(colMap.club===null&&/מועדון|club|team/.test(l))colMap.club=i;
+    if(colMap.tatami===null&&/מזרן|tatami|mat/.test(l))colMap.tatami=i;
+  });
+}
+
+function renderImportUI(headers,sample,total){
+  const fields=[{k:'name',l:'שם מלא *'},{k:'category',l:'קטגוריה *'},{k:'club',l:'מועדון'},{k:'tatami',l:'מזרן'}];
+  document.getElementById('import-map').innerHTML=`
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text2)">מיפוי עמודות:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${fields.map(f=>`
+        <div class="form-group"><label>${f.l}</label>
+          <select class="form-control" onchange="colMap['${f.k}']=this.value===''?null:+this.value">
+            <option value="">-- בחר --</option>
+            ${headers.map((h,i)=>`<option value="${i}"${colMap[f.k]===i?' selected':''}>${h}</option>`).join('')}
+          </select>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  document.getElementById('import-count').textContent=total;
+  document.getElementById('import-table').innerHTML=`
+    <div style="font-size:11px;color:var(--text2);margin-bottom:6px">תצוגה מקדימה (${sample.length} שורות ראשונות):</div>
+    <div class="table-wrap"><table>
+      <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${sample.map(r=>`<tr>${headers.map((_,i)=>`<td>${r[i]??'—'}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div>
+  `;
+  document.getElementById('import-preview').style.display='block';
+}
+
+function confirmImport(){
+  const c=C();if(!c)return;
+  if(colMap.name===null){alert('חובה לבחור עמודת שם');return;}
+  let added=0;
+  rawRows.slice(1).forEach(row=>{
+    const name=String(row[colMap.name]||'').trim();
+    if(!name)return;
+    const comp={
+      id:Date.now()+Math.random(),name,
+      club:colMap.club!==null?String(row[colMap.club]||''):'',
+      category:colMap.category!==null?String(row[colMap.category]||''):'',
+      tatami:colMap.tatami!==null?String(row[colMap.tatami]||''):null,
+      fromExcel:true
+    };
+    c.competitors.push(comp);
+    assignToCategory(c,comp);
+    added++;
+  });
+  clearImport();renderDash();
+  showAlert('success',`✓ יובאו ${added} מתחרים, קטגוריות נוצרו אוטומטית`);
+}
+
+function clearImport(){
+  rawRows=[];colMap={name:null,category:null,club:null,tatami:null};
+  document.getElementById('import-preview').style.display='none';
+}
+
+// ════════════════════════════════
+// EXPORT
+// ════════════════════════════════
+function exportExcel(){
+  const c=C();if(!c||!c.competitors.length){showAlert('error','אין נתונים');return;}
+  const ws=XLSX.utils.json_to_sheet(c.competitors.map(comp=>({'שם':comp.name,'מועדון':comp.club,'קטגוריה':comp.category,'מזרן':comp.tatami||''})));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'מתחרים');
+  XLSX.writeFile(wb,`${c.name}_מתחרים.xlsx`);
+}
+
+// ════════════════════════════════
+// RENDER
+// ════════════════════════════════
+function renderSidebar(){
+  const el=document.getElementById('sidebar-comps');
+  el.innerHTML=S.competitions.length===0
+    ?'<div style="padding:8px 16px;font-size:12px;color:var(--text3)">אין תחרויות</div>'
+    :S.competitions.map(comp=>`
+      <div class="comp-item ${comp.id===S.activeId?'active':''}" onclick="selectComp(${comp.id})">
+        <span>🥋</span>
+        <span class="comp-item-name">${comp.name}</span>
+        <span style="font-size:10px;color:var(--text3)">${comp.competitors.length}</span>
+      </div>`).join('');
+}
+
+function renderDash(){
+  const c=C();
+  const dash=document.getElementById('comp-dash');
+  const no=document.getElementById('no-comp');
+  const actions=document.getElementById('admin-actions');
+  if(!c){
+    dash.style.display='none';no.style.display='block';actions.style.display='none';
+    document.getElementById('admin-title').innerHTML='בחר תחרות <span>או צור חדשה</span>';
+    return;
+  }
+  dash.style.display='block';no.style.display='none';actions.style.display='flex';
+  document.getElementById('admin-title').innerHTML=`${c.name} <span>${c.date||''}</span>`;
+
+  const readyCats=c.categories.filter(cat=>cat.competitors.length>=2).length;
+  document.getElementById('stats-row').innerHTML=`
+    <div class="stat-card"><div class="stat-val">${c.competitors.length}</div><div class="stat-label">מתחרים</div></div>
+    <div class="stat-card"><div class="stat-val">${c.categories.length}</div><div class="stat-label">קטגוריות</div></div>
+    <div class="stat-card"><div class="stat-val">${c.tatami_count}</div><div class="stat-label">מזרנים</div></div>
+    <div class="stat-card"><div class="stat-val ${readyCats===c.categories.length&&c.categories.length>0?'':''}"><span style="color:var(--green)">${readyCats}</span>/${c.categories.length}</div><div class="stat-label">קטגוריות מוכנות</div></div>
+  `;
+  renderCompTab(c);renderCatTab(c);renderTatamiTab(c);renderChampTab(c);syncSettings(c);updateTatamiSelect();
+}
+
+function renderCompTab(c){
+  const tbody=document.getElementById('comp-tbody');
+  const empty=document.getElementById('comp-empty');
+  document.getElementById('comp-total').textContent=`(${c.competitors.length})`;
+  if(!c.competitors.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  tbody.innerHTML=c.competitors.map((comp,i)=>`
+    <tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:600">${comp.name}</td>
+      <td style="color:var(--text2)">${comp.club||'—'}</td>
+      <td><span class="weight-tag">${comp.category||'—'}</span></td>
+      <td style="color:var(--text2)">${comp.tatami?'מזרן '+comp.tatami:'—'}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="editCompTatami(${i})" title="שנה מזרן">📍</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="removeComp(${i})">✕</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function renderCatTab(c){
+  const el=document.getElementById('cat-list');
+  const empty=document.getElementById('cat-empty');
+  if(!c.categories.length){el.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  el.innerHTML=c.categories.map((cat,i)=>{
+    const comps=cat.competitors.map(id=>c.competitors.find(comp=>String(comp.id)===String(id))).filter(Boolean);
+    const canGenerate=!cat.fromExcel&&comps.length>=2;
+    return `<div class="cat-card">
+      <div class="cat-card-header">
+        <div class="cat-card-title">${cat.name}</div>
+        ${methodLabel(cat.method)}
+        <span class="badge ${comps.length>=2?'badge-green':'badge-red'}">${comps.length} מתחרים</span>
+        ${cat.duration?`<span class="badge badge-blue">${cat.duration}ש'</span>`:''}
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="removeCat(${i})" style="margin-right:auto">✕</button>
+      </div>
+      <div class="cat-competitors">
+        ${comps.map(comp=>`<div class="comp-chip"><span>${comp.name}</span><span class="remove-chip" onclick="removeFromCat('${cat.id}','${comp.id}')">✕</span></div>`).join('')}
+      </div>
+      ${canGenerate?`<div style="display:flex;justify-content:flex-end;margin-top:4px"><button class="btn btn-primary btn-sm" onclick="genMatchesCat('${cat.id}')">⚡ צור קרבות</button></div>`:''}
+      ${cat.fromExcel&&comps.length>=2?`<div style="font-size:11px;color:var(--green);margin-top:4px">✓ קרבות נוצרו אוטומטית מהייבוא</div>`:''}
+      ${comps.length<2?`<div style="font-size:11px;color:var(--red);margin-top:4px">⚠ נדרשים לפחות 2 מתחרים</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderTatamiTab(comp){
+  const c=comp||C();if(!c)return;
+  document.getElementById('tatami-num').textContent=c.tatami_count;
+  let html='';
+  for(let i=1;i<=c.tatami_count;i++){
+    const comps=c.competitors.filter(comp=>String(comp.tatami)===String(i));
+    const cats=[...new Set(comps.map(comp=>comp.category).filter(Boolean))];
+    html+=`<div class="tatami-item">
+      <div class="tatami-num">${i}</div>
+      <div class="tatami-info">
+        <div class="tatami-name">מזרן ${i}</div>
+        <div class="tatami-sub">${comps.length} מתחרים${cats.length?' · '+cats.join(', '):'  — לא שובצו מתחרים'}</div>
+      </div>
+    </div>`;
+  }
+  document.getElementById('tatami-list').innerHTML=html;
+  document.getElementById('disp-rows').classList.toggle('selected',c.display==='rows');
+  document.getElementById('disp-sides').classList.toggle('selected',c.display==='sides');
+}
+
+function renderChampTab(c){
+  const el=document.getElementById('champ-list');
+  const empty=document.getElementById('champ-empty');
+  if(!c.champions.length){el.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  el.innerHTML=c.champions.map((ch,i)=>{
+    const cats=ch.cat_ids.map(id=>c.categories.find(cat=>String(cat.id)===String(id))?.name||'?').join(' · ');
+    return `<div class="champ-card">
+      <div class="champ-card-title">👑 ${ch.name}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">קטגוריות: ${cats}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">פורמט: נוקאאוט ישיר – ללא בית ניחומים</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm">⚡ צור קרבות</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteChamp(${i})" style="margin-right:auto">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function syncSettings(c){
+  document.getElementById('set-golden').checked=c.settings.golden_score;
+  document.getElementById('set-bye').checked=c.settings.random_bye;
+  document.getElementById('set-yuko').checked=c.settings.yuko_enabled;
+  document.getElementById('set-dur').value=c.settings.match_duration;
+  document.getElementById('set-code').value=c.settings.ref_code;
+  document.getElementById('code-display').textContent=c.settings.ref_code;
+}
+
+// ════════════════════════════════
+// ALERTS
+// ════════════════════════════════
+function showAlert(type,msg){
+  const area=document.getElementById('alert-area');if(!area)return;
+  const el=document.createElement('div');
+  el.className=`alert alert-${type}`;el.textContent=msg;
+  area.appendChild(el);setTimeout(()=>el.remove(),4000);
+}
+
+
+// ═══════════════════════════════════════
+// ATTENDANCE
+// ═══════════════════════════════════════
+// Status: 'unknown' | 'arrived' | 'absent' | 'late'
+// Stored in comp._attend, comp._late
+
+let attSortMode = 'alpha';
+
+function attSort(mode){
+  attSortMode = mode;
+  document.querySelectorAll('[id^="att-sort-"]').forEach(b=>b.classList.remove('btn-primary'));
+  document.querySelectorAll('[id^="att-sort-"]').forEach(b=>b.classList.add('btn-secondary'));
+  const el = document.getElementById('att-sort-'+mode);
+  if(el){el.classList.remove('btn-secondary');el.classList.add('btn-primary');}
+  renderAttendance();
+}
+
+function renderAttendance(){
+  const c = C();
+  const nameEl = document.getElementById('att-comp-name');
+  const listEl = document.getElementById('att-list');
+  const emptyEl = document.getElementById('att-empty');
+
+  if(!c || !c.competitors.length){
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    updateAttStats([]);
+    if(nameEl) nameEl.textContent = '';
+    return;
+  }
+  if(nameEl) nameEl.textContent = c.name;
+  emptyEl.style.display = 'none';
+
+  // filter
+  const q = (document.getElementById('att-search')?.value||'').toLowerCase();
+  let comps = c.competitors.filter(comp =>
+    !q || comp.name.toLowerCase().includes(q) || (comp.club||'').toLowerCase().includes(q)
+  );
+
+  // sort
+  const statusOrder = {arrived:2, absent:3, late:1, unknown:0};
+  if(attSortMode === 'alpha'){
+    comps.sort((a,b)=>{
+      // unknown first, then arrived/late/absent at bottom
+      const ao=statusOrder[a._attend||'unknown'], bo=statusOrder[b._attend||'unknown'];
+      if(ao!==bo) return ao-bo;
+      return a.name.localeCompare(b.name,'he');
+    });
+  } else if(attSortMode === 'cat'){
+    comps.sort((a,b)=>(a.category||'').localeCompare(b.category||'','he'));
+  } else {
+    comps.sort((a,b)=>statusOrder[a._attend||'unknown']-statusOrder[b._attend||'unknown']);
+  }
+
+  updateAttStats(c.competitors);
+
+  listEl.innerHTML = comps.map(comp => {
+    const st = comp._attend || 'unknown';
+    const late = !!comp._late;
+    const rowCls = st==='arrived'?'att-arrived':st==='absent'?'att-absent':st==='late'?'att-late':'';
+    const lateBadge = late ? '<span class="att-late-badge">⏳ מתעכב</span>' : '';
+    return `
+      <div class="att-row ${rowCls}" id="att-row-${comp.id}">
+        <div style="flex:1;">
+          <div class="att-name">${comp.name} ${lateBadge}</div>
+          <div class="att-meta">${comp.club||''}${comp.category?' · '+comp.category:''}</div>
+        </div>
+        <button class="att-btn att-btn-late${late?' on':''}" onclick="toggleLate('${comp.id}')" title="מתעכב">⏳</button>
+        <button class="att-btn att-btn-absent${st==='absent'?' on':''}" onclick="setAttend('${comp.id}','absent')" title="לא מגיע">✕</button>
+        <button class="att-btn att-btn-arrived${st==='arrived'?' on':''}" onclick="setAttend('${comp.id}','arrived')" title="הגיע">✓</button>
+      </div>`;
+  }).join('');
+}
+
+function setAttend(compId, status){
+  const c = C(); if(!c) return;
+  const comp = c.competitors.find(x=>String(x.id)===String(compId));
+  if(!comp) return;
+  // toggle: clicking same status resets to unknown
+  comp._attend = (comp._attend===status) ? 'unknown' : status;
+  renderAttendance();
+}
+
+function toggleLate(compId){
+  const c = C(); if(!c) return;
+  const comp = c.competitors.find(x=>String(x.id)===String(compId));
+  if(!comp) return;
+  comp._late = !comp._late;
+  renderAttendance();
+}
+
+function updateAttStats(comps){
+  const total   = comps.filter(c=>(c._attend||'unknown')==='unknown').length;
+  const arrived = comps.filter(c=>c._attend==='arrived').length;
+  const late    = comps.filter(c=>!!c._late).length;
+  const absent  = comps.filter(c=>c._attend==='absent').length;
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('att-n-total',   total);
+  set('att-n-arrived', arrived);
+  set('att-n-late',    late);
+  set('att-n-absent',  absent);
+}
+
+// ════════════════════════════════
+// INIT — load from Supabase
+// ════════════════════════════════
+async function initFromDB(){
+  // Show loading state
+  document.getElementById('sidebar-comps').innerHTML='<div style="padding:8px 16px;font-size:11px;color:var(--text2)">טוען...</div>';
+  try{
+    const comps = await DB.getCompetitions();
+    if(!comps||!comps.length){
+      // No competitions yet — start fresh
+      renderSidebar(); renderDash();
+      return;
+    }
+    // Map DB rows → internal format
+    for(const row of comps){
+      const existing = S.competitions.find(c=>c.dbId===row.id);
+      if(existing) continue;
+      S.competitions.push({
+        id: row.id,          // use uuid as id
+        dbId: row.id,
+        name: row.name,
+        date: row.date,
+        location: '',
+        tatami_count: row.tatami_count||3,
+        competitors: [],
+        categories: [],
+        champions: [],
+        display: 'rows',
+        settings:{
+          ref_code: row.ref_code||'1234',
+          match_duration: row.match_duration||180,
+          ...DEF,
+        }
+      });
+    }
+    // Restore active competition
+    const savedId = getActiveCompId();
+    if(savedId && S.competitions.find(c=>c.dbId===savedId)){
+      S.activeId = savedId;
+    } else if(S.competitions.length){
+      S.activeId = S.competitions[0].id;
+    }
+    renderSidebar(); renderDash();
+    showAlert('success','✓ מחובר ל-Supabase');
+  }catch(e){
+    console.error('DB init error:', e);
+    showAlert('error','⚠ שגיאה בחיבור ל-Supabase — עובד במצב מקומי');
+    renderSidebar(); renderDash();
+  }
+}
+
+// Patch createCompetition to also save to DB
+const _origCreate = createCompetition;
+window.createCompetition = async function(){
+  const name=document.getElementById('nc-name').value.trim();
+  if(!name){alert('נדרש שם');return;}
+  try{
+    const row = await DB.createCompetition({
+      name,
+      date: document.getElementById('nc-date').value||null,
+      tatami_count: 2,
+      ref_code: '1234',
+      match_duration: 180,
+    });
+    const comp={
+      id: row.id, dbId: row.id, name: row.name,
+      date: row.date, location: '',
+      competitors:[], categories:[], tatami_count:2,
+      champions:[], display:'rows',
+      settings:{...DEF, ref_code:'1234', match_duration:180}
+    };
+    S.competitions.push(comp);
+    S.activeId=comp.id;
+    setActiveCompId(comp.id);
+    closeModal('new-comp-modal');
+    document.getElementById('nc-name').value='';
+    renderSidebar(); renderDash();
+    showAlert('success','✓ תחרות נוצרה ונשמרה');
+  }catch(e){
+    console.error('Create comp error:',e);
+    // fallback to local
+    _origCreate();
+  }
+};
+
+// Patch selectComp to save active id
+const _origSelect = selectComp;
+window.selectComp = function(id){
+  _origSelect(id);
+  setActiveCompId(id);
+};
+
+// Patch setSetting to also save to DB
+const _origSetSetting = setSetting;
+window.setSetting = async function(key,val){
+  _origSetSetting(key,val);
+  const c=C();if(!c||!c.dbId)return;
+  const dbField={ref_code:'ref_code',match_duration:'match_duration'}[key];
+  if(dbField) try{ await DB.updateCompetition(c.dbId,{[dbField]:val}); }catch(e){}
+};
+
+// Start
+initFromDB();
+</script>
+</body>
+</html>

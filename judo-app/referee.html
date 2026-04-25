@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>שופט — בחר סגנון</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:#0a0a0e;color:#f0f0f0;font-family:'Heebo',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+
+.logo{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px;color:#e8c84a;margin-bottom:6px;}
+.sub{font-size:12px;color:#3a3f50;letter-spacing:1px;margin-bottom:40px;}
+
+.cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;padding:0 20px;}
+
+.style-card{
+  width:240px;background:#111318;border:1px solid #1e2130;border-radius:14px;
+  padding:24px 20px;cursor:pointer;transition:all .2s;text-align:center;
+  text-decoration:none;color:inherit;display:flex;flex-direction:column;align-items:center;gap:12px;
+}
+.style-card:hover{border-color:#e8c84a;background:rgba(232,200,74,.05);transform:translateY(-2px);}
+
+.card-preview{
+  width:100%;height:120px;border-radius:8px;overflow:hidden;
+  display:flex;flex-direction:column;border:1px solid #1e2130;
+}
+
+/* ROWS preview */
+.prev-rows{flex-direction:column;}
+.prev-blue-top{flex:1;background:#0d1f3d;display:flex;align-items:center;justify-content:center;}
+.prev-timer-mid{height:28px;background:#0a0a0e;display:flex;align-items:center;justify-content:center;border-top:1px solid #1e2130;border-bottom:1px solid #1e2130;}
+.prev-white-bot{flex:1;background:#f0f0f0;display:flex;align-items:center;justify-content:center;}
+.prev-big{font-family:'Bebas Neue',sans-serif;font-size:32px;opacity:.6;}
+.prev-clock{font-family:'Bebas Neue',sans-serif;font-size:14px;color:#4ae89a;}
+
+/* SIDES preview */
+.prev-sides{flex-direction:row;}
+.prev-blue-left{flex:1;background:#0033aa;display:flex;align-items:center;justify-content:center;}
+.prev-center-strip{width:32px;background:#0a0a0e;display:flex;align-items:center;justify-content:center;border-left:1px solid #1e2130;border-right:1px solid #1e2130;}
+.prev-white-right{flex:1;background:#f0f0f0;display:flex;align-items:center;justify-content:center;}
+
+.card-title{font-size:15px;font-weight:700;}
+.card-desc{font-size:11px;color:#8a8fa0;line-height:1.4;}
+
+.back-btn{
+  margin-top:32px;padding:7px 18px;border-radius:6px;
+  border:1px solid #1e2130;background:transparent;color:#4a4f60;
+  font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;transition:all .15s;
+}
+.back-btn:hover{color:#f0f0f0;border-color:#4a4f60;}
+</style>
+</head>
+<body>
+
+<div class="logo">JUDO</div>
+<div class="sub">מסך שיפוט — בחר סגנון תצוגה</div>
+
+<div class="cards">
+
+  <!-- ROWS -->
+  <a class="style-card" href="referee-rows.html" id="go-rows">
+    <div class="card-preview prev-rows">
+      <div class="prev-blue-top"><div class="prev-big" style="color:#4a90ff">0</div></div>
+      <div class="prev-timer-mid"><div class="prev-clock">3:00</div></div>
+      <div class="prev-white-bot"><div class="prev-big" style="color:#333">0</div></div>
+    </div>
+    <div class="card-title">☰ שורות</div>
+    <div class="card-desc">כחול למעלה, לבן למטה<br>טיימר וריתוק באמצע</div>
+  </a>
+
+  <!-- SIDES -->
+  <a class="style-card" href="referee-sides.html" id="go-sides">
+    <div class="card-preview prev-sides">
+      <div class="prev-blue-left"><div class="prev-big" style="color:#fff">0</div></div>
+      <div class="prev-center-strip"><div class="prev-clock" style="font-size:10px;writing-mode:vertical-lr">3:00</div></div>
+      <div class="prev-white-right"><div class="prev-big" style="color:#333">0</div></div>
+    </div>
+    <div class="card-title">◧ צדדים</div>
+    <div class="card-desc">כחול שמאל, לבן ימין<br>שעון ומשטח ריתוק למטה</div>
+  </a>
+
+</div>
+
+<button class="back-btn" onclick="location.href='index.html'">← חזרה לניהול</button>
+
+<script>
+// Pass URL params to target pages
+const p = new URLSearchParams(location.search);
+const params = p.toString();
+if(params){
+  document.getElementById('go-rows').href  += (params ? '?'+params : '');
+  document.getElementById('go-sides').href += (params ? '?'+params : '');
+}
+</script>
+</body>
+</html>
