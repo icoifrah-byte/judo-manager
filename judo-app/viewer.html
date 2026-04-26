@@ -198,63 +198,15 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 // ═══════════════════════════
 // DEMO DATA
 // ═══════════════════════════
-const COMP = {name:"", date:""};
+const COMP={name:"",date:""};
 
-const TATAMI = [
-  {
-    id:1,
-    lastWinner:{name:'דן כהן', side:'white', how:'Ippon', category:'U15 -60'},
-    active:{blue:'נועם ברק', white:'תומר גרין', category:'U15 -60', stage:'semi', matchNum:7},
-    upcoming:[
-      {blue:'עידן שפי', white:null, bRole:'winner', bRef:3, wRole:'winner', wRef:4, category:'U15 -60', stage:'final', matchNum:11},
-      {blue:null, white:null, bRole:'winner', bRef:5, wRole:'winner', wRef:6, category:'U15 -60', stage:'rep_semi', matchNum:9},
-      {blue:null, white:null, bRole:'loser', bRef:7, wRole:'winner', wRef:9, category:'U15 -60', stage:'rep_bronze', matchNum:13},
-      {blue:null, white:null, bRole:'loser', bRef:8, wRole:'winner', wRef:10, category:'U15 -60', stage:'rep_bronze', matchNum:14},
-    ],
-  },
-  {
-    id:2,
-    lastWinner:{name:'אמיר לוי', side:'blue', how:'Waza-ari×2', category:'U18 -73'},
-    active:{blue:'יוסי מזרחי', white:'רון טל', category:'U18 -73', stage:'quarter', matchNum:3},
-    upcoming:[
-      {blue:null, white:'בן מור', bRole:'winner', bRef:3, wRole:'winner', wRef:4, category:'U18 -73', stage:'semi', matchNum:7},
-      {blue:null, white:null, bRole:'loser', bRef:3, wRole:'loser', wRef:4, category:'U18 -73', stage:'rep_eighth', matchNum:5},
-      {blue:'אמיר לוי', white:null, bRole:null, bRef:null, wRole:'winner', wRef:7, category:'U18 -73', stage:'final', matchNum:11},
-      {blue:null, white:null, bRole:'winner', bRef:5, wRole:'loser', wRef:7, category:'U18 -73', stage:'rep_semi', matchNum:9},
-    ],
-  },
-  {
-    id:3,
-    lastWinner:null,
-    active:null,
-    upcoming:[
-      {blue:'אורי פלד', white:'שי ברנע', bRole:null, bRef:null, wRole:null, wRef:null, category:'U15 -66', stage:'eighth', matchNum:1},
-      {blue:'לירון כץ', white:'מתן הלוי', bRole:null, bRef:null, wRole:null, wRef:null, category:'U15 -66', stage:'eighth', matchNum:2},
-      {blue:null, white:null, bRole:'winner', bRef:1, wRole:'winner', wRef:2, category:'U15 -66', stage:'quarter', matchNum:5},
-      {blue:null, white:null, bRole:'loser', bRef:1, wRole:'loser', wRef:2, category:'U15 -66', stage:'rep_eighth', matchNum:3},
-      {blue:'עמית גל', white:'ניר שם-טוב', category:'Senior', stage:'eighth', matchNum:1},
-      {blue:'יובל נגר', white:'בועז עמר', category:'Senior', stage:'eighth', matchNum:2},
-    ],
-  },
-];
+const TATAMI=[];
 
 // Categories with full competitor list
-const CATEGORIES = [
-  {name:'U15 -60', method:'knockout', comps:['נועם ברק','דן כהן','תומר גרין','עידן שפי','רון טל','בן מור'], status:'live'},
-  {name:'U18 -73', method:'knockout', comps:['אמיר לוי','יוסי מזרחי','רון טל','בן מור'], status:'live'},
-  {name:'U15 -66', method:'knockout', comps:['אורי פלד','שי ברנע','לירון כץ','מתן הלוי'], status:'pending'},
-  {name:'Senior',  method:'league',   comps:['עמית גל','ניר שם-טוב','יובל נגר','בועז עמר','אסף רז'], status:'pending'},
-];
+const CATEGORIES=[];
 
 // Results for stats
-const RESULTS = [
-  {winner:'דן כהן',   club:'מועדון הירוק', place:1, category:'U15 -60'},
-  {winner:'נועם ברק', club:'מועדון שיבוץ', place:2, category:'U15 -60'},
-  {winner:'אמיר לוי', club:'קלאב פייט',    place:1, category:'U18 -73'},
-  {winner:'רון טל',   club:'דוג\'ו ראשון', place:3, category:'U18 -73'},
-  {winner:'יוסי מזרחי',club:'דוג\'ו ראשון',place:3, category:'U18 -73'},
-  {winner:'אורי פלד', club:'מועדון שיבוץ', place:1, category:'U15 -66'},
-];
+const RESULTS=[];
 
 // ═══════════════════════════
 // HELPERS
