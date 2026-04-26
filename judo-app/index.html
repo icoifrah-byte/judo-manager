@@ -818,14 +818,31 @@ async function confirmImport(){
       // 1. Save new categories first
       for(const cat of c.categories){
         if(!cat.dbId){
-          const row=await DB.createCategory({competition_id:c.dbId,name:cat.name,method:cat.method||'knockout',status:'pending'});
-          if(row)cat.dbId=row.id;
+          // Find tatami from first competitor in this category
+          const firstComp=newComps.find(comp=>comp.category===cat.name&&comp.tatami);
+          const tatamiId=firstComp?.tatami?parseInt(firstComp.tatami):null;
+          const row=await DB.createCategory({
+            competition_id:c.dbId,
+            name:cat.name,
+            method:cat.method||'knockout',
+            status:'pending',
+          });
+          if(row){
+            cat.dbId=row.id;
+            cat.tatamiId=tatamiId;
+          }
         }
       }
       // 2. Save competitors with category IDs
       const rows=newComps.map(comp=>{
         const cat=c.categories.find(ct=>ct.name===comp.category);
-        return {category_id:cat?.dbId||null,name:comp.name,club:comp.club||'',seed:null};
+        return {
+          category_id:cat?.dbId||null,
+          name:comp.name,
+          club:comp.club||'',
+          seed:null,
+          // tatami stored as attend_status hack — actually we store in category
+        };
       }).filter(r=>r.category_id);
       if(rows.length){
         const saved=await DB.upsertCompetitors(rows);
