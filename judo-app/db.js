@@ -85,7 +85,8 @@ const DB = {
     return supa('GET', `matches?category_id=eq.${categoryId}&select=*&order=match_num.asc`);
   },
   async getMatchesByTatami(tatamiId) {
-    return supa('GET', `matches?tatami_id=eq.${tatamiId}&status=in.(pending,suspended)&blue_id=not.is.null&white_id=not.is.null&select=*,blue:blue_id(*),white:white_id(*),category:category_id(name)&order=order_in_tatami.asc`);
+    // Exclude BYE matches, only real pending matches with both players
+    return supa('GET', `matches?tatami_id=eq.${tatamiId}&status=in.(pending,suspended)&blue_id=not.is.null&white_id=not.is.null&win_reason=not.eq.bye&select=*,blue:blue_id(*),white:white_id(*),category:category_id(name)&order=order_in_tatami.asc`);
   },
   async upsertMatches(matches) {
     // Use category_id+match_num as unique key for upsert
