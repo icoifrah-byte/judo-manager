@@ -976,19 +976,62 @@ function renderTatamiTab(comp){
   document.getElementById('tatami-num').textContent=c.tatami_count;
   let html='';
   for(let i=1;i<=c.tatami_count;i++){
-    const comps=c.competitors.filter(comp=>String(comp.tatami)===String(i));
-    const cats=[...new Set(comps.map(comp=>comp.category).filter(Boolean))];
-    html+=`<div class="tatami-item">
-      <div class="tatami-num">${i}</div>
-      <div class="tatami-info">
-        <div class="tatami-name">מזרן ${i}</div>
-        <div class="tatami-sub">${comps.length} מתחרים${cats.length?' · '+cats.join(', '):'  — לא שובצו מתחרים'}</div>
+    const comps=c.competitors.filter(cp=>String(cp.tatami)===String(i));
+    const assignedCats=[...new Set(comps.map(cp=>cp.category).filter(Boolean))];
+    // Unassigned categories (no tatami or tatami=0)
+    const unassignedCats=c.categories.filter(cat=>{
+      const catComps=c.competitors.filter(cp=>cp.category===cat.name);
+      return catComps.length>0&&!catComps.some(cp=>cp.tatami);
+    }).map(cat=>cat.name);
+
+    // Category chips with assign buttons
+    const catChips=assignedCats.map(cat=>`
+      <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(232,200,74,.12);
+        border:1px solid rgba(232,200,74,.25);border-radius:4px;padding:2px 8px;font-size:11px;
+        color:var(--accent);margin:2px;">
+        ${cat}
+        <button onclick="assignCatToTatami('${cat}',null)" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 2px" title="הסר">✕</button>
+      </span>`).join('');
+
+    html+=`<div class="tatami-item" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <div style="display:flex;align-items:center;gap:12px;width:100%">
+        <div class="tatami-num">${i}</div>
+        <div class="tatami-info" style="flex:1">
+          <div class="tatami-name">מזרן ${i}</div>
+          <div class="tatami-sub">${comps.length} מתחרים</div>
+        </div>
+        <select onchange="assignCatToTatami(this.value,${i});this.value=''"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:5px;
+          padding:4px 8px;color:var(--text);font-size:11px;cursor:pointer;">
+          <option value="">+ שבץ קטגוריה</option>
+          ${c.categories.map(cat=>`<option value="${cat.name}">${cat.name} (${c.competitors.filter(cp=>cp.category===cat.name).length})</option>`).join('')}
+        </select>
       </div>
+      ${assignedCats.length?`<div style="padding:0 0 4px 48px;display:flex;flex-wrap:wrap;">${catChips}</div>`:''}
     </div>`;
   }
   document.getElementById('tatami-list').innerHTML=html;
   document.getElementById('disp-rows').classList.toggle('selected',c.display==='rows');
   document.getElementById('disp-sides').classList.toggle('selected',c.display==='sides');
+}
+
+async function assignCatToTatami(catName, tatamiId){
+  const c=C();if(!c)return;
+  // Update all competitors in this category
+  c.competitors.forEach(cp=>{
+    if(cp.category===catName) cp.tatami=tatamiId?String(tatamiId):null;
+  });
+  renderTatamiTab(c);
+  // Save to Supabase — update category tatami_id
+  if(c.dbId){
+    try{
+      const cat=c.categories.find(ct=>ct.name===catName);
+      if(cat?.dbId){
+        await DB.updateCategory(cat.dbId,{tatami_id:tatamiId||null});
+        showAlert('success',`✓ ${catName} שובץ למזרן ${tatamiId||'—'}`);
+      }
+    }catch(e){console.error('assign tatami:',e);}
+  }
 }
 
 function renderChampTab(c){
