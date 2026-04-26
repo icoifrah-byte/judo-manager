@@ -94,6 +94,9 @@ const DB = {
   async updateMatch(id, data) {
     return supa('PATCH', `matches?id=eq.${id}`, data);
   },
+  async updateMatchesByCategory(categoryId, data) {
+    return supa('PATCH', `matches?category_id=eq.${categoryId}`, data);
+  },
   async saveBracket(categoryId, matches) {
     // Full bracket save: upsert all matches for a category
     const rows = matches.map(m => ({
