@@ -523,11 +523,11 @@ async function loadRealData(){
         const bComp=cat.competitors?.find(c=>c.id===m.blue_id);
         const wComp=cat.competitors?.find(c=>c.id===m.white_id);
         const winner=cat.competitors?.find(c=>c.id===m.winner_id);
-        if(m.status==='done'&&winner){
+        if(m.status==='done'&&winner&&m.win_reason!=='bye'){
           t.lastWinner={name:winner.name,side:m.blue_id===m.winner_id?'blue':'white',how:m.win_reason||'',category:cat.name};
-        } else if(m.status==='live'){
+        } else if(m.status==='live'&&m.blue_id&&m.white_id){
           t.active={blue:bComp?.name||null,white:wComp?.name||null,category:cat.name,stage:m.stage||'קרב',matchNum:m.match_num,bRole:null,bRef:null,wRole:null,wRef:null};
-        } else if(m.status==='pending'||m.status==='suspended'){
+        } else if((m.status==='pending'||m.status==='suspended')&&m.blue_id&&m.white_id&&m.win_reason!=='bye'){
           t.upcoming.push({blue:bComp?.name||null,white:wComp?.name||null,category:cat.name,stage:m.stage||'קרב',matchNum:m.match_num,bRole:null,bRef:null,wRole:null,wRef:null});
         }
       });
