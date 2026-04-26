@@ -680,7 +680,13 @@ async function loadNextMatch(tatamiId){
     const matches=await DB.getMatchesByTatami(tatamiId);
     const next=matches?.find(m=>m.status==='pending'&&m.blue_id&&m.white_id);
     if(next){
-      // Mark as live
+      // Reset any live matches back to pending first
+    await fetch('https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?tatami_id=eq.${tatamiId}&status=eq.live',{
+      method:'PATCH',
+      headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ','Content-Type':'application/json'},
+      body:JSON.stringify({status:'pending'})
+    });
+    // Mark as live
       await DB.updateMatch(next.id,{status:'live'});
       // Navigate to same referee screen with new match params
       const style=new URLSearchParams(location.search).get('style')||
