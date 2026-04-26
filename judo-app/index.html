@@ -502,10 +502,7 @@ function createCompetition(){
   showAlert('success','✓ תחרות נוצרה בהצלחה');
 }
 
-function selectComp(id){
-  S.activeId=id;renderSidebar();renderDash();
-  showScreen('admin',document.getElementById('nav-admin'));
-}
+// selectComp defined in renderSidebar section below
 
 function deleteCompetition(){
   const c=C();if(!c)return;
@@ -894,12 +891,45 @@ function renderSidebar(){
   const el=document.getElementById('sidebar-comps');
   el.innerHTML=S.competitions.length===0
     ?'<div style="padding:8px 16px;font-size:12px;color:var(--text3)">אין תחרויות</div>'
-    :S.competitions.map(comp=>`
-      <div class="comp-item ${comp.id===S.activeId?'active':''}" onclick="selectComp(${comp.id})">
+    :S.competitions.map(comp=>{
+      const isActive=comp.id===S.activeId;
+      return `<div class="comp-item ${isActive?'active':''}" onclick="selectComp('${comp.id}')">
         <span>🥋</span>
         <span class="comp-item-name">${comp.name}</span>
-        <span style="font-size:10px;color:var(--text3)">${comp.competitors.length}</span>
-      </div>`).join('');
+        <div style="display:flex;align-items:center;gap:4px;margin-right:auto">
+          ${isActive
+            ? '<span style="font-size:9px;font-weight:700;background:var(--accent);color:#000;padding:1px 5px;border-radius:3px;">● פעיל</span>'
+            : `<button onclick="event.stopPropagation();activateComp('${comp.id}')" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;">הפעל</button>`
+          }
+          <span style="font-size:10px;color:var(--text3)">${comp.competitors.length}</span>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function selectComp(id){
+  S.activeId=id;
+  setActiveCompId(id);
+  renderSidebar();renderDash();
+  showScreen('admin',document.getElementById('nav-admin'));
+}
+
+async function activateComp(id){
+  S.activeId=id;
+  setActiveCompId(id);
+  renderSidebar();renderDash();
+  // Update all pages by saving to localStorage
+  const c=S.competitions.find(x=>x.id===id);
+  if(c){
+    localStorage.setItem('judo_config', JSON.stringify({
+      ref_code: c.settings?.ref_code||'1234',
+      tatami_count: c.tatami_count||3,
+      match_duration: c.settings?.match_duration||180,
+    }));
+  }
+  // Also update in DB if possible
+  showAlert('success','✓ תחרות "'+c?.name+'" הופעלה — כל הדפים יטענו אותה');
+  showScreen('admin',document.getElementById('nav-admin'));
 }
 
 function renderDash(){
@@ -1312,12 +1342,7 @@ window.createCompetition = async function(){
   }
 };
 
-// Patch selectComp to save active id
-const _origSelect = selectComp;
-window.selectComp = function(id){
-  _origSelect(id);
-  setActiveCompId(id);
-};
+// selectComp now handles localStorage directly
 
 // Patch setSetting to also save to DB
 const _origSetSetting = setSetting;
