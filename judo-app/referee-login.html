@@ -189,12 +189,15 @@ async function tryEnter(){
         const wName = next.white?.name||'';
         const bClub = next.blue?.club||'';
         const wClub = next.white?.club||'';
+        const catName = next.category?.name||'';
+        const stageLbl = catName + (next.stage ? ' · '+next.stage : '');
         if(bName) params.set('blue', bName);
         if(wName) params.set('white', wName);
         if(bClub) params.set('bclub', bClub);
         if(wClub) params.set('wclub', wClub);
-        if(next.stage) params.set('stage', next.stage);
+        if(stageLbl) params.set('stage', stageLbl);
         if(next.id) params.set('matchid', next.id);
+        params.set('banner', 'מזרן ' + selectedTatami + ' · ' + catName);
         // Set match as live
         await DB.updateMatch(next.id, {status:'live'});
       }
