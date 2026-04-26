@@ -113,6 +113,29 @@ let selectedStyle = 'rows';
 // ═══════════════════════════════
 // BUILD TATAMI BUTTONS
 // ═══════════════════════════════
+async function ensureActiveComp(){
+  // If no active comp, load the most recent one
+  if(!localStorage.getItem('judo_active_comp')){
+    try{
+      const comps=await DB.getCompetitions();
+      if(comps&&comps.length){
+        localStorage.setItem('judo_active_comp', comps[0].id);
+        localStorage.setItem('judo_config', JSON.stringify({
+          ref_code: comps[0].ref_code||'1234',
+          tatami_count: comps[0].tatami_count||3,
+          match_duration: comps[0].match_duration||180,
+        }));
+        // Reload config
+        Object.assign(CFG, {
+          ref_code: comps[0].ref_code||'1234',
+          tatami_count: comps[0].tatami_count||3,
+        });
+        ensureActiveComp().then(()=>buildTatamiGrid());
+      }
+    }catch(e){console.error('ensureActiveComp:',e);}
+  }
+}
+
 function buildTatamiGrid(){
   const grid = document.getElementById('tatami-grid');
   const n = CFG.tatami_count || 3;
