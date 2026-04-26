@@ -25,9 +25,9 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 #app{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative;}
 :fullscreen #app{height:100vh;width:100vw;}
 :-webkit-full-screen #app{height:100vh;width:100vw;}
-body.fullscreen #ctrl-bar{display:none!important;}
-:fullscreen #ctrl-bar{display:none!important;}
-:-webkit-full-screen #ctrl-bar{display:none!important;}
+body.fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
+:fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
+:-webkit-full-screen #ctrl-bar{display:none!important;visibility:hidden;}
 
 /* ── BANNER ── */
 #banner{flex-shrink:0;background:#111318;border-bottom:2px solid var(--border);display:flex;align-items:center;justify-content:center;gap:10px;padding:6px 16px;min-height:44px;}
@@ -394,8 +394,15 @@ async function loadNextMatch(tatamiId){
 function toggleTimer(){
   if(status==='done')return;
   if(status==='idle'||status==='paused'){
-    status=timeLeft===0?'golden':'live';
-    startMain();
+    if(timeLeft===0){
+      // Start golden score
+      status='golden';
+      syncMainClock();syncClockSub();
+      startMain();
+    } else {
+      status='live';
+      startMain();
+    }
   }else{pauseMain();status='paused';}
   syncClockSub();
 }
@@ -417,10 +424,17 @@ function checkTimeEnd(){
   if(b.W!==w.W)win=b.W>w.W?'blue':'white';
   else if(b.Y!==w.Y)win=b.Y>w.Y?'blue':'white';
   if(win){declareWinner(win,'Time');return;}
-  status='golden';timeLeft=0;
-  syncMainClock();syncClockSub();
-  showToast('⚡ גולדן סקור');
-  startMain();
+  // Tie: stop at 0:00, wait for referee to tap clock for golden score
+  status='paused';
+  timeLeft=0;
+  syncMainClock();
+  document.getElementById('clock-sub')||document.getElementById('r-status-lbl');
+  // Show GS prompt on sub label
+  ['clock-sub','r-status-lbl','s-status-lbl'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent='⚡ לחץ להתחלת גולדן סקור';
+  });
+  showToast('⏱ לחץ על השעון להתחיל גולדן סקור');
 }
 
 function toggleOsae(){
@@ -582,10 +596,13 @@ async function confirmDelay(){
   if(matchId&&typeof DB!=='undefined'){
     try{
       await DB.updateMatch(matchId,{status:'pending'});
-      showToast(`⏭ קרב נדחה ב-${n} קרבות`);
+      showToast('⏭ קרב נדחה — טוען הבא...');
       if(tatamiId) await loadNextMatch(tatamiId);
-    }catch(e){showToast('⚠ שגיאה בדחיית קרב');}
-  } else showToast(`⏭ קרב נדחה ב-${n} קרבות`);
+      else showToast('⚠ אין מזרן מוגדר');
+    }catch(e){console.error('delay:',e);showToast('⚠ שגיאה');}
+  } else {
+    showToast('⏭ קרב נדחה');
+  }
 }
 
 function openChangeDuration(){document.getElementById('dur-val').value=matchDuration;document.getElementById('dur-ov').classList.remove('h');}
