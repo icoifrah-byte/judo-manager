@@ -154,11 +154,11 @@ body.fullscreen #app{height:100vh;width:100vw;}
 
 /* fullscreen mode — hide ctrl-bar */
 /* hide ctrl-bar in fullscreen — works in all browsers */
-:fullscreen #ctrl-bar{display:none!important;}
-:-webkit-full-screen #ctrl-bar{display:none!important;}
+:fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
+:-webkit-full-screen #ctrl-bar{display:none!important;visibility:hidden;}
 :-moz-full-screen #ctrl-bar{display:none!important;}
-body.fullscreen #ctrl-bar{display:none!important;}
-body.fullscreen #offline-fullscreen-badge{display:block!important;}
+body.fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
+/* offline badge handled inline */
 
 /* show fullscreen offline badge */
 :fullscreen #offline-fullscreen-badge{display:flex!important;}
@@ -433,15 +433,22 @@ function pauseMain(){
 }
 
 function checkTimeEnd(){
-  const b=SC.blue, w=SC.white;
+  const b=SC.blue,w=SC.white;
   let win=null;
-  if(b.W!==w.W) win=b.W>w.W?'blue':'white';
-  else if(b.Y!==w.Y) win=b.Y>w.Y?'blue':'white';
-  if(win){ declareWinner(win,'time'); return; }
-  // tie → golden score
-  status='golden'; timeLeft=0;
-  syncMainClock(); syncClockSub();
-  startMain();
+  if(b.W!==w.W)win=b.W>w.W?'blue':'white';
+  else if(b.Y!==w.Y)win=b.Y>w.Y?'blue':'white';
+  if(win){declareWinner(win,'Time');return;}
+  // Tie: stop at 0:00, wait for referee to tap clock for golden score
+  status='paused';
+  timeLeft=0;
+  syncMainClock();
+  document.getElementById('clock-sub')||document.getElementById('r-status-lbl');
+  // Show GS prompt on sub label
+  ['clock-sub','r-status-lbl','s-status-lbl'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent='⚡ לחץ להתחלת גולדן סקור';
+  });
+  showToast('⏱ לחץ על השעון להתחיל גולדן סקור');
 }
 
 function syncMainClock(){
