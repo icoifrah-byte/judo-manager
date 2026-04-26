@@ -14,6 +14,7 @@ html,body{height:100%;width:100%;overflow:hidden;background:#0d0e14;color:#f0f0f
    ════════════════════════════════ */
 #app{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
 :fullscreen #app{height:100vh;width:100vw;}
+:fullscreen #banner{position:relative;z-index:10;}
 :-webkit-full-screen #app{height:100vh;width:100vw;}
 body.fullscreen #app{height:100vh;width:100vw;}
 
@@ -157,6 +158,7 @@ body.fullscreen #app{height:100vh;width:100vw;}
 :-webkit-full-screen #ctrl-bar{display:none!important;}
 :-moz-full-screen #ctrl-bar{display:none!important;}
 body.fullscreen #ctrl-bar{display:none!important;}
+body.fullscreen #offline-fullscreen-badge{display:block!important;}
 
 /* show fullscreen offline badge */
 :fullscreen #offline-fullscreen-badge{display:flex!important;}
