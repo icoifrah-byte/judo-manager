@@ -705,12 +705,13 @@ function updateChampPrev(){
   prev.style.display='block';
   const winners=ids.map(id=>{
     const cat=c.categories.find(ct=>String(ct.id)===id);
-    if(!cat||!cat.competitors.length)return null;
-    const winner=c.competitors.find(comp=>String(comp.id)===String(cat.competitors[0]));
-    return winner?{name:winner.name,cat:cat.name}:null;
+    if(!cat)return null;
+    // Find actual winner from bracket (match with place='final' and a winnerId)
+    // For now just show category name — winner determined after bracket is done
+    return {name:'יוכרע בעץ',cat:cat.name};
   }).filter(Boolean);
   document.getElementById('champ-prev-list').innerHTML=winners.map(w=>
-    `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px"><strong>${w.name}</strong> <span style="color:var(--text2)">${w.cat}</span></div>`
+    `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px"><span style="color:var(--text2)">${w.cat}</span> — <span style="color:var(--accent)">ממתין לתוצאות עץ</span></div>`
   ).join('');
 }
 
