@@ -61,6 +61,7 @@ html,body{height:100%;background:#0a0a0e;color:#f0f0f0;font-family:'Heebo',sans-
 .style-opt:hover{border-color:#8a8fa0;color:#f0f0f0;}
 .style-opt.selected{border-color:#e8c84a;background:rgba(232,200,74,.1);color:#e8c84a;}
 </style>
+<script src="db.js"></script>
 </head>
 <body>
 <div class="card">
@@ -150,7 +151,7 @@ function checkReady(){
   document.getElementById('submit-btn').disabled = !ready;
 }
 
-function tryEnter(){
+async function tryEnter(){
   const pin = String(document.getElementById('pin-input').value).trim();
   const correct = String(CFG.ref_code || '1234');
 
@@ -167,26 +168,41 @@ function tryEnter(){
     return;
   }
 
-  // Navigate to the correct referee screen
   const target = selectedStyle === 'sides' ? 'referee-sides.html' : 'referee-rows.html';
   const params = new URLSearchParams({
     tatami: selectedTatami,
     banner: 'מזרן ' + selectedTatami,
   });
 
-  // Try to load match data for this tatami from localStorage
+  // Load first pending match for this tatami from Supabase
   try{
-    const matchData = localStorage.getItem('judo_tatami_' + selectedTatami);
-    if(matchData){
-      const m = JSON.parse(matchData);
-      if(m.blue)  params.set('blue', m.blue);
-      if(m.white) params.set('white', m.white);
-      if(m.bclub) params.set('bclub', m.bclub);
-      if(m.wclub) params.set('wclub', m.wclub);
-      if(m.stage) params.set('stage', m.stage);
-      if(m.dur)   params.set('dur', m.dur);
+    const compId = localStorage.getItem('judo_active_comp');
+    if(compId){
+      // Get all matches for this tatami
+      const matches = await DB.getMatchesByTatami(selectedTatami);
+      // Find first pending match with players
+      const next = matches?.find(m=>
+        m.status==='pending' && m.blue_id && m.white_id
+      );
+      if(next){
+        const bName = next.blue?.name||'';
+        const wName = next.white?.name||'';
+        const bClub = next.blue?.club||'';
+        const wClub = next.white?.club||'';
+        if(bName) params.set('blue', bName);
+        if(wName) params.set('white', wName);
+        if(bClub) params.set('bclub', bClub);
+        if(wClub) params.set('wclub', wClub);
+        if(next.stage) params.set('stage', next.stage);
+        if(next.id) params.set('matchid', next.id);
+        // Set match as live
+        await DB.updateMatch(next.id, {status:'live'});
+      }
+      // Get match duration from competition settings
+      const config = JSON.parse(localStorage.getItem('judo_config')||'{}');
+      if(config.match_duration) params.set('dur', config.match_duration);
     }
-  }catch(e){}
+  }catch(e){ console.error('load match:',e); }
 
   location.href = target + '?' + params.toString();
 }
