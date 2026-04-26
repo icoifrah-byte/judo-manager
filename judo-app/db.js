@@ -63,8 +63,15 @@ const DB = {
     return supa('GET', `competitors?category_id=eq.${categoryId}&select=*&order=seed.asc`);
   },
   async upsertCompetitors(competitors) {
-    // competitors = array of {category_id, name, club, seed, ...}
-    return supa('POST', 'competitors?on_conflict=id', competitors);
+    // competitors = array of {category_id, name, club, seed}
+    // Remove any fields not in schema
+    const clean = competitors.map(c=>({
+      category_id: c.category_id,
+      name: c.name,
+      club: c.club||'',
+      seed: c.seed||null,
+    }));
+    return supa('POST', 'competitors', clean);
   },
   async updateCompetitor(id, data) {
     return supa('PATCH', `competitors?id=eq.${id}`, data);
