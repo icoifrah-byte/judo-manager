@@ -514,11 +514,19 @@ function deleteCompetition(){
   S.activeId=null;renderSidebar();renderDash();
 }
 
-function setSetting(key,val){
+async function setSetting(key,val){
   const c=C();if(!c)return;
   c.settings[key]=val;
   if(key==='ref_code'){document.getElementById('code-display').textContent=val;document.getElementById('set-code').value=val;}
   saveConfigToStorage();
+  // Save relevant settings to Supabase
+  if(c.dbId){
+    const dbMap={ref_code:'ref_code',match_duration:'match_duration'};
+    const dbField=dbMap[key];
+    if(dbField){
+      try{ await DB.updateCompetition(c.dbId,{[dbField]:val}); }catch(e){console.error('save setting:',e);}
+    }
+  }
 }
 
 function genCode(){
@@ -652,7 +660,7 @@ function editCompTatami(idx){
 // ════════════════════════════════
 // TATAMI
 // ════════════════════════════════
-function changeTatami(d){
+async function changeTatami(d){
   const c=C();if(!c)return;
   const newN=Math.max(1,Math.min(20,c.tatami_count+d));
   if(newN<c.tatami_count){
@@ -666,6 +674,12 @@ function changeTatami(d){
   renderDash();
   updateTatamiSelect();
   saveConfigToStorage();
+  // Save to Supabase
+  if(c.dbId){
+    try{
+      await DB.updateCompetition(c.dbId,{tatami_count:newN});
+    }catch(e){console.error('save tatami_count:',e);}
+  }
 }
 
 function updateTatamiSelect(){
@@ -1142,7 +1156,7 @@ async function initFromDB(){
         name: row.name,
         date: row.date,
         location: '',
-        tatami_count: row.tatami_count||3,
+        tatami_count: row.tatami_count||2,
         competitors: [],
         categories: [],
         champions: [],
@@ -1155,7 +1169,7 @@ async function initFromDB(){
       };
       S.competitions.push(comp);
 
-      // Load categories + competitors for this competition
+        // Load categories + competitors for this competition
       try{
         const cats = await DB.getCategories(row.id);
         if(cats && cats.length){
@@ -1192,10 +1206,12 @@ async function initFromDB(){
     }
     // Restore active competition
     const savedId = getActiveCompId();
-    if(savedId && S.competitions.find(c=>c.dbId===savedId)){
-      S.activeId = savedId;
+    const found = S.competitions.find(c=>c.dbId===savedId);
+    if(savedId && found){
+      S.activeId = found.id;
     } else if(S.competitions.length){
       S.activeId = S.competitions[0].id;
+      setActiveCompId(S.competitions[0].id);
     }
     renderSidebar(); renderDash();
     showAlert('success','✓ מחובר ל-Supabase');
