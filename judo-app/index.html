@@ -624,7 +624,7 @@ async function addCompManual(){
       const cat=c.categories.find(ct=>ct.name===catName);
       const catDbId=cat?.dbId||null;
       if(catDbId){
-        const row=await DB.upsertCompetitors([{competition_id:c.dbId,category_id:catDbId,name,club,seed:null}]);
+        const row=await DB.upsertCompetitors([{category_id:catDbId,name,club,seed:null}]);
         if(row?.[0])comp.dbId=row[0].id;
       }
     }catch(e){console.error('save comp:',e);}
@@ -824,7 +824,7 @@ async function confirmImport(){
       // 2. Save competitors with category IDs
       const rows=newComps.map(comp=>{
         const cat=c.categories.find(ct=>ct.name===comp.category);
-        return {competition_id:c.dbId,category_id:cat?.dbId||null,name:comp.name,club:comp.club||'',seed:null};
+        return {category_id:cat?.dbId||null,name:comp.name,club:comp.club||'',seed:null};
       }).filter(r=>r.category_id);
       if(rows.length){
         const saved=await DB.upsertCompetitors(rows);
