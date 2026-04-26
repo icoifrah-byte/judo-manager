@@ -417,7 +417,10 @@ function checkTimeEnd(){
   if(b.W!==w.W)win=b.W>w.W?'blue':'white';
   else if(b.Y!==w.Y)win=b.Y>w.Y?'blue':'white';
   if(win){declareWinner(win,'Time');return;}
-  status='golden';timeLeft=0;syncMainClock();syncClockSub();startMain();
+  status='golden';timeLeft=0;
+  syncMainClock();syncClockSub();
+  showToast('⚡ גולדן סקור');
+  startMain();
 }
 
 function toggleOsae(){
@@ -570,11 +573,19 @@ function toggleOffline(){
 }
 
 function openDelay(){document.getElementById('delay-ov').classList.remove('h');}
-function confirmDelay(){
+async function confirmDelay(){
   const n=+document.getElementById('delay-n').value||3;
   document.getElementById('delay-ov').classList.add('h');
-  showToast(`⏭ קרב נדחה ב-${n} קרבות`);
-  try{const mid=new URLSearchParams(location.search).get('matchid');if(mid)localStorage.setItem('delay_match',JSON.stringify({matchId:mid,n,ts:Date.now()}));}catch(e){}
+  const p=new URLSearchParams(location.search);
+  const matchId=p.get('matchid');
+  const tatamiId=p.get('tatami');
+  if(matchId&&typeof DB!=='undefined'){
+    try{
+      await DB.updateMatch(matchId,{status:'pending'});
+      showToast(`⏭ קרב נדחה ב-${n} קרבות`);
+      if(tatamiId) await loadNextMatch(tatamiId);
+    }catch(e){showToast('⚠ שגיאה בדחיית קרב');}
+  } else showToast(`⏭ קרב נדחה ב-${n} קרבות`);
 }
 
 function openChangeDuration(){document.getElementById('dur-val').value=matchDuration;document.getElementById('dur-ov').classList.remove('h');}
