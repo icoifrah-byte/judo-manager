@@ -165,7 +165,7 @@ td{padding:9px 12px;font-size:13px;}
   <div class="sidebar-section">ניווט</div>
   <div class="nav-item active" id="nav-admin" onclick="showScreen('admin',this)"><span class="nav-icon">🏠</span>ניהול תחרות</div>
   <div class="nav-item" onclick="location.href='bracket.html'"><span class="nav-icon">🌳</span>עץ תחרות</div>
-  <div class="nav-item" onclick="location.href='referee-login.html'"><span class="nav-icon">⚖️</span>מסך שופט</div>
+  <div class="nav-item" onclick="goToReferee()"><span class="nav-icon">⚖️</span>מסך שופט</div>
   <div class="nav-item" onclick="location.href='viewer.html'"><span class="nav-icon">📺</span>תצוגת צופים</div>
   <div class="nav-item" onclick="showScreen('attend',this)"><span class="nav-icon">✅</span>נוכחות</div>
   <div class="nav-item" onclick="location.href='control.html'"><span class="nav-icon">🎛️</span>שליטה בתחרות</div>
@@ -310,7 +310,7 @@ td{padding:9px 12px;font-size:13px;}
           <div style="font-size:12px;color:var(--text2);margin-bottom:6px">קוד שיפוט:</div>
           <div class="code-box" id="code-display">1234</div>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-          <button class="btn btn-secondary btn-sm" onclick="location.href='referee-login.html'">⚖️ פתח מסך שופט</button>
+          <button class="btn btn-secondary btn-sm" onclick="goToReferee()">⚖️ פתח מסך שופט</button>
           <span style="font-size:11px;color:var(--text2)">שתף קוד זה עם השופטים</span>
         </div>
         </div>
@@ -1183,6 +1183,13 @@ function updateAttStats(comps){
 }
 
 // ════════════════════════════════
+function goToReferee(){
+  // Save current active_comp before navigating
+  const c=C();
+  if(c?.dbId) localStorage.setItem('judo_active_comp', c.dbId);
+  location.href='referee-login.html';
+}
+
 // INIT — load from Supabase
 // ════════════════════════════════
 async function initFromDB(){
