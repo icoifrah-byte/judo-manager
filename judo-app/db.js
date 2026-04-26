@@ -88,7 +88,8 @@ const DB = {
     return supa('GET', `matches?tatami_id=eq.${tatamiId}&status=neq.done&select=*,blue:blue_id(*),white:white_id(*)`);
   },
   async upsertMatches(matches) {
-    return supa('POST', 'matches?on_conflict=id', matches);
+    // Use category_id+match_num as unique key for upsert
+    return supa('POST', 'matches?on_conflict=category_id,match_num', matches);
   },
   async updateMatch(id, data) {
     return supa('PATCH', `matches?id=eq.${id}`, data);
