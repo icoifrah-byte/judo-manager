@@ -1017,20 +1017,26 @@ function renderTatamiTab(comp){
 
 async function assignCatToTatami(catName, tatamiId){
   const c=C();if(!c)return;
-  // Update all competitors in this category
+  // Update competitors in memory
   c.competitors.forEach(cp=>{
     if(cp.category===catName) cp.tatami=tatamiId?String(tatamiId):null;
   });
+  // Update category in memory
+  const cat=c.categories.find(ct=>ct.name===catName);
+  if(cat) cat.tatamiId=tatamiId||null;
   renderTatamiTab(c);
-  // Save to Supabase — update category tatami_id
-  if(c.dbId){
+
+  if(c.dbId && cat?.dbId){
     try{
-      const cat=c.categories.find(ct=>ct.name===catName);
-      if(cat?.dbId){
-        await DB.updateCategory(cat.dbId,{tatami_id:tatamiId||null});
-        showAlert('success',`✓ ${catName} שובץ למזרן ${tatamiId||'—'}`);
-      }
-    }catch(e){console.error('assign tatami:',e);}
+      // 1. Update category tatami_id
+      await DB.updateCategory(cat.dbId,{tatami_id:tatamiId||null});
+      // 2. Update ALL matches in this category with new tatami_id
+      await DB.updateMatchesByCategory(cat.dbId, {tatami_id:tatamiId||null});
+      showAlert('success',`✓ ${catName} שובץ למזרן ${tatamiId||'—'}`);
+    }catch(e){
+      console.error('assign tatami:',e);
+      showAlert('error','⚠ שגיאה בשיבוץ');
+    }
   }
 }
 
