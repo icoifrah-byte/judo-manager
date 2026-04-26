@@ -540,10 +540,72 @@ setInterval(tick,1000); tick();
 // ═══════════════════════════
 // INIT
 // ═══════════════════════════
-document.getElementById('h-title').innerHTML=`${COMP.name} <span class="live-dot"></span>`;
-document.getElementById('h-sub').textContent=`${COMP.date} · ${TATAMI.length} מזרנים`;
-renderMain();
-renderCats();
+// Load real data from Supabase, fall back to demo
+async function loadRealData(){
+  const compId=localStorage.getItem('judo_active_comp');
+  if(!compId){ renderMain(); renderCats(); return; }
+  try{
+    const comps=await DB.getCompetitions();
+    const comp=comps?.find(c=>c.id===compId);
+    if(comp){
+      document.getElementById('h-title').innerHTML=`${comp.name} <span class="live-dot"></span>`;
+      document.getElementById('h-sub').textContent=`${comp.date||''} · ${comp.tatami_count||3} מזרנים`;
+    }
+    const cats=await DB.getCategories(compId);
+    if(!cats||!cats.length){ renderMain(); renderCats(); return; }
+
+    // Build tatami state
+    const tCount=comp?.tatami_count||3;
+    const tMap={};
+    for(let i=1;i<=tCount;i++) tMap[i]={id:i,lastWinner:null,active:null,upcoming:[]};
+
+    for(const cat of cats){
+      const matches=await DB.getMatches(cat.id);
+      if(!matches) continue;
+      const sorted=[...matches].sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
+      sorted.forEach(m=>{
+        const tid=m.tatami_id||1;
+        if(!tMap[tid]) return;
+        const t=tMap[tid];
+        const bComp=cat.competitors?.find(c=>c.id===m.blue_id);
+        const wComp=cat.competitors?.find(c=>c.id===m.white_id);
+        const winner=cat.competitors?.find(c=>c.id===m.winner_id);
+        if(m.status==='done'&&winner){
+          t.lastWinner={name:winner.name,side:m.blue_id===m.winner_id?'blue':'white',how:m.win_reason||'',category:cat.name};
+        } else if(m.status==='live'){
+          t.active={blue:bComp?.name||null,white:wComp?.name||null,category:cat.name,stage:m.stage||'קרב',matchNum:m.match_num,bRole:null,bRef:null,wRole:null,wRef:null};
+        } else if(m.status==='pending'||m.status==='suspended'){
+          t.upcoming.push({blue:bComp?.name||null,white:wComp?.name||null,category:cat.name,stage:m.stage||'קרב',matchNum:m.match_num,bRole:null,bRef:null,wRole:null,wRef:null});
+        }
+      });
+    }
+
+    // Update STATE with real data
+    STATE.tatami=Object.values(tMap);
+    STATE.competition={name:comp?.name||'תחרות',date:comp?.date||''};
+
+    // Update CATEGORIES for the cats tab
+    CATEGORIES.length=0;
+    cats.forEach(cat=>{
+      CATEGORIES.push({
+        name:cat.name,
+        method:cat.method||'knockout',
+        comps:(cat.competitors||[]).map(c=>c.name),
+        status:cat.status||'pending',
+      });
+    });
+
+    renderMain();
+    renderCats();
+
+    // Refresh every 15 seconds
+    setTimeout(loadRealData, 15000);
+  }catch(e){
+    console.error('viewer load error:',e);
+    renderMain(); renderCats();
+  }
+}
+loadRealData();
 </script>
 </body>
 </html>
