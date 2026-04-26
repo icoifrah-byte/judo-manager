@@ -198,7 +198,17 @@ async function tryEnter(){
         if(stageLbl) params.set('stage', stageLbl);
         if(next.id) params.set('matchid', next.id);
         params.set('banner', 'מזרן ' + selectedTatami + ' · ' + catName);
-        // Set match as live
+        // Reset any other 'live' matches on this tatami to 'pending' first
+        try{
+          const SURL='https://gsejqwqoreufotqeuzdf.supabase.co';
+          const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+          await fetch(`${SURL}/rest/v1/matches?tatami_id=eq.${selectedTatami}&status=eq.live`,{
+            method:'PATCH',
+            headers:{'apikey':SKEY,'Authorization':`Bearer ${SKEY}`,'Content-Type':'application/json'},
+            body:JSON.stringify({status:'pending'})
+          });
+        }catch(e){}
+        // Set this match as live
         await DB.updateMatch(next.id, {status:'live'});
       }
       // Get match duration from competition settings
