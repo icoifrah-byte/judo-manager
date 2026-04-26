@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bracket — Judo Manager</title>
+<script src="db.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -1116,12 +1117,8 @@ async function saveMatchToDB(br, matchId){
   }catch(e){ console.warn('save match:',e); }
 }
 
-// Add db.js
-const dbScript=document.createElement('script');
-dbScript.src='db.js';
-document.head.appendChild(dbScript);
-dbScript.onload=()=>init();
-dbScript.onerror=()=>{console.warn('db.js not found, loading demo');loadDemo();};
+// Init after page load
+init();
 </script>
 </body>
 </html>
