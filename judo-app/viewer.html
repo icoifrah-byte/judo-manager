@@ -201,6 +201,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 const COMP={name:"",date:""};
 
 const TATAMI=[];
+let STATE={competition:{name:"",date:""},tatami:[]};
 
 // Categories with full competitor list
 const CATEGORIES=[];
@@ -535,6 +536,9 @@ async function loadRealData(){
     // Update STATE with real data
     STATE.tatami=Object.values(tMap);
     STATE.competition={name:comp?.name||'תחרות',date:comp?.date||''};
+    // Sync to TATAMI for renderMain compatibility
+    TATAMI.length=0;
+    Object.values(tMap).forEach(t=>TATAMI.push(t));
 
     // Update CATEGORIES for the cats tab
     CATEGORIES.length=0;
