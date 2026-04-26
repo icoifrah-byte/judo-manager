@@ -120,6 +120,7 @@ body.fullscreen #offline-fullscreen-badge.show{display:flex;}
 .side-btn-p{background:#e8c84a;color:#000;}
 .side-btn-s{background:#191c24;color:#f0f0f0;border:1px solid #1e2130;}
 </style>
+<script src="db.js"></script>
 </head>
 <body>
 
@@ -313,16 +314,75 @@ function checkWin(){
   if(w.S>=3){declareWinner('blue','Hansoku-make');return;}
 }
 
-function declareWinner(side,reason){
+async function declareWinner(side,reason){
   pauseMain();stopOsaeInterval();status='done';
-  const names={blue:document.getElementById('r-bname').textContent,
-               white:document.getElementById('r-wname').textContent};
+  const bName=document.getElementById('r-bname').textContent;
+  const wName=document.getElementById('r-wname').textContent;
+  const winnerName=side==='blue'?bName:wName;
+  const loserName=side==='blue'?wName:bName;
   const wn=document.getElementById('win-name');
-  wn.textContent=names[side];
+  wn.textContent=winnerName;
   wn.style.color=side==='blue'?'#4a90ff':'#d0d0d0';
   document.getElementById('win-reason').textContent=reason;
   document.getElementById('winner-overlay').classList.add('show');
   syncClockSub();
+
+  // Save result to Supabase
+  const p=new URLSearchParams(location.search);
+  const matchId=p.get('matchid');
+  const tatamiId=p.get('tatami');
+  if(matchId&&typeof DB!=='undefined'){
+    try{
+      await DB.updateMatch(matchId,{
+        status:'done',
+        win_reason:reason,
+        score:SC,
+        is_offline:isOffline,
+      });
+    }catch(e){console.error('save result:',e);}
+  }
+
+  // Add "קרב הבא" button to overlay
+  const ovBtns=document.querySelector('#winner-overlay div[style*="gap"]')||document.querySelector('#winner-overlay .ov-btns');
+  if(ovBtns&&tatamiId){
+    const nextBtn=document.createElement('button');
+    nextBtn.className='ov-btn';
+    nextBtn.textContent='⏭ קרב הבא';
+    nextBtn.style.cssText='background:var(--acc,#e8c84a);color:#000;font-weight:700;';
+    nextBtn.onclick=()=>loadNextMatch(tatamiId);
+    ovBtns.appendChild(nextBtn);
+  }
+}
+
+async function loadNextMatch(tatamiId){
+  try{
+    const matches=await DB.getMatchesByTatami(tatamiId);
+    const next=matches?.find(m=>m.status==='pending'&&m.blue_id&&m.white_id);
+    if(next){
+      // Mark as live
+      await DB.updateMatch(next.id,{status:'live'});
+      // Navigate to same referee screen with new match params
+      const style=new URLSearchParams(location.search).get('style')||
+        (location.pathname.includes('sides')?'sides':'rows');
+      const target=location.pathname.includes('sides')?'referee-sides.html':'referee-rows.html';
+      const params=new URLSearchParams({
+        tatami:tatamiId,
+        matchid:next.id,
+        blue:next.blue?.name||'',
+        white:next.white?.name||'',
+        bclub:next.blue?.club||'',
+        wclub:next.white?.club||'',
+        stage:(next.category?.name||'')+(next.stage?' · '+next.stage:''),
+        banner:'מזרן '+tatamiId+' · '+(next.category?.name||''),
+      });
+      location.href=target+'?'+params.toString();
+    }else{
+      showToast('✓ כל הקרבות במזרן הסתיימו!');
+    }
+  }catch(e){
+    console.error('load next match:',e);
+    showToast('⚠ שגיאה בטעינת קרב הבא');
+  }
 }
 
 function toggleTimer(){
