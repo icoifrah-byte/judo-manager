@@ -513,8 +513,8 @@ async function loadRealData(){
     for(let i=1;i<=tCount;i++) tMap[i]={id:i,lastWinner:null,active:null,upcoming:[]};
 
     for(const cat of cats){
-      const matches=await DB.getMatches(cat.id);
-      if(!matches) continue;
+      const matches=cat.matches||[];
+      if(!matches.length) continue;
       const sorted=[...matches].sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
       sorted.forEach(m=>{
         const tid=m.tatami_id||1;
