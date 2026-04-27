@@ -1095,7 +1095,6 @@ async function ldCat(catId, el){
 }
 
 async function saveAllMatchesToDB(br, catId){
-  // Get tatami_id from the category
   const cat=allCategories.find(c=>c.id===catId);
   const tatamiId=cat?.tatami_id||null;
 
@@ -1107,13 +1106,18 @@ async function saveAllMatchesToDB(br, catId){
     tatami_id: tatamiId,
     blue_id: m.bC?.dbId||null,
     white_id: m.wC?.dbId||null,
-    status: m.status==='bye'?'bye':m.status==='empty'?'pending':'pending',
+    status: m.status==='bye'?'bye':'pending',
     winner_id: m.status==='bye'&&m.wComp?.dbId?m.wComp.dbId:null,
     win_reason: m.status==='bye'?'bye':null,
     score: {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0},
     is_offline: false,
     order_in_tatami: m.id,
     susp: null,
+    // Save wiring so referee screen can propagate results
+    w_to_match: m.wTo?.id||null,
+    w_to_side: m.wTo?.s||null,
+    l_to_match: m.lTo?.id||null,
+    l_to_side: m.lTo?.s||null,
   }));
   try{
     await DB.upsertMatches(rows);
