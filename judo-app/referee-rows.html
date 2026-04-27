@@ -365,10 +365,10 @@ async function declareWinner(side,reason){
   }
 }
 
-async function loadNextMatch(tatamiId){
+async function loadNextMatch(tatamiId, skipMatchId=null){
   try{
     const matches=await DB.getMatchesByTatami(tatamiId);
-    const next=matches?.find(m=>(m.status==='pending'||m.status==='suspended')&&m.blue_id&&m.white_id);
+    const next=matches?.find(m=>(m.status==='pending'||m.status==='suspended')&&m.blue_id&&m.white_id&&m.id!==skipMatchId);
     if(next){
       // Reset any live matches back to pending first
     await fetch('https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?tatami_id=eq.${tatamiId}&status=eq.live',{
@@ -610,7 +610,7 @@ async function confirmDelay(){
     try{
       await DB.updateMatch(matchId,{status:'pending'});
       showToast('⏭ קרב נדחה — טוען הבא...');
-      if(tatamiId) await loadNextMatch(tatamiId);
+      if(tatamiId) await loadNextMatch(tatamiId, matchId); // pass current to skip
       else showToast('⚠ אין מזרן מוגדר');
     }catch(e){console.error('delay:',e);showToast('⚠ שגיאה');}
   } else {
