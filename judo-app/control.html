@@ -479,8 +479,8 @@ async function loadRealMatches(){
     for(let i=1;i<=tCount;i++) STATE.tatami.push({id:i,matches:[]});
 
     for(const cat of cats){
-      const matches=await DB.getMatches(cat.id);
-      if(!matches) continue;
+      const matches=(cat.matches||[]);
+      if(!matches.length) continue;
       matches.sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
       matches.forEach(m=>{
         const tid=(m.tatami_id||1);
