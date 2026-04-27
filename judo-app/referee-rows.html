@@ -368,28 +368,41 @@ async function declareWinner(side,reason){
 
 async function loadNextMatch(tatamiId, skipMatchId=null){
   try{
-    const matches=await DB.getMatchesByTatami(tatamiId);
-    const next=matches?.find(m=>(m.status==='pending'||m.status==='suspended')&&m.blue_id&&m.white_id&&m.id!==skipMatchId);
-    if(next){
-      // Small delay to ensure done status is saved to DB
-    await new Promise(r=>setTimeout(r,800));
-    // Mark as live
+    // Use category-based approach (reliable - matches may have null tatami_id)
+    const compId=localStorage.getItem('judo_active_comp');
+    if(!compId){ showToast('⚠ אין תחרות פעילה'); return; }
+    
+    const cats=await DB.getCategories(compId);
+    const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
+    
+    let next=null;
+    let nextCat=null;
+    
+    for(const cat of tatamiCats){
+      const matches=(cat.matches||[])
+        .filter(m=>m.status==='pending' && m.blue_id && m.white_id && 
+                   m.win_reason!=='bye' && m.id!==skipMatchId)
+        .sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
+      if(matches.length){ next=matches[0]; nextCat=cat; break; }
+    }
+    
+    if(next && nextCat){
+      const comps=nextCat.competitors||[];
+      const blue=comps.find(c=>c.id===next.blue_id);
+      const white=comps.find(c=>c.id===next.white_id);
       await DB.updateMatch(next.id,{status:'live'});
-      // Navigate to same referee screen with new match params
-      const style=new URLSearchParams(location.search).get('style')||
-        (location.pathname.includes('sides')?'sides':'rows');
       const target=location.pathname.includes('sides')?'referee-sides.html':'referee-rows.html';
       const params=new URLSearchParams({
         tatami:tatamiId,
         matchid:next.id,
         blueid:next.blue_id||'',
         whiteid:next.white_id||'',
-        blue:next.blue?.name||'',
-        white:next.white?.name||'',
-        bclub:next.blue?.club||'',
-        wclub:next.white?.club||'',
-        stage:(next.category?.name||'')+(next.stage?' · '+next.stage:''),
-        banner:'מזרן '+tatamiId+' · '+(next.category?.name||''),
+        blue:blue?.name||'',
+        white:white?.name||'',
+        bclub:blue?.club||'',
+        wclub:white?.club||'',
+        stage:nextCat.name+(next.stage?' · '+next.stage:''),
+        banner:'מזרן '+tatamiId+' · '+nextCat.name,
       });
       location.href=target+'?'+params.toString();
     }else{
@@ -397,7 +410,7 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
     }
   }catch(e){
     console.error('load next match:',e);
-    showToast('⚠ שגיאה בטעינת קרב הבא');
+    showToast('⚠ שגיאה: '+e.message);
   }
 }
 
