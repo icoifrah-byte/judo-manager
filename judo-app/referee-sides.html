@@ -698,25 +698,68 @@ async function declareWinner(side,reason){
 
 async function loadNextMatch(tatamiId, skipMatchId=null){
   try{
-    // Use category-based approach (reliable - matches may have null tatami_id)
     const compId=localStorage.getItem('judo_active_comp');
     if(!compId){ showToast('⚠ אין תחרות פעילה'); return; }
     
     const cats=await DB.getCategories(compId);
-    const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
+    const tatamiCats=(cats||[])
+      .filter(c=>Number(c.tatami_id)===Number(tatamiId));
     
-    let next=null;
-    let nextCat=null;
-    
-    for(const cat of tatamiCats){
-      const matches=(cat.matches||[])
-        .filter(m=>m.status==='pending' && m.blue_id && m.white_id && 
-                   m.win_reason!=='bye' && m.id!==skipMatchId)
-        .sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
-      if(matches.length){ next=matches[0]; nextCat=cat; break; }
+    if(!tatamiCats.length){ showToast('✓ כל הקרבות הסתיימו!'); return; }
+
+    // For each category, get its pending matches grouped by stage
+    // stage_order: col0 < col1 < col2 ... (match_num as proxy for round)
+    // Find current category+stage from skipMatchId
+    let currentCatId=null, currentStage=null;
+    if(skipMatchId){
+      for(const cat of tatamiCats){
+        const m=(cat.matches||[]).find(x=>x.id===skipMatchId);
+        if(m){ currentCatId=cat.id; currentStage=m.stage; break; }
+      }
     }
+
+    // Build rotation: for each cat, find its current active stage
+    // (lowest stage that still has pending matches)
+    function getCatCurrentStage(cat){
+      const pending=(cat.matches||[])
+        .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==skipMatchId)
+        .sort((a,b)=>(a.order_in_tatami||a.match_num||99)-(b.order_in_tatami||b.match_num||99));
+      if(!pending.length) return null;
+      // Group by stage, take earliest stage
+      const firstStage=pending[0].stage;
+      return {stage:firstStage, matches:pending.filter(m=>m.stage===firstStage)};
+    }
+
+    // Round-robin logic:
+    // If we just finished a match in catX/stageY:
+    //   1. Check if catX/stageY still has more pending matches → use next one
+    //   2. If not, move to next cat (after catX) that has pending matches
+    //   3. Wrap around: go through all cats once, then back to catX for next stage
     
-    if(next && nextCat){
+    let next=null, nextCat=null;
+
+    // Find index of current cat
+    const currentIdx=tatamiCats.findIndex(c=>c.id===currentCatId);
+    
+    // Try: same cat, same stage first (more matches in same round)
+    // Actually per logic: move to next category after each match
+    // So: start searching from NEXT category after current
+    
+    const startIdx=(currentIdx>=0)?currentIdx+1:0;
+    
+    // Pass 1: search from next cat onwards, same or current stage level
+    for(let i=0;i<tatamiCats.length;i++){
+      const idx=(startIdx+i)%tatamiCats.length;
+      const cat=tatamiCats[idx];
+      const stageInfo=getCatCurrentStage(cat);
+      if(stageInfo&&stageInfo.matches.length){
+        next=stageInfo.matches[0];
+        nextCat=cat;
+        break;
+      }
+    }
+
+    if(next&&nextCat){
       const comps=nextCat.competitors||[];
       const blue=comps.find(c=>c.id===next.blue_id);
       const white=comps.find(c=>c.id===next.white_id);
@@ -739,7 +782,7 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
       showToast('✓ כל הקרבות במזרן הסתיימו!');
     }
   }catch(e){
-    console.error('load next match:',e);
+    console.error('loadNextMatch:',e);
     showToast('⚠ שגיאה: '+e.message);
   }
 }
