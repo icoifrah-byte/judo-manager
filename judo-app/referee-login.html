@@ -201,21 +201,39 @@ async function tryEnter(){
     if(compId){
       // Find matches via category tatami assignment (reliable)
       const cats = await DB.getCategories(compId);
+      // Try by category tatami_id first, fallback to match tatami_id
       const tatamiCats = (cats||[]).filter(c=>Number(c.tatami_id)===Number(selectedTatami));
       
       let nextMatch = null;
       let nextCat = null;
       
+      // Method 1: via category tatami_id
       for(const cat of tatamiCats){
-        // cat.matches already loaded via getCategories join
-        const matches = cat.matches || [];
-        const pending = matches
+        const matches = (cat.matches||[])
           .filter(m=>m.status==='pending' && m.blue_id && m.white_id && m.win_reason!=='bye')
           .sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
-        if(pending.length){
-          nextMatch = pending[0];
-          nextCat = cat;
-          break;
+        if(matches.length){ nextMatch=matches[0]; nextCat=cat; break; }
+      }
+      
+      // Method 2 fallback: search all cats for matches with this tatami_id
+      if(!nextMatch){
+        for(const cat of (cats||[])){
+          const matches = (cat.matches||[])
+            .filter(m=>m.status==='pending' && m.blue_id && m.white_id && 
+                       m.win_reason!=='bye' && Number(m.tatami_id)===Number(selectedTatami))
+            .sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
+          if(matches.length){ nextMatch=matches[0]; nextCat=cat; break; }
+        }
+      }
+      
+      // Method 3 fallback: if still nothing, take first pending from ANY cat
+      // (allows referee to start even without tatami assignment)
+      if(!nextMatch){
+        for(const cat of (cats||[])){
+          const matches = (cat.matches||[])
+            .filter(m=>m.status==='pending' && m.blue_id && m.white_id && m.win_reason!=='bye')
+            .sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
+          if(matches.length){ nextMatch=matches[0]; nextCat=cat; break; }
         }
       }
       
