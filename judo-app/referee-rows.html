@@ -687,7 +687,6 @@ async function propagateWinner(matchId, winnerId, loserId){
       const field=m.l_to_side==='blue'?'blue_id':'white_id';
       await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,'PATCH',{[field]:loserId});
       // Check if consolation match is now a BYE
-      await autoProcessBye(catId, m.l_to_match);
     }
   }catch(e){console.error('propagate:',e);}
 }
@@ -716,7 +715,7 @@ async function autoProcessBye(catId, matchNum){
     if(m.w_to_match&&byeWinner){
       const field=m.w_to_side==='blue'?'blue_id':'white_id';
       await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,'PATCH',{[field]:byeWinner});
-      await autoProcessBye(catId, m.w_to_match);
+      // recursive call disabled
     }
   }catch(e){console.error('autoProcessBye:',e);}
 }
