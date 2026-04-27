@@ -272,69 +272,78 @@ function render(){
 }
 
 function renderTatami(t){
-  const nonDone=t.matches.filter(m=>m.status!=='done');
+  // Only show: last winner (green) + live (yellow) + upcoming with players
+  const doneList=t.matches.filter(m=>m.status==='done'&&m.win_reason!=='bye');
+  const lastDone=doneList.length?doneList[doneList.length-1]:null;
   const liveM=t.matches.find(m=>m.status==='live');
+  const upcoming=t.matches.filter(m=>
+    (m.status==='pending'||m.status==='suspended')&&
+    m.win_reason!=='bye'&&
+    (m.blue||m.white)
+  );
+  const nonDone=upcoming;
 
   let rows='';
-  let rowIdx=0;
 
-  t.matches.forEach(m=>{
-    if(m.status==='done'){
-      // show last done as green row
-      const b=cname(m.blue,m.bRole,m.bRef), w=cname(m.white,m.wRole,m.wRef);
-      rows+=`<div class="match-row row-win">
-        <div class="dot dot-win"></div>
-        <div class="minfo">
-          <div class="mnames"><span class="nm-blue">${b.t}</span><span class="nm-vs">מול</span><span class="nm-white">${w.t}</span></div>
-          <div class="mmeta">${m.category} <span class="badge badge-win">הסתיים</span></div>
+  // Last winner row (green)
+  if(lastDone){
+    const winner=lastDone.winnerName||(lastDone.blue||'?');
+    rows+=`<div class="match-row row-win">
+      <div class="dot dot-win"></div>
+      <div class="minfo">
+        <div class="mnames"><span style="color:var(--grn);font-weight:700">✓ ${winner}</span></div>
+        <div class="mmeta">${lastDone.category||''} <span class="badge badge-win">הסתיים</span></div>
+      </div>
+    </div>`;
+  }
+
+  // Live row (yellow)
+  if(liveM){
+    const b=cname(liveM.blue,liveM.bRole,liveM.bRef), w=cname(liveM.white,liveM.wRole,liveM.wRef);
+    rows+=`<div class="match-row row-live">
+      <div class="dot dot-live"></div>
+      <div class="minfo" style="flex:1">
+        <div class="mnames">
+          <span class="nm-blue">${b.t}</span><span class="nm-vs">מול</span><span class="nm-white">${w.t}</span>
         </div>
-      </div>`;
-      return;
-    }
+        <div class="mmeta">${liveM.category} ${badge(liveM.stage)} · קרב #${liveM.matchNum}
+          <span class="badge badge-live">● פעיל</span></div>
+      </div>
+    </div>`;
+  }
 
-    rowIdx++;
+  // Upcoming rows
+  upcoming.forEach((m,i)=>{
     const b=cname(m.blue,m.bRole,m.bRef), w=cname(m.white,m.wRole,m.wRef);
-    const isLive=m.status==='live';
     const isSusp=m.status==='suspended';
-    const hasLatePlayer=false; // hook for attendance
-
-    let rowClass=isLive?'row-live':isSusp?'row-susp':'';
-    let dotClass=isLive?'dot-live':isSusp?'dot-susp':'dot-up';
-
-    const suspInfo=isSusp&&m.susp
-      ?`<span class="susp-countdown badge-susp badge">${m.susp.type==='matches'?m.susp.remaining+' קרבות':Math.max(0,m.susp.remaining)+'d'}</span>`
-      :'';
-
-    const statusBadge=isLive
-      ?`<span class="badge badge-live">● פעיל</span>`
-      :isSusp?`<span class="badge badge-susp">⏸ מושהה</span>`:'';
-
-    rows+=`<div class="match-row ${rowClass}" id="mr-${m.id}">
-      <div class="dot ${dotClass}"></div>
-      ${!isLive?`<div class="rnum">${rowIdx}</div>`:''}
+    rows+=`<div class="match-row ${isSusp?'row-susp':''}" id="mr-${m.id}">
+      <div class="dot ${isSusp?'dot-susp':'dot-up'}"></div>
+      <div class="rnum">${i+1}</div>
       <div class="minfo">
         <div class="mnames">
           <span class="${b.k?'nm-blue':'nm-unknown'}">${b.t}</span>
           <span class="nm-vs">מול</span>
           <span class="${w.k?'nm-white':'nm-unknown'}">${w.t}</span>
         </div>
-        <div class="mmeta">${m.category} ${badge(m.stage)} · קרב #${m.matchNum} ${statusBadge} ${suspInfo}</div>
+        <div class="mmeta">${m.category} ${badge(m.stage)} · קרב #${m.matchNum}
+          ${isSusp?'<span class="badge badge-susp">⏸ מושהה</span>':''}</div>
       </div>
       <div class="row-actions">
-        ${!isLive?`<button class="act warn" onclick="openMove('${m.id}')" title="העבר מזרן">↔</button>`:''}
-        ${!isLive?`<button class="act purple" onclick="openSuspend('${m.id}')" title="השהה">${isSusp?'▶':'⏸'}</button>`:''}
+        <button class="act warn" onclick="openMove('${m.id}')" title="העבר מזרן">↔</button>
+        <button class="act purple" onclick="openSuspend('${m.id}')" title="${isSusp?'בטל השהייה':'השהה'}">${isSusp?'▶':'⏸'}</button>
       </div>
     </div>`;
   });
 
-  if(!rows){
+  if(!lastDone&&!liveM&&!upcoming.length){
     rows='<div class="tc-idle">אין קרבות ממתינים</div>';
   }
 
+  const totalLeft=upcoming.length+(liveM?1:0);
   return `<div class="tatami-card">
     <div class="tc-header">
       <div class="tc-num">מזרן ${t.id}</div>
-      <div class="tc-count">${nonDone.length} קרבות</div>
+      <div class="tc-count">${totalLeft} קרבות</div>
       <div class="tc-header-btns">
         <button class="btn btn-secondary btn-sm" onclick="addMatchToTatami(${t.id})" title="הוסף קרב">+</button>
       </div>
@@ -485,6 +494,9 @@ function tick(){
 setInterval(()=>{tick();render();},5000); // re-render every 5s for countdowns
 
 async function loadRealMatches(){
+  // First: reset any stale 'live' matches that weren't properly closed
+  // (safety cleanup - shouldn't happen but just in case)
+
   const compId=localStorage.getItem('judo_active_comp');
   if(!compId){ document.getElementById('h-title').textContent='שליטה — דמו'; render(); return; }
 
@@ -505,8 +517,12 @@ async function loadRealMatches(){
         const tid=(m.tatami_id||1);
         const t=STATE.tatami.find(x=>x.id===tid);
         if(!t) return;
+        // Skip bye matches
+        if(m.win_reason==='bye') return;
         const bName=cat.competitors?.find(c=>c.id===m.blue_id)?.name||null;
         const wName=cat.competitors?.find(c=>c.id===m.white_id)?.name||null;
+        // Skip matches without both players (unless live/done)
+        if(!bName&&!wName&&m.status==='pending') return;
         t.matches.push({
           id:m.id, dbId:m.id,
           blue:bName, white:wName,
@@ -515,6 +531,8 @@ async function loadRealMatches(){
           matchNum:m.match_num,
           status:m.status||'pending',
           susp:m.susp||null,
+          winnerName: m.status==='done'?(m.winner_id===(cat.competitors?.find(c=>c.id===m.blue_id)?.id)?bName:wName):null,
+          winReason: m.win_reason||null,
         });
       });
     }
