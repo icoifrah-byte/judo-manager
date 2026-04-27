@@ -504,11 +504,19 @@ function createCompetition(){
 
 // selectComp defined in renderSidebar section below
 
-function deleteCompetition(){
+async function deleteCompetition(){
   const c=C();if(!c)return;
   if(!confirm(`למחוק את "${c.name}"? פעולה בלתי הפיכה.`))return;
+  const dbId=c.dbId;
   S.competitions=S.competitions.filter(x=>x.id!==S.activeId);
-  S.activeId=null;renderSidebar();renderDash();
+  S.activeId=S.competitions[0]?.id||null;
+  if(S.activeId) setActiveCompId(S.activeId);
+  else localStorage.removeItem('judo_active_comp');
+  renderSidebar();renderDash();
+  if(dbId){
+    try{ await DB.deleteCompetition(dbId); showAlert('success','✓ תחרות נמחקה'); }
+    catch(e){ showAlert('error','⚠ שגיאה במחיקה מ-DB'); console.error(e); }
+  }
 }
 
 async function setSetting(key,val){
