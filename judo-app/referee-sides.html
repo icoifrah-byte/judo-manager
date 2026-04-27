@@ -960,11 +960,39 @@ async function propagateWinner(matchId, winnerId, loserId){
     }
     // Propagate loser to consolation
     if(m.l_to_match&&loserId){
-      const field=m.l_to_side==='blue'?'blue_id':'white_id';
-      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,'PATCH',{[field]:loserId});
-      // Check if consolation match is now a BYE
+      const lField=m.l_to_side==='blue'?'blue_id':'white_id';
+      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,'PATCH',{[lField]:loserId});
+      await new Promise(r=>setTimeout(r,400));
+      await checkAndProcessBye(catId, m.l_to_match);
     }
   }catch(e){console.error('propagate:',e);}
+}
+
+// Check if a consolation match has only one player and auto-process as BYE
+async function checkAndProcessBye(catId, matchNum){
+  try{
+    const rows=await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${matchNum}&select=id,blue_id,white_id,status,stage_type,w_to_match,w_to_side,l_to_match,l_to_side,win_reason`);
+    const m=rows?.[0];
+    if(!m) return;
+    // Only process: not yet done, consolation match (R), exactly ONE player
+    if(m.status==='done'||m.status==='bye') return;
+    if(m.blue_id&&m.white_id) return; // both players = real match
+    if(!m.blue_id&&!m.white_id) return; // no players yet = wait
+    if(m.stage_type!=='R') return; // only consolation matches
+    
+    const winner=m.blue_id||m.white_id;
+    // Mark as bye
+    await supaFetch(`matches?id=eq.${m.id}`,'PATCH',{
+      status:'bye', winner_id:winner, win_reason:'bye'
+    });
+    // Propagate winner further
+    if(m.w_to_match&&winner){
+      const field=m.w_to_side==='blue'?'blue_id':'white_id';
+      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,'PATCH',{[field]:winner});
+      await new Promise(r=>setTimeout(r,300));
+      await checkAndProcessBye(catId, m.w_to_match);
+    }
+  }catch(e){console.warn('checkAndProcessBye:',e);}
 }
 
 // Auto-process a match as BYE ONLY if it has exactly one player AND the other slot is NULL
