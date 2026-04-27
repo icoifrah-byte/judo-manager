@@ -211,38 +211,7 @@ function cname(name,role,ref){
 // status: 'live'|'pending'|'done'|'suspended'
 // susp: {type:'matches'|'time', n, setAt, remaining} | null
 
-let STATE = {
-  competition:{name:'אליפות ילדים 2025', tatami_count:3},
-  tatami:[
-    {id:1, matches:[
-      {id:'1-1',blue:'דן כהן',    white:null,     bRole:null,    bRef:null, wRole:'winner',wRef:7,
-       category:'U15 -60', stage:'semi', matchNum:7, status:'live', susp:null},
-      {id:'1-2',blue:'עידן שפי',  white:null,     bRole:'winner',bRef:3,    wRole:'winner',wRef:4,
-       category:'U15 -60', stage:'final', matchNum:11, status:'pending', susp:null},
-      {id:'1-3',blue:null,        white:null,     bRole:'winner',bRef:5,    wRole:'winner',wRef:6,
-       category:'U15 -60', stage:'rep_semi', matchNum:9, status:'suspended',
-       susp:{type:'matches',n:3,remaining:3,setAt:Date.now()}},
-      {id:'1-4',blue:null,        white:null,     bRole:'loser', bRef:7,    wRole:'winner',wRef:9,
-       category:'U15 -60', stage:'rep_bronze', matchNum:13, status:'pending', susp:null},
-    ]},
-    {id:2, matches:[
-      {id:'2-1',blue:'אמיר לוי',  white:'יוסי מזרחי',bRole:null,bRef:null,wRole:null,wRef:null,
-       category:'U18 -73', stage:'quarter', matchNum:3, status:'live', susp:null},
-      {id:'2-2',blue:null,        white:'בן מור',    bRole:'winner',bRef:3,wRole:'winner',wRef:4,
-       category:'U18 -73', stage:'semi', matchNum:7, status:'pending', susp:null},
-      {id:'2-3',blue:'אמיר לוי',  white:null,        bRole:null,bRef:null,wRole:'winner',wRef:7,
-       category:'U18 -73', stage:'final', matchNum:11, status:'pending', susp:null},
-    ]},
-    {id:3, matches:[
-      {id:'3-1',blue:'אורי פלד',  white:'שי ברנע',   bRole:null,bRef:null,wRole:null,wRef:null,
-       category:'U15 -66', stage:'eighth', matchNum:1, status:'pending', susp:null},
-      {id:'3-2',blue:'לירון כץ',  white:'מתן הלוי',  bRole:null,bRef:null,wRole:null,wRef:null,
-       category:'U15 -66', stage:'eighth', matchNum:2, status:'pending', susp:null},
-      {id:'3-3',blue:null,        white:null,         bRole:'winner',bRef:1,wRole:'winner',wRef:2,
-       category:'U15 -66', stage:'quarter', matchNum:5, status:'pending', susp:null},
-    ]},
-  ],
-};
+let STATE = {competition:{name:"",tatami_count:3},tatami:[]};
 
 let movingMatchId=null, suspendingMatchId=null;
 
