@@ -1015,7 +1015,10 @@ function renderTatamiTab(comp){
   let html='';
   for(let i=1;i<=c.tatami_count;i++){
     const comps=c.competitors.filter(cp=>String(cp.tatami)===String(i));
-    const assignedCats=[...new Set(comps.map(cp=>cp.category).filter(Boolean))];
+    // Use category tatamiId from DB (more reliable than competitor tatami field)
+    const assignedCats=c.categories
+      .filter(cat=>String(cat.tatamiId)===String(i))
+      .map(cat=>cat.name);
     // Unassigned categories (no tatami or tatami=0)
     const unassignedCats=c.categories.filter(cat=>{
       const catComps=c.competitors.filter(cp=>cp.category===cat.name);
@@ -1279,9 +1282,14 @@ async function initFromDB(){
               id: cat.id, dbId: cat.id,
               name: cat.name, method: cat.method||'knockout',
               status: cat.status||'pending',
+              tatamiId: cat.tatami_id||null,
               competitors: [],
               fromExcel: true,
             };
+            // Also update competitors tatami based on category assignment
+            if(cat.tatami_id){
+              // Will be set when competitors are loaded below
+            }
             comp.categories.push(localCat);
             // Load competitors for this category
             if(cat.competitors && cat.competitors.length){
