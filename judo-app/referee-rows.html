@@ -372,61 +372,37 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
     if(!compId){ showToast('⚠ אין תחרות פעילה'); return; }
     
     const cats=await DB.getCategories(compId);
-    const tatamiCats=(cats||[])
-      .filter(c=>Number(c.tatami_id)===Number(tatamiId));
-    
+    const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
     if(!tatamiCats.length){ showToast('✓ כל הקרבות הסתיימו!'); return; }
 
-    // For each category, get its pending matches grouped by stage
-    // stage_order: col0 < col1 < col2 ... (match_num as proxy for round)
-    // Find current category+stage from skipMatchId
-    let currentCatId=null, currentStage=null;
+    // For each category: get ordered pending matches (real matches with both players)
+    function getPendingMatches(cat){
+      return (cat.matches||[])
+        .filter(m=>m.status==='pending' && m.blue_id && m.white_id && m.win_reason!=='bye')
+        .sort((a,b)=>(a.order_in_tatami||a.match_num||99)-(b.order_in_tatami||b.match_num||99));
+    }
+
+    // Find current category index from skipMatchId
+    let currentCatIdx=-1;
     if(skipMatchId){
-      for(const cat of tatamiCats){
-        const m=(cat.matches||[]).find(x=>x.id===skipMatchId);
-        if(m){ currentCatId=cat.id; currentStage=m.stage; break; }
+      for(let i=0;i<tatamiCats.length;i++){
+        if((tatamiCats[i].matches||[]).find(m=>m.id===skipMatchId)){
+          currentCatIdx=i; break;
+        }
       }
     }
 
-    // Build rotation: for each cat, find its current active stage
-    // (lowest stage that still has pending matches)
-    function getCatCurrentStage(cat){
-      const pending=(cat.matches||[])
-        .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==skipMatchId)
-        .sort((a,b)=>(a.order_in_tatami||a.match_num||99)-(b.order_in_tatami||b.match_num||99));
-      if(!pending.length) return null;
-      // Group by stage, take earliest stage
-      const firstStage=pending[0].stage;
-      return {stage:firstStage, matches:pending.filter(m=>m.stage===firstStage)};
-    }
-
-    // Round-robin logic:
-    // If we just finished a match in catX/stageY:
-    //   1. Check if catX/stageY still has more pending matches → use next one
-    //   2. If not, move to next cat (after catX) that has pending matches
-    //   3. Wrap around: go through all cats once, then back to catX for next stage
+    // Round-robin: start from NEXT category after current
+    // Pick ONE pending match from each cat (first in order)
+    // Skip categories with no pending matches
+    const startIdx = currentCatIdx>=0 ? currentCatIdx+1 : 0;
     
     let next=null, nextCat=null;
-
-    // Find index of current cat
-    const currentIdx=tatamiCats.findIndex(c=>c.id===currentCatId);
-    
-    // Try: same cat, same stage first (more matches in same round)
-    // Actually per logic: move to next category after each match
-    // So: start searching from NEXT category after current
-    
-    const startIdx=(currentIdx>=0)?currentIdx+1:0;
-    
-    // Pass 1: search from next cat onwards, same or current stage level
     for(let i=0;i<tatamiCats.length;i++){
       const idx=(startIdx+i)%tatamiCats.length;
       const cat=tatamiCats[idx];
-      const stageInfo=getCatCurrentStage(cat);
-      if(stageInfo&&stageInfo.matches.length){
-        next=stageInfo.matches[0];
-        nextCat=cat;
-        break;
-      }
+      const pending=getPendingMatches(cat).filter(m=>m.id!==skipMatchId);
+      if(pending.length){ next=pending[0]; nextCat=cat; break; }
     }
 
     if(next&&nextCat){
@@ -436,14 +412,10 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
       await DB.updateMatch(next.id,{status:'live'});
       const target=location.pathname.includes('sides')?'referee-sides.html':'referee-rows.html';
       const params=new URLSearchParams({
-        tatami:tatamiId,
-        matchid:next.id,
-        blueid:next.blue_id||'',
-        whiteid:next.white_id||'',
-        blue:blue?.name||'',
-        white:white?.name||'',
-        bclub:blue?.club||'',
-        wclub:white?.club||'',
+        tatami:tatamiId, matchid:next.id,
+        blueid:next.blue_id||'', whiteid:next.white_id||'',
+        blue:blue?.name||'', white:white?.name||'',
+        bclub:blue?.club||'', wclub:white?.club||'',
         stage:nextCat.name+(next.stage?' · '+next.stage:''),
         banner:'מזרן '+tatamiId+' · '+nextCat.name,
       });
