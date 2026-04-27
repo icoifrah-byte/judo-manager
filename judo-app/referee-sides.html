@@ -235,7 +235,7 @@ body.fullscreen #app{background:#0a0a0e;}
     <div class="half blue" id="half-blue">
       <div class="info-strip">
         <div class="player-name" id="blue-name">נועם ברק</div>
-        <div class="player-meta" id="blue-meta">מועדון שיבוץ · U15 -60</div>
+        <div class="player-meta" id="blue-meta"></div>
       </div>
       <div class="score-area">
         <div class="score-col" onclick="add('blue','I')">
@@ -262,7 +262,7 @@ body.fullscreen #app{background:#0a0a0e;}
     <div class="half white" id="half-white">
       <div class="info-strip">
         <div class="player-name" id="white-name">דן כהן</div>
-        <div class="player-meta" id="white-meta">מועדון הירוק · U15 -60</div>
+        <div class="player-meta" id="white-meta"></div>
       </div>
       <div class="score-area">
         <div class="score-col" onclick="add('white','I')">
@@ -783,8 +783,14 @@ function syncShido(side){
 const p=new URLSearchParams(location.search);
 if(p.get('blue'))  document.getElementById('blue-name').textContent=p.get('blue');
 if(p.get('white')) document.getElementById('white-name').textContent=p.get('white');
-if(p.get('bluemeta'))  document.getElementById('blue-meta').textContent=p.get('bluemeta');
-if(p.get('whitemeta')) document.getElementById('white-meta').textContent=p.get('whitemeta');
+// Set meta from bclub/wclub + stage
+const _bclub=p.get('bclub')||p.get('bluemeta')||'';
+const _wclub=p.get('wclub')||p.get('whitemeta')||'';
+const _stage=p.get('stage')||'';
+const _bm=document.getElementById('blue-meta');
+const _wm=document.getElementById('white-meta');
+if(_bm) _bm.textContent=_bclub+(_stage?' · '+_stage:'');
+if(_wm) _wm.textContent=_wclub+(_stage?' · '+_stage:'');
 if(p.get('banner')) document.getElementById('banner-text').textContent=p.get('banner');
 if(p.get('dur')){ matchDuration=+p.get('dur'); timeLeft=matchDuration; }
 if(p.get('mirror')==='1'){
@@ -957,32 +963,35 @@ async function propagateWinner(matchId, winnerId, loserId){
       const field=m.l_to_side==='blue'?'blue_id':'white_id';
       await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,'PATCH',{[field]:loserId});
       // Check if consolation match is now a BYE
-      await autoProcessBye(catId, m.l_to_match);
     }
   }catch(e){console.error('propagate:',e);}
 }
 
-// Auto-process a match as BYE if it has exactly one player
+// Auto-process a match as BYE ONLY if it has exactly one player AND the other slot is NULL
+// This means the match was originally a bye (odd-number bracket), not a future match
 async function autoProcessBye(catId, matchNum){
   try{
-    const rows=await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${matchNum}&select=id,blue_id,white_id,status,w_to_match,w_to_side,l_to_match,l_to_side,win_reason`);
+    const rows=await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${matchNum}&select=id,blue_id,white_id,status,stage_type,w_to_match,w_to_side,win_reason`);
     const m=rows?.[0];
     if(!m) return;
-    // Already processed or has both players
-    if(m.status==='done'||m.status==='bye') return;
-    if(m.blue_id&&m.white_id) return; // normal match, skip
-    // Has exactly one player → BYE
+    if(m.status==='done'||m.status==='bye'||m.win_reason==='bye') return;
+    // Both players present = normal match, never auto-bye
+    if(m.blue_id&&m.white_id) return;
+    // No players at all = future match not yet filled, skip
+    if(!m.blue_id&&!m.white_id) return;
+    // Exactly one player AND this is a consolation/rep match (stage_type=R)
+    // Only auto-bye consolation matches, never winners bracket
+    if(m.stage_type!=='R') return;
     const byeWinner=m.blue_id||m.white_id;
-    if(!byeWinner) return;
-    // Mark as done/bye
+    // Mark as bye
     await supaFetch(`matches?id=eq.${m.id}`,'PATCH',{
       status:'bye', winner_id:byeWinner, win_reason:'bye'
     });
-    // Propagate the bye winner further
+    // Propagate further only if the next match also becomes a bye
     if(m.w_to_match&&byeWinner){
       const field=m.w_to_side==='blue'?'blue_id':'white_id';
       await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,'PATCH',{[field]:byeWinner});
-      await autoProcessBye(catId, m.w_to_match);
+      // recursive call disabled
     }
   }catch(e){console.error('autoProcessBye:',e);}
 }
