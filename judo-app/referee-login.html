@@ -220,6 +220,8 @@ async function tryEnter(){
         if(wClub) params.set('wclub', wClub);
         if(stageLbl) params.set('stage', stageLbl);
         if(next.id) params.set('matchid', next.id);
+        if(next.blue_id) params.set('blueid', next.blue_id);
+        if(next.white_id) params.set('whiteid', next.white_id);
         params.set('banner', 'מזרן ' + selectedTatami + ' · ' + catName);
         // Reset any other 'live' matches on this tatami to 'pending' first
         try{
