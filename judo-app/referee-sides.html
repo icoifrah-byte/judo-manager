@@ -705,14 +705,46 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
     const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
     if(!tatamiCats.length){ showToast('✓ כל הקרבות הסתיימו!'); return; }
 
-    // For each category: get ordered pending matches (real matches with both players)
-    function getPendingMatches(cat){
-      return (cat.matches||[])
-        .filter(m=>m.status==='pending' && m.blue_id && m.white_id && m.win_reason!=='bye')
+    // For a category, get its next "block" of matches to run
+    // League: always 1 match at a time
+    // Knockout: all matches of the current stage together
+    //   - First round (no done matches yet): only W matches (no consolation)
+    //   - Later rounds: W + R matches of current stage
+    function getNextBlock(cat){
+      const allMatches = cat.matches||[];
+      const isLeague = cat.method==='league';
+      
+      if(isLeague){
+        // League: one pending match at a time
+        const next = allMatches
+          .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==skipMatchId)
+          .sort((a,b)=>(a.order_in_tatami||a.match_num||99)-(b.order_in_tatami||b.match_num||99));
+        return next.length ? [next[0]] : [];
+      }
+      
+      // Knockout: find current stage
+      const hasDone = allMatches.some(m=>m.status==='done'&&m.win_reason!=='bye');
+      const pending = allMatches
+        .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==skipMatchId)
         .sort((a,b)=>(a.order_in_tatami||a.match_num||99)-(b.order_in_tatami||b.match_num||99));
+      
+      if(!pending.length) return [];
+      
+      // First round: only winners bracket (stage_type=W or F)
+      // Later rounds: include consolation (stage_type=R) too
+      const eligible = hasDone 
+        ? pending  // all pending including consolation
+        : pending.filter(m=>m.stage_type==='W'||m.stage_type==='F');
+      
+      if(!eligible.length) return [];
+      
+      // Get the current stage (earliest stage among eligible)
+      const currentStage = eligible[0].stage;
+      // Return ALL matches of this stage
+      return eligible.filter(m=>m.stage===currentStage);
     }
 
-    // Find current category index from skipMatchId
+    // Find current category index
     let currentCatIdx=-1;
     if(skipMatchId){
       for(let i=0;i<tatamiCats.length;i++){
@@ -722,17 +754,40 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
       }
     }
 
-    // Round-robin: start from NEXT category after current
-    // Pick ONE pending match from each cat (first in order)
-    // Skip categories with no pending matches
-    const startIdx = currentCatIdx>=0 ? currentCatIdx+1 : 0;
-    
+    // Find current block index within current category
+    // (which match in the block was skipMatchId?)
+    let currentBlockIdx=-1;
+    if(currentCatIdx>=0 && skipMatchId){
+      const block=getNextBlock(tatamiCats[currentCatIdx]);
+      // skipMatchId was the last done match - check if there are more in same block
+      // Actually: getNextBlock already excludes skipMatchId, so if block has matches
+      // AND they're same stage as skip → continue in same cat
+      const skipMatch=(tatamiCats[currentCatIdx].matches||[]).find(m=>m.id===skipMatchId);
+      if(skipMatch){
+        const sameStageRemaining=block.filter(m=>m.stage===skipMatch.stage);
+        if(sameStageRemaining.length){
+          // Still matches in same stage of same category → stay in same cat
+          currentBlockIdx=0; // will pick first remaining
+        }
+      }
+    }
+
     let next=null, nextCat=null;
-    for(let i=0;i<tatamiCats.length;i++){
-      const idx=(startIdx+i)%tatamiCats.length;
-      const cat=tatamiCats[idx];
-      const pending=getPendingMatches(cat).filter(m=>m.id!==skipMatchId);
-      if(pending.length){ next=pending[0]; nextCat=cat; break; }
+
+    if(currentBlockIdx===0 && currentCatIdx>=0){
+      // Continue in same category (same stage, more matches)
+      const block=getNextBlock(tatamiCats[currentCatIdx]);
+      if(block.length){ next=block[0]; nextCat=tatamiCats[currentCatIdx]; }
+    }
+
+    if(!next){
+      // Move to next category (round-robin)
+      const startIdx = currentCatIdx>=0 ? currentCatIdx+1 : 0;
+      for(let i=0;i<tatamiCats.length;i++){
+        const idx=(startIdx+i)%tatamiCats.length;
+        const block=getNextBlock(tatamiCats[idx]);
+        if(block.length){ next=block[0]; nextCat=tatamiCats[idx]; break; }
+      }
     }
 
     if(next&&nextCat){
