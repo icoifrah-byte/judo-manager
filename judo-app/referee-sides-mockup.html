@@ -2,240 +2,1005 @@
 <html lang="he">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>הדמייה — סגנון צדדים v4</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>שופט — צדדים</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;background:#0d0e14;color:#f0f0f0;font-family:'Heebo',sans-serif;overflow:hidden;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;width:100%;overflow:hidden;background:#0d0e14;color:#f0f0f0;font-family:'Heebo',sans-serif;touch-action:manipulation;}
 
-/* Mirror toggle */
-.mirror-toggle{
-  position:fixed;top:6px;right:8px;z-index:99;
-  padding:4px 10px;border-radius:4px;border:1px solid #2a2d3a;
-  background:rgba(255,255,255,.06);color:#8a8fa0;font-size:11px;
-  font-family:'Heebo',sans-serif;font-weight:600;cursor:pointer;
-}
-.mirror-toggle.on{background:rgba(155,89,182,.2);color:#c084fc;border-color:#9b59b6;}
-
-/* MAIN LAYOUT */
-.screen{
-  height:100vh;
-  display:flex;flex-direction:column;
-  transition:transform .3s;
-}
-/* Mirror: flip entire screen horizontally, then un-flip text */
-.screen.mirrored{transform:scaleX(-1);}
-.screen.mirrored .cname,
-.screen.mirrored .cmeta,
-.screen.mirrored .iwy-lbl,
-.screen.mirrored .iwy-num,
-.screen.mirrored .clock-val,
-.screen.mirrored .osae-val,
-.screen.mirrored .banner-txt{transform:scaleX(-1);}
+/* ════════════════════════════════
+   LAYOUT: banner / halves / timer
+   ════════════════════════════════ */
+#app{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+:fullscreen #app{height:100vh;width:100vw;}
+:fullscreen #banner{position:relative;z-index:10;}
+:-webkit-full-screen #app{height:100vh;width:100vw;}
+body.fullscreen #app{height:100vh;width:100vw;}
 
 /* BANNER */
-.banner{
-  height:50px;flex-shrink:0;
+#banner{
+  flex-shrink:0;
   background:#111318;border-bottom:2px solid #1e2130;
   display:flex;align-items:center;justify-content:center;
+  padding:6px 16px;min-height:52px;
 }
-.banner-txt{font-size:13px;font-weight:600;color:#8a8fa0;letter-spacing:.5px;}
+#banner-text{font-size:14px;font-weight:600;color:#8a8fa0;letter-spacing:.3px;text-align:center;}
 
-/* TWO HALVES */
-.halves{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0;}
+/* HALVES ROW */
+#halves{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0;}
 
-.half{display:flex;flex-direction:column;}
-.half.blue{background:#0d1f3d;}
-.half.white{background:#12121c;border-left:2px solid #1e2130;}
+.half{display:flex;flex-direction:column;overflow:hidden;}
+.half.blue{background:#0033aa;}
+.half.white{background:#f0f0f0;border-left:2px solid #cccccc;}
+.white .sc-lbl{color:#aaaaaa;}
+.white .info-strip{border-bottom:1px solid #dddddd;}
 
-/* name strip */
-.name-strip{
-  padding:10px 16px;flex-shrink:0;
+/* player info strip */
+.info-strip{
+  flex-shrink:0;padding:8px 14px;
   border-bottom:1px solid rgba(255,255,255,.07);
 }
-.cname{font-size:16px;font-weight:700;line-height:1.2;}
-.blue .cname{color:#7ab0ff;}
-.white .cname{color:#d0d0d0;}
-.cmeta{font-size:10px;color:#3a3f50;margin-top:2px;letter-spacing:.3px;}
+.player-name{font-size:15px;font-weight:700;line-height:1.2;}
+.blue .player-name{color:#ffffff;}
+.white .player-name{color:#111118;}
+.player-meta{font-size:10px;color:#888898;margin-top:1px;}
 
-/* IWY SCORE AREA — fills remaining space */
+/* IWY scoring area — fills remaining space */
 .score-area{
   flex:1;display:flex;align-items:stretch;min-height:0;
 }
-.iwy-item{
+.score-col{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  cursor:pointer;user-select:none;position:relative;
-  border-right:1px solid rgba(255,255,255,.06);
+  cursor:pointer;user-select:none;padding:4px 2px;
+  position:relative;
 }
-.iwy-item:last-child{border-right:none;}
-.iwy-item:active{background:rgba(255,255,255,.04);}
-.iwy-lbl{
-  font-size:11px;font-weight:700;letter-spacing:1px;
-  color:#2a2d3a;margin-bottom:4px;
-}
-.iwy-num{
+.score-col:not(:last-child){border-right:1px solid rgba(0,0,0,.1);}
+.blue .score-col:not(:last-child){border-right:1px solid rgba(255,255,255,.12);}
+.score-col:active{opacity:.65;}
+.sc-lbl{font-size:11px;font-weight:700;letter-spacing:1px;color:#4a4f60;margin-bottom:4px;}
+.blue .sc-lbl{color:rgba(255,255,255,.4);}
+.sc-num{
   font-family:'Bebas Neue',sans-serif;
-  font-size:clamp(60px,12vw,110px);
+  font-size:clamp(52px,12vw,96px);
   line-height:1;
 }
-.iwy-item.I .iwy-num{color:#e84a4a;}
-.iwy-item.W .iwy-num{color:#e8c84a;}
-.iwy-item.Y .iwy-num{color:#7ab8ff;}
+.sc-num{color:#3a3e50;}
+.white .sc-num{color:#cccccc;}
+.blue .sc-num{color:rgba(255,255,255,.2);}
+.sc-num.I.has-score{color:#ff3030;}
+.sc-num.W.has-score{color:#ff3030;}
+.sc-num.Y.has-score{color:#ff3030;}
 
-/* SHIDO ROW */
+/* shido row */
 .shido-row{
-  display:flex;justify-content:center;gap:10px;
-  padding:8px 12px 12px;flex-shrink:0;
-  border-top:1px solid rgba(255,255,255,.06);
+  flex-shrink:0;display:flex;justify-content:center;gap:10px;
+  padding:6px 12px 10px;
 }
-.shido-sq{
-  width:24px;height:24px;border-radius:4px;
-  border:2px solid #2a2d3a;background:transparent;
-  cursor:pointer;transition:all .15s;
-}
-.shido-sq.on{background:#e8c84a;border-color:#e8c84a;}
+.shido-sq{width:24px;height:24px;border-radius:4px;border:2px solid #cccccc;background:transparent;cursor:pointer;transition:all .15s;}
+.shido-sq.on{background:#ff3030;border-color:#ff3030;}
+.blue .shido-sq{border-color:#2a2d3a;}
 
-/* TIMER BAR */
-.timer-bar{
-  height:140px;flex-shrink:0;
+/* ════════════════════════════════
+   TIMER BAR
+   ════════════════════════════════ */
+#timer-bar{
+  flex-shrink:0;height:150px;
   background:#111318;border-top:2px solid #1e2130;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:8px;
 }
-/* main clock */
-.clock-val{
-  font-family:'Bebas Neue',sans-serif;font-size:72px;
-  letter-spacing:4px;color:#f0f0f0;line-height:1;cursor:pointer;
-  user-select:none;
+
+/* main clock — click to start/pause */
+#main-clock{
+  font-family:'Bebas Neue',sans-serif;font-size:74px;
+  letter-spacing:4px;color:#ff3030;line-height:1;
+  cursor:pointer;user-select:none;transition:color .3s,opacity .1s;
 }
-.clock-val:active{opacity:.7;}
+#main-clock.running{color:#00cc44;}
+#main-clock.golden{color:#e8c84a;animation:gpulse 1s infinite;}
+#main-clock:active{opacity:.7;}
+#main-clock.golden{color:#e8c84a;animation:gpulse 1s infinite;}
+#clock-sub{font-size:9px;color:#2a2d3a;letter-spacing:1.5px;margin-top:-4px;}
+@keyframes gpulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+
 /* osaekomi row */
-.osae-row{
-  display:flex;align-items:center;gap:12px;
+#osae-row{display:flex;align-items:center;gap:12px;}
+
+/* blue assign square */
+.assign-sq{
+  width:24px;height:24px;border-radius:4px;
+  cursor:pointer;transition:all .15s;border:2px solid;
 }
-.osae-side-sq{
-  width:22px;height:22px;border-radius:4px;cursor:pointer;
-  transition:all .15s;
-}
-.osae-side-sq.blue-sq{background:#1a4fa8;border:2px solid #2a6fd8;}
-.osae-side-sq.blue-sq.sel{background:#2a6fd8;box-shadow:0 0 8px #2a6fd8;}
-.osae-side-sq.white-sq{background:#2a2a38;border:2px solid #4a4a5a;}
-.osae-side-sq.white-sq.sel{background:#c0c0c0;border-color:#e0e0e0;box-shadow:0 0 8px #c0c0c0;}
-.osae-center{display:flex;flex-direction:column;align-items:center;}
-.osae-val{
+.assign-sq.sq-blue{background:#0d1f3d;border-color:#2a6fd8;}
+.assign-sq.sq-blue.sel{background:#2a6fd8;border-color:#7ab0ff;box-shadow:0 0 8px rgba(42,111,216,.5);}
+.assign-sq.sq-white{background:#d0d0d0;border-color:#e0e0e0;}
+.assign-sq.sq-white.sel{background:#ffffff;border-color:#ffffff;box-shadow:0 0 8px rgba(255,255,255,.5);}
+
+/* osaekomi clock — click to start/stop */
+#osae-block{display:flex;flex-direction:column;align-items:center;cursor:pointer;}
+#osae-clock{
   font-family:'Bebas Neue',sans-serif;font-size:36px;
-  letter-spacing:2px;color:#3a3f50;line-height:1;cursor:pointer;
-  user-select:none;
+  letter-spacing:2px;line-height:1;color:#3a3f50;
+  user-select:none;transition:opacity .1s,color .2s;
 }
-.osae-val:active{opacity:.7;}
-.osae-lbl{font-size:8px;color:#2a2d3a;letter-spacing:1.5px;margin-top:-2px;}
+#osae-clock:active{opacity:.7;}
+#osae-clock.active{color:#e8c84a;animation:gpulse .8s infinite;}
+#osae-clock.pending-blink{color:#ff8800;animation:gpulse .5s infinite;}
+#osae-lbl{font-size:8px;color:#2a2d3a;letter-spacing:1.5px;margin-top:0px;}
+
+/* ════════════════════════════════
+   WINNER BANNER
+   ════════════════════════════════ */
+#winner-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:100;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px;
+}
+#winner-overlay.show{display:flex;}
+#win-label{font-size:13px;letter-spacing:3px;color:#8a8fa0;}
+#win-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,10vw,80px);letter-spacing:3px;}
+#win-name.bc{color:#4a90ff;}#win-name.wc{color:#d0d0d0;}
+#win-reason{font-size:14px;color:#3a3f50;letter-spacing:1px;}
+.ov-btn{padding:10px 28px;border-radius:8px;border:1px solid #2a2d3a;background:#1a1c28;color:#f0f0f0;font-family:'Heebo',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+.ov-btn:hover{border-color:#8a8fa0;}
+
+/* ════════════════════════════════
+   MIRROR MODE — swap column order only
+   grid-template-columns reversed = blue↔white swap
+   No text flipping needed
+   ════════════════════════════════ */
+#halves.mirrored{direction:rtl;}
+#halves.mirrored .half{direction:ltr;}
+
+/* fullscreen mode — hide ctrl-bar */
+/* hide ctrl-bar in fullscreen — works in all browsers */
+:fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
+:-webkit-full-screen #ctrl-bar{display:none!important;visibility:hidden;}
+:-moz-full-screen #ctrl-bar{display:none!important;}
+body.fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
+/* offline badge handled inline */
+
+/* show fullscreen offline badge */
+:fullscreen #offline-fullscreen-badge{display:flex!important;}
+:-webkit-full-screen #offline-fullscreen-badge{display:flex!important;}
+body.fullscreen #offline-fullscreen-badge{display:flex!important;}
+body.fullscreen #app{background:#0a0a0e;}
+
+/* offline badge */
+/* offline-badge is now inline in ctrl-bar, not fixed */
+
+/* modal shared */
+.side-ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
+.side-ov.h{display:none;}
+.side-md{background:#111318;border:1px solid #1e2130;border-radius:10px;width:100%;max-width:380px;}
+.side-mh{padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.side-mt{font-size:14px;font-weight:700;color:#f0f0f0;}
+.side-mb{padding:0 16px 16px;}
+.side-mf{padding:10px 16px;border-top:1px solid #1e2130;display:flex;justify-content:flex-end;gap:8px;}
+.side-fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.side-fg label{font-size:10px;font-weight:700;color:#8a8fa0;text-transform:uppercase;letter-spacing:.4px;}
+.side-fc{background:#0a0b0f;border:1px solid #1e2130;border-radius:5px;padding:8px 10px;color:#f0f0f0;font-family:'Heebo',sans-serif;font-size:13px;outline:none;width:100%;}
+.side-fc:focus{border-color:#e8c84a;}
+.side-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:6px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.side-btn-p{background:#e8c84a;color:#000;}
+.side-btn-s{background:#191c24;color:#f0f0f0;border:1px solid #1e2130;}
+
+/* topbar for controls */
+/* topbar for controls */
+#ctrl-bar{
+  flex-shrink:0;
+  background:rgba(10,10,14,.98);
+  border-bottom:1px solid #1e2130;
+  display:flex;align-items:center;gap:5px;
+  padding:5px 10px;flex-wrap:wrap;
+  z-index:50;
+}
+.ctrl-btn{
+  padding:3px 9px;border-radius:4px;border:1px solid #1e2130;
+  background:rgba(10,10,14,.9);color:#4a4f60;
+  font-family:'Heebo',sans-serif;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.ctrl-btn:hover{color:#f0f0f0;border-color:#4a4f60;}
+.ctrl-btn.on{background:rgba(155,89,182,.2);color:#9b59b6;border-color:#9b59b6;}
 </style>
+<script src="db.js"></script>
 </head>
 <body>
 
-<button class="mirror-toggle" id="mirrorBtn" onclick="toggleMirror()">⇄ מראה</button>
+<div id="ctrl-bar">
+  <button class="ctrl-btn" onclick="undoLast()" title="ביטול אחרון">↺</button>
+  <button class="ctrl-btn" onclick="resetMatch()" title="אפס קרב">⟳</button>
+  <button class="ctrl-btn" onclick="openDelay()" title="דחה קרב">⏭ דחה</button>
+  <button class="ctrl-btn" id="offline-btn" onclick="toggleOffline()" title="קרב אופליין">◌ אופליין</button>
+  <span id="offline-badge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;background:rgba(155,89,182,.2);color:#b07fda;border:1px solid rgba(155,89,182,.4);">◌ לא נרשם</span>
+  <button class="ctrl-btn" onclick="openChangeDuration()" title="שנה זמן קרב">⏱ זמן</button>
+  <button class="ctrl-btn on" id="mirror-btn" onclick="toggleMirror()">⇄ מראה</button>
+  <button class="ctrl-btn" onclick="enterFullscreen()" title="מסך מלא" id="fs-btn">⛶ מסך מלא</button>
+  <button class="ctrl-btn" onclick="location.href='referee.html'">← חזור</button>
+</div>
 
-<div class="screen" id="screen">
+<div id="app">
 
+  <!-- offline indicator for fullscreen -->
+  <div id="offline-fullscreen-badge" style="display:none;position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(155,89,182,.25);border:1px solid #9b59b6;border-radius:6px;padding:3px 14px;font-size:11px;font-weight:700;color:#b07fda;z-index:60;pointer-events:none;white-space:nowrap;">◌ קרב אופליין — לא נרשם</div>
   <!-- BANNER -->
-  <div class="banner">
-    <span class="banner-txt">סבב 1 · קטגוריה U15 -60 · מזרן 2</span>
+  <div id="banner">
+    <div id="banner-text">סבב 1 · U15 -60 · מזרן 2</div>
   </div>
 
   <!-- HALVES -->
-  <div class="halves">
+  <div id="halves">
 
-    <!-- BLUE LEFT -->
-    <div class="half blue">
-      <div class="name-strip">
-        <div class="cname">נועם ברק</div>
-        <div class="cmeta">מועדון שיבוץ · U15 -60</div>
+    <!-- BLUE (left on screen / right on TV via mirror) -->
+    <div class="half blue" id="half-blue">
+      <div class="info-strip">
+        <div class="player-name" id="blue-name">נועם ברק</div>
+        <div class="player-meta" id="blue-meta"></div>
       </div>
       <div class="score-area">
-        <div class="iwy-item I" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
-          <div class="iwy-lbl">I</div>
-          <div class="iwy-num">0</div>
+        <div class="score-col" onclick="add('blue','I')">
+          <div class="sc-lbl">I</div>
+          <div class="sc-num I" id="b-I">0</div>
         </div>
-        <div class="iwy-item W" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
-          <div class="iwy-lbl">W</div>
-          <div class="iwy-num">1</div>
+        <div class="score-col" onclick="add('blue','W')">
+          <div class="sc-lbl">W</div>
+          <div class="sc-num W" id="b-W">0</div>
         </div>
-        <div class="iwy-item Y" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
-          <div class="iwy-lbl">Y</div>
-          <div class="iwy-num">0</div>
+        <div class="score-col" onclick="add('blue','Y')">
+          <div class="sc-lbl">Y</div>
+          <div class="sc-num Y" id="b-Y">0</div>
         </div>
       </div>
-      <div class="shido-row">
-        <div class="shido-sq on"></div>
-        <div class="shido-sq"></div>
-        <div class="shido-sq"></div>
+      <div class="shido-row" id="b-shido-row">
+        <div class="shido-sq" onclick="toggleShido('blue',0)"></div>
+        <div class="shido-sq" onclick="toggleShido('blue',1)"></div>
+        <div class="shido-sq" onclick="toggleShido('blue',2)"></div>
       </div>
     </div>
 
-    <!-- WHITE RIGHT -->
-    <div class="half white">
-      <div class="name-strip">
-        <div class="cname">דן כהן</div>
-        <div class="cmeta">מועדון הירוק · U15 -60</div>
+    <!-- WHITE (right on screen / left on TV via mirror) -->
+    <div class="half white" id="half-white">
+      <div class="info-strip">
+        <div class="player-name" id="white-name">דן כהן</div>
+        <div class="player-meta" id="white-meta"></div>
       </div>
       <div class="score-area">
-        <div class="iwy-item I" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
-          <div class="iwy-lbl">I</div>
-          <div class="iwy-num">0</div>
+        <div class="score-col" onclick="add('white','I')">
+          <div class="sc-lbl">I</div>
+          <div class="sc-num I" id="w-I">0</div>
         </div>
-        <div class="iwy-item W" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
-          <div class="iwy-lbl">W</div>
-          <div class="iwy-num">0</div>
+        <div class="score-col" onclick="add('white','W')">
+          <div class="sc-lbl">W</div>
+          <div class="sc-num W" id="w-W">0</div>
         </div>
-        <div class="iwy-item Y" onclick="this.querySelector('.iwy-num').textContent=+this.querySelector('.iwy-num').textContent+1">
-          <div class="iwy-lbl">Y</div>
-          <div class="iwy-num">2</div>
+        <div class="score-col" onclick="add('white','Y')">
+          <div class="sc-lbl">Y</div>
+          <div class="sc-num Y" id="w-Y">0</div>
         </div>
       </div>
-      <div class="shido-row">
-        <div class="shido-sq on"></div>
-        <div class="shido-sq on"></div>
-        <div class="shido-sq"></div>
+      <div class="shido-row" id="w-shido-row">
+        <div class="shido-sq" onclick="toggleShido('white',0)"></div>
+        <div class="shido-sq" onclick="toggleShido('white',1)"></div>
+        <div class="shido-sq" onclick="toggleShido('white',2)"></div>
       </div>
     </div>
 
   </div><!-- /halves -->
 
   <!-- TIMER BAR -->
-  <div class="timer-bar">
-    <!-- Main clock — click to start/stop -->
-    <div class="clock-val" onclick="toggleClock(this)">2:47</div>
-    <!-- Osaekomi: [blue sq] [00 OSAEKOMI] [white sq] -->
-    <div class="osae-row">
-      <div class="osae-side-sq blue-sq sel" onclick="selectOsae('blue')" title="שייך לכחול"></div>
-      <div class="osae-center">
-        <div class="osae-val" onclick="toggleOsae(this)">00</div>
-        <div class="osae-lbl">OSAEKOMI</div>
+  <div id="timer-bar">
+    <div id="main-clock" onclick="toggleTimer()">3:00</div>
+    <div id="clock-sub">לחץ להתחלה</div>
+    <div id="osae-row">
+      <!-- blue assign square -->
+      <div class="assign-sq sq-blue" id="sq-blue" onclick="assignOsae('blue')" title="שייך ריתוק לכחול"></div>
+      <!-- osaekomi clock -->
+      <div id="osae-block" onclick="toggleOsae()">
+        <div id="osae-clock">00</div>
+        <div id="osae-lbl">OSAEKOMI</div>
       </div>
-      <div class="osae-side-sq white-sq" onclick="selectOsae('white')" title="שייך ללבן"></div>
+      <!-- white assign square -->
+      <div class="assign-sq sq-white" id="sq-white" onclick="assignOsae('white')" title="שייך ריתוק ללבן"></div>
     </div>
   </div>
 
-</div><!-- /screen -->
+</div><!-- /app -->
+
+<!-- CONTROLS (top right) -->
+
+
+
+<!-- DELAY MODAL -->
+<div class="side-ov h" id="delay-ov">
+  <div class="side-md">
+    <div class="side-mh"><div class="side-mt">⏭ דחיית קרב</div><button class="side-btn side-btn-s" onclick="document.getElementById('delay-ov').classList.add('h')">✕</button></div>
+    <div class="side-mb">
+      <div style="font-size:12px;color:#8a8fa0;margin-bottom:12px">הקרב הנוכחי ידחה לתור מאוחר יותר</div>
+      <div class="side-fg"><label>הכנס לתור אחרי X קרבות</label>
+        <input type="number" class="side-fc" id="delay-n" value="3" min="1" max="20">
+      </div>
+    </div>
+    <div class="side-mf">
+      <button class="side-btn side-btn-s" onclick="document.getElementById('delay-ov').classList.add('h')">ביטול</button>
+      <button class="side-btn side-btn-p" onclick="confirmDelay()">⏭ דחה</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE DURATION MODAL -->
+<div class="side-ov h" id="dur-ov">
+  <div class="side-md">
+    <div class="side-mh"><div class="side-mt">⏱ שנה זמן קרב</div><button class="side-btn side-btn-s" onclick="document.getElementById('dur-ov').classList.add('h')">✕</button></div>
+    <div class="side-mb">
+      <div style="font-size:12px;color:#8a8fa0;margin-bottom:12px">ישפיע על כל הקרבות הבאים במזרן זה</div>
+      <div class="side-fg"><label>זמן קרב (שניות)</label>
+        <input type="number" class="side-fc" id="dur-val" value="180" min="30" max="600" step="30">
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+        <button class="side-btn side-btn-s" onclick="document.getElementById('dur-val').value=120" style="font-size:11px;padding:4px 10px">2:00</button>
+        <button class="side-btn side-btn-s" onclick="document.getElementById('dur-val').value=180" style="font-size:11px;padding:4px 10px">3:00</button>
+        <button class="side-btn side-btn-s" onclick="document.getElementById('dur-val').value=240" style="font-size:11px;padding:4px 10px">4:00</button>
+        <button class="side-btn side-btn-s" onclick="document.getElementById('dur-val').value=300" style="font-size:11px;padding:4px 10px">5:00</button>
+      </div>
+    </div>
+    <div class="side-mf">
+      <button class="side-btn side-btn-s" onclick="document.getElementById('dur-ov').classList.add('h')">ביטול</button>
+      <button class="side-btn side-btn-p" onclick="confirmDuration()">✓ שנה</button>
+    </div>
+  </div>
+</div>
+
+<!-- WINNER OVERLAY -->
+<div id="winner-overlay">
+  <div id="win-label">מנצח</div>
+  <div id="win-name">—</div>
+  <div id="win-reason"></div>
+  <div style="display:flex;gap:10px;margin-top:8px">
+    <button class="ov-btn" onclick="document.getElementById('winner-overlay').classList.remove('show')">המשך</button>
+    <button class="ov-btn" onclick="resetMatch()">קרב חדש</button>
+  </div>
+</div>
 
 <script>
-let mirrored=false;
+// ═══════════════════════════
+// STATE
+// ═══════════════════════════
+const SC = {
+  blue:  {I:0,W:0,Y:0,S:0},
+  white: {I:0,W:0,Y:0,S:0},
+};
+const SHIDO = {blue:[false,false,false], white:[false,false,false]};
+const hist = [];  // {type,side,key,prev}
+
+let status = 'idle'; // idle|live|paused|golden|done
+let timeLeft = 180;
+let osaeTime = 0;
+let osaeActive = false;
+let osaeSide = null;
+let mainInterval = null;
+let osaeInterval = null;
+let matchDuration = 180;
+let mirrored = false; // default OFF — computer shows normally, TV uses ?mirror=1
+
+// ═══════════════════════════
+// MIRROR
+// ═══════════════════════════
 function toggleMirror(){
-  mirrored=!mirrored;
-  document.getElementById('screen').classList.toggle('mirrored',mirrored);
-  document.getElementById('mirrorBtn').classList.toggle('on',mirrored);
+  mirrored = !mirrored;
+  document.getElementById('halves').classList.toggle('mirrored', mirrored);
+  document.getElementById('mirror-btn').classList.toggle('on', mirrored);
+  document.getElementById('mirror-btn').textContent = mirrored ? '⇄ מראה' : '⇄ רגיל';
 }
-// shido toggle demo
-document.querySelectorAll('.shido-sq').forEach(sq=>{
-  sq.addEventListener('click',()=>sq.classList.toggle('on'));
-});
-// demo clock toggle
-function toggleClock(el){el.style.color=el.style.color==='#e8c84a'?'#f0f0f0':'#e8c84a';}
-function toggleOsae(el){el.style.color=el.style.color==='#e8c84a'?'#3a3f50':'#e8c84a';}
-function selectOsae(side){
-  document.querySelector('.blue-sq').classList.toggle('sel',side==='blue');
-  document.querySelector('.white-sq').classList.toggle('sel',side==='white');
+// init from URL or default (false = normal on computer)
+document.getElementById('halves').classList.toggle('mirrored', mirrored);
+
+// ═══════════════════════════
+// TIMER
+// ═══════════════════════════
+function toggleTimer(){
+  if(status==='done') return;
+  if(status==='idle'||status==='paused'){
+    status = status==='golden'?'golden':'live';
+    if(timeLeft===0&&status!=='golden'){status='golden';}
+    else status='live';
+    startMain();
+  } else {
+    pauseMain(); status='paused';
+  }
+  syncClockSub();
+}
+
+function startMain(){
+  if(mainInterval) clearInterval(mainInterval);
+  mainInterval = setInterval(()=>{
+    if(status==='golden') timeLeft++;
+    else {
+      timeLeft--;
+      if(timeLeft<=0){
+        timeLeft=0; clearInterval(mainInterval); mainInterval=null;
+        syncMainClock();
+        stopOsaeInterval();
+        checkTimeEnd(); return;
+      }
+    }
+    syncMainClock();
+  },1000);
+}
+
+function pauseMain(){
+  if(mainInterval){clearInterval(mainInterval);mainInterval=null;}
+  stopOsaeInterval();
+}
+
+function checkTimeEnd(){
+  const b=SC.blue,w=SC.white;
+  let win=null;
+  if(b.W!==w.W)win=b.W>w.W?'blue':'white';
+  else if(b.Y!==w.Y)win=b.Y>w.Y?'blue':'white';
+  if(win){declareWinner(win,'Time');return;}
+  // Tie: stop at 0:00, wait for referee to tap clock for golden score
+  status='paused';
+  timeLeft=0;
+  syncMainClock();
+  document.getElementById('clock-sub')||document.getElementById('r-status-lbl');
+  // Show GS prompt on sub label
+  ['clock-sub','r-status-lbl','s-status-lbl'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent='⚡ לחץ להתחלת גולדן סקור';
+  });
+  showToast('⏱ לחץ על השעון להתחיל גולדן סקור');
+}
+
+function syncMainClock(){
+  const el=document.getElementById('main-clock');
+  const gs=status==='golden';
+  const running=status==='live';
+  const mm=Math.floor(timeLeft/60), ss=String(timeLeft%60).padStart(2,'0');
+  el.textContent=gs?`GS ${mm}:${ss}`:`${mm}:${ss}`;
+  el.classList.toggle('golden',gs);
+  el.classList.toggle('running',running&&!gs);
+}
+
+function syncClockSub(){
+  const map={idle:'לחץ להתחלה',live:'',paused:'מושהה',golden:'⚡ גולדן סקור',done:'הסתיים'};
+  document.getElementById('clock-sub').textContent=map[status]||'';
+}
+
+// ═══════════════════════════
+// OSAEKOMI
+// ═══════════════════════════
+function toggleOsae(){
+  if(status!=='live'&&status!=='golden') return;
+  osaeActive ? stopOsae() : startOsae();
+}
+
+function startOsae(){
+  osaeActive=true;
+  pauseMain();
+  if(osaeInterval) clearInterval(osaeInterval);
+  osaeInterval=setInterval(()=>{
+    osaeTime++;
+    // auto-ippon at 20s, or earlier if side already has waza-ari
+    if(osaeSide && getOsaeKey(osaeTime, osaeSide)==='I' && osaeTime>=10){
+      stopOsaeInterval();
+      osaeActive=false;
+      add(osaeSide,'I');
+      osaeTime=0;
+      syncOsaeClock();
+      if(status==='live'||status==='golden') startMain();
+      return;
+    }
+    syncOsaeClock();
+  },1000);
+  syncOsaeClock();
+}
+
+function stopOsaeInterval(){
+  if(osaeInterval){clearInterval(osaeInterval);osaeInterval=null;}
+}
+
+function getOsaeKey(secs, side){
+  // If side already has waza-ari, 10s → ippon directly
+  if(secs>=10 && SC[side].W>=1) return 'I';
+  if(secs>=20) return 'I';
+  if(secs>=10) return 'W';
+  if(secs>=5)  return 'Y';
+  return null;
+}
+
+let pendingOsaeTime=0;  // frozen time waiting for assignment
+let pendingOsaeTimeout=null;  // 10s auto-cancel
+
+function stopOsae(){
+  stopOsaeInterval();
+  osaeActive=false;
+
+  if(osaeTime>=5){
+    if(osaeSide){
+      // side already assigned — award immediately
+      const key=getOsaeKey(osaeTime, osaeSide);
+      if(key) add(osaeSide, key);
+      osaeTime=0;
+      syncOsaeClock();
+      if(status==='live'||status==='golden') startMain();
+    } else {
+      // no side assigned — freeze clock, blink, wait up to 10s
+      pendingOsaeTime=osaeTime;
+      osaeTime=0;
+      startPendingBlink();
+    }
+  } else {
+    osaeTime=0;
+    syncOsaeClock();
+    if(status==='live'||status==='golden') startMain();
+  }
+}
+
+function startPendingBlink(){
+  // blink the osae clock showing frozen time
+  document.getElementById('osae-clock').classList.add('pending-blink');
+  document.getElementById('osae-clock').textContent=String(pendingOsaeTime).padStart(2,'0');
+  // auto-cancel after 10s if no assignment
+  if(pendingOsaeTimeout) clearTimeout(pendingOsaeTimeout);
+  pendingOsaeTimeout=setTimeout(()=>{
+    cancelPending();
+    if(status==='live'||status==='golden') startMain();
+  },10000);
+}
+
+function cancelPending(){
+  if(pendingOsaeTimeout){clearTimeout(pendingOsaeTimeout);pendingOsaeTimeout=null;}
+  document.getElementById('osae-clock').classList.remove('pending-blink');
+  pendingOsaeTime=0;
+  syncOsaeClock();
+}
+
+function assignOsae(side){
+  // if pending award waiting for assignment — award now
+  if(pendingOsaeTime>0){
+    osaeSide=side;
+    document.getElementById('sq-blue').classList.toggle('sel',osaeSide==='blue');
+    document.getElementById('sq-white').classList.toggle('sel',osaeSide==='white');
+    const t=pendingOsaeTime;
+    cancelPending();
+    const k=getOsaeKey(t,side);
+    if(k) add(side,k);
+    if(status==='live'||status==='golden') startMain();
+    return;
+  }
+  osaeSide=osaeSide===side?null:side;
+  document.getElementById('sq-blue').classList.toggle('sel',osaeSide==='blue');
+  document.getElementById('sq-white').classList.toggle('sel',osaeSide==='white');
+}
+
+function syncOsaeClock(){
+  const el=document.getElementById('osae-clock');
+  const ss=String(osaeTime).padStart(2,'0');
+  el.textContent=ss;
+  el.classList.toggle('active',osaeActive);
+}
+
+// ═══════════════════════════
+// SCORING — full judo logic
+// ═══════════════════════════
+
+// Save full score snapshot for undo
+function saveHist(side){
+  hist.push({
+    side,
+    snap:{...SC[side]},
+    shidoSnap:[...SHIDO[side]],
+  });
+}
+
+function add(side, key){
+  if(status==='done') return;
+  saveHist(side);
+
+  if(key==='W'){
+    // 2nd waza-ari → ippon (clear waza)
+    if(SC[side].W >= 1){
+      SC[side].W = 0;
+      SC[side].I = 1;
+    } else {
+      SC[side].W = 1;
+    }
+  } else if(key==='I'){
+    SC[side].I = 1;
+  } else if(key==='Y'){
+    SC[side].Y = Math.min(9, SC[side].Y + 1);
+  }
+
+  syncScore();
+  checkWin();
+}
+
+function toggleShido(side, idx){
+  if(status==='done') return;
+  saveHist(side);
+  SHIDO[side][idx] = !SHIDO[side][idx];
+  SC[side].S = SHIDO[side].filter(Boolean).length;
+  syncShido(side);
+  checkWin();
+}
+
+function undoLast(){
+  if(!hist.length) return;
+  const e = hist.pop();
+  SC[e.side] = {...e.snap};
+  SHIDO[e.side] = [...e.shidoSnap];
+  syncScore();
+  syncShido(e.side);
+}
+
+function checkWin(){
+  const b=SC.blue, w=SC.white;
+  if(b.I>=1){ declareWinner('blue','Ippon'); return; }
+  if(w.I>=1){ declareWinner('white','Ippon'); return; }
+  // Waza-ari×2 check (shouldn't reach here normally, handled in add())
+  if(b.W>=2){ SC.blue.W=0; SC.blue.I=1; syncScore(); declareWinner('blue','Waza-ari × 2'); return; }
+  if(w.W>=2){ SC.white.W=0; SC.white.I=1; syncScore(); declareWinner('white','Waza-ari × 2'); return; }
+  if(b.S>=3){ declareWinner('white','Hansoku-make'); return; }
+  if(w.S>=3){ declareWinner('blue','Hansoku-make'); return; }
+}
+
+async function declareWinner(side,reason){
+  pauseMain();stopOsaeInterval();status='done';
+  const bName=document.getElementById('blue-name').textContent;
+  const wName=document.getElementById('white-name').textContent;
+  const winnerName=side==='blue'?bName:wName;
+  const loserName=side==='blue'?wName:bName;
+  const wn=document.getElementById('win-name');
+  wn.textContent=winnerName;
+  wn.style.color=side==='blue'?'#4a90ff':'#d0d0d0';
+  document.getElementById('win-reason').textContent=reason;
+  document.getElementById('winner-overlay').classList.add('show');
+  syncClockSub();
+
+  // Save result to Supabase
+  const p=new URLSearchParams(location.search);
+  const matchId=p.get('matchid');
+  const tatamiId=p.get('tatami');
+  if(matchId&&typeof DB!=='undefined'){
+    try{
+      await DB.updateMatch(matchId,{
+        status:'done',
+        win_reason:reason,
+        score:SC,
+        is_offline:isOffline,
+      });
+      // Propagate winner/loser to next matches
+      const bNameEl = document.getElementById('r-bname')||document.getElementById('blue-name');
+      const wNameEl = document.getElementById('r-wname')||document.getElementById('white-name');
+      // Get competitor IDs from URL params (set when match loaded)
+      const blueId = p.get('blueid');
+      const whiteId = p.get('whiteid');
+      if(blueId||whiteId){
+        const winnerId = side==='blue'?blueId:whiteId;
+        const loserId = side==='blue'?whiteId:blueId;
+        await propagateWinner(matchId, winnerId, loserId);
+      }
+    }catch(e){console.error('save result:',e);}
+  }
+
+  // Add "קרב הבא" button to overlay
+  const ovBtns=document.querySelector('#winner-overlay div[style*="gap"]')||document.querySelector('#winner-overlay .ov-btns');
+  if(ovBtns&&tatamiId){
+    const nextBtn=document.createElement('button');
+    nextBtn.className='ov-btn';
+    nextBtn.textContent='⏭ קרב הבא';
+    nextBtn.style.cssText='background:var(--acc,#e8c84a);color:#000;font-weight:700;';
+    nextBtn.onclick=()=>loadNextMatch(tatamiId);
+    ovBtns.appendChild(nextBtn);
+  }
+}
+
+async function loadNextMatch(tatamiId, skipMatchId=null){
+  try{
+    const matches=await DB.getMatchesByTatami(tatamiId);
+    const next=matches?.find(m=>(m.status==='pending'||m.status==='suspended')&&m.blue_id&&m.white_id&&m.id!==skipMatchId);
+    if(next){
+      // Reset any live matches back to pending first
+    try{
+      await DB.updateMatchesByCategory && DB.updateMatchesByCategory(null,{});
+      // Use direct fetch with proper template literal
+      const _key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+      await fetch(`https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?tatami_id=eq.${tatamiId}&status=eq.live`,{
+        method:'PATCH',
+        headers:{'apikey':_key,'Authorization':`Bearer ${_key}`,'Content-Type':'application/json'},
+        body:JSON.stringify({status:'pending'})
+      });
+    }catch(e){console.warn('reset live:',e);}
+    // Mark as live
+      await DB.updateMatch(next.id,{status:'live'});
+      // Navigate to same referee screen with new match params
+      const style=new URLSearchParams(location.search).get('style')||
+        (location.pathname.includes('sides')?'sides':'rows');
+      const target=location.pathname.includes('sides')?'referee-sides.html':'referee-rows.html';
+      const params=new URLSearchParams({
+        tatami:tatamiId,
+        matchid:next.id,
+        blueid:next.blue_id||'',
+        whiteid:next.white_id||'',
+        blue:next.blue?.name||'',
+        white:next.white?.name||'',
+        bclub:next.blue?.club||'',
+        wclub:next.white?.club||'',
+        stage:(next.category?.name||'')+(next.stage?' · '+next.stage:''),
+        banner:'מזרן '+tatamiId+' · '+(next.category?.name||''),
+      });
+      location.href=target+'?'+params.toString();
+    }else{
+      showToast('✓ כל הקרבות במזרן הסתיימו!');
+    }
+  }catch(e){
+    console.error('load next match:',e);
+    showToast('⚠ שגיאה בטעינת קרב הבא');
+  }
+}
+
+function resetMatch(){
+  pauseMain(); stopOsaeInterval();
+  SC.blue={I:0,W:0,Y:0,S:0}; SC.white={I:0,W:0,Y:0,S:0};
+  SHIDO.blue=[false,false,false]; SHIDO.white=[false,false,false];
+  hist.length=0;
+  timeLeft=matchDuration; osaeTime=0; osaeActive=false; osaeSide=null;
+  status='idle';
+  cancelPending();
+  document.getElementById('winner-overlay').classList.remove('show');
+  document.getElementById('sq-blue').classList.remove('sel');
+  document.getElementById('sq-white').classList.remove('sel');
+  syncScore(); syncShido('blue'); syncShido('white');
+  syncMainClock(); syncClockSub(); syncOsaeClock();
+}
+
+// ═══════════════════════════
+// SYNC UI
+// ═══════════════════════════
+function syncScore(){
+  ['I','W','Y'].forEach(k=>{
+    const bEl=document.getElementById('b-'+k);
+    const wEl=document.getElementById('w-'+k);
+    bEl.textContent=SC.blue[k];
+    wEl.textContent=SC.white[k];
+    // same color for both sides: gray when 0, colored when scored
+    const hasScore=SC.blue[k]>0||SC.white[k]>0;
+    bEl.classList.toggle('has-score', SC.blue[k]>0);
+    wEl.classList.toggle('has-score', SC.white[k]>0);
+  });
+}
+
+function syncShido(side){
+  const prefix=side==='blue'?'b':'w';
+  const row=document.getElementById(prefix+'-shido-row');
+  const sqs=row.querySelectorAll('.shido-sq');
+  SHIDO[side].forEach((on,i)=>sqs[i].classList.toggle('on',on));
+}
+
+// ═══════════════════════════
+// URL PARAMS
+// ═══════════════════════════
+const p=new URLSearchParams(location.search);
+if(p.get('blue'))  document.getElementById('blue-name').textContent=p.get('blue');
+if(p.get('white')) document.getElementById('white-name').textContent=p.get('white');
+// Set meta from bclub/wclub + stage
+const _bclub=p.get('bclub')||p.get('bluemeta')||'';
+const _wclub=p.get('wclub')||p.get('whitemeta')||'';
+const _stage=p.get('stage')||'';
+const _bm=document.getElementById('blue-meta');
+const _wm=document.getElementById('white-meta');
+if(_bm) _bm.textContent=_bclub+(_stage?' · '+_stage:'');
+if(_wm) _wm.textContent=_wclub+(_stage?' · '+_stage:'');
+if(p.get('banner')) document.getElementById('banner-text').textContent=p.get('banner');
+if(p.get('dur')){ matchDuration=+p.get('dur'); timeLeft=matchDuration; }
+if(p.get('mirror')==='1'){
+  mirrored=true;
+  document.getElementById('halves').classList.add('mirrored');
+  document.getElementById('mirror-btn').classList.add('on');
+  document.getElementById('mirror-btn').textContent='⇄ מראה';
+}
+
+syncMainClock();
+syncClockSub();
+syncOsaeClock();
+
+// ═══════════════════════════
+// OFFLINE MODE
+// ═══════════════════════════
+let isOffline = false;
+let sidesSwapped = false;
+
+function swapSides(){
+  sidesSwapped = !sidesSwapped;
+  const btn = document.getElementById('swap-btn');
+  btn.classList.toggle('on', sidesSwapped);
+
+  // Swap the display names only — not the scoring arrays
+  const bNameEl = document.getElementById('r-bname') || document.getElementById('blue-name');
+  const wNameEl = document.getElementById('r-wname') || document.getElementById('white-name');
+  const bClubEl = document.getElementById('r-bclub') || document.getElementById('blue-meta');
+  const wClubEl = document.getElementById('r-wclub') || document.getElementById('white-meta');
+
+  if(bNameEl && wNameEl){
+    const tmpName = bNameEl.textContent;
+    bNameEl.textContent = wNameEl.textContent;
+    wNameEl.textContent = tmpName;
+  }
+  if(bClubEl && wClubEl){
+    const tmpClub = bClubEl.textContent;
+    bClubEl.textContent = wClubEl.textContent;
+    wClubEl.textContent = tmpClub;
+  }
+
+  showToast(sidesSwapped ? '⇅ צדדים הוחלפו' : '⇅ צדדים חזרו');
+}
+
+function toggleOffline(){
+  isOffline = !isOffline;
+  const btn = document.getElementById('offline-btn');
+  const badge = document.getElementById('offline-badge');
+  btn.classList.toggle('on', isOffline);
+  btn.textContent = isOffline ? '◉ אופליין' : '◌ אופליין';
+  badge.style.display = isOffline ? 'inline' : 'none';
+  const fsBadge = document.getElementById('offline-fullscreen-badge');
+  if(fsBadge) fsBadge.style.display = isOffline ? 'flex' : 'none';
+  // offline mode: match runs normally but won't be saved to bracket
+  // visual indicator stays visible even in fullscreen
+}
+
+// ═══════════════════════════
+// DELAY MATCH
+// ═══════════════════════════
+let delayCallback = null; // hook for bracket integration
+
+function openDelay(){
+  document.getElementById('delay-ov').classList.remove('h');
+}
+
+function confirmDelay(){
+  const n = +document.getElementById('delay-n').value || 3;
+  document.getElementById('delay-ov').classList.add('h');
+  // In integrated mode: signal to control.html to move this match back n spots
+  // For now: show toast
+  showToast(`⏭ קרב נדחה ב-${n} קרבות`);
+  if(delayCallback) delayCallback(n);
+  // broadcast via localStorage for control.html to pick up
+  try{
+    const matchId = new URLSearchParams(location.search).get('matchid');
+    if(matchId){
+      localStorage.setItem('delay_match', JSON.stringify({matchId, n, ts:Date.now()}));
+    }
+  }catch(e){}
+}
+
+// ═══════════════════════════
+// CHANGE DURATION
+// ═══════════════════════════
+function openChangeDuration(){
+  document.getElementById('dur-val').value = matchDuration;
+  document.getElementById('dur-ov').classList.remove('h');
+}
+
+function confirmDuration(){
+  const newDur = +document.getElementById('dur-val').value;
+  if(newDur < 30 || newDur > 600){ alert('זמן לא תקין'); return; }
+  matchDuration = newDur;
+  // Only update timeLeft if match hasn't started
+  if(status === 'idle') timeLeft = matchDuration;
+  document.getElementById('dur-ov').classList.add('h');
+  syncMainClock();
+  showToast(`⏱ זמן קרב שונה ל-${Math.floor(newDur/60)}:${String(newDur%60).padStart(2,'0')}`);
+  // broadcast to tatami queue
+  try{
+    const tatamiId = new URLSearchParams(location.search).get('tatami');
+    if(tatamiId){
+      localStorage.setItem('duration_change', JSON.stringify({tatamiId, dur:newDur, ts:Date.now()}));
+    }
+  }catch(e){}
+}
+
+// ═══════════════════════════
+// FULLSCREEN
+// ═══════════════════════════
+function enterFullscreen(){
+  const appEl = document.getElementById('app');
+  if(!document.fullscreenElement){
+    const req = appEl.requestFullscreen || appEl.webkitRequestFullscreen || appEl.mozRequestFullScreen;
+    if(req) req.call(appEl).catch(()=>{});
+    document.body.classList.add('fullscreen');
+    document.getElementById('fs-btn').textContent='⛶ יציאה';
+  } else {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
+    if(exit) exit.call(document).catch(()=>{});
+    document.body.classList.remove('fullscreen');
+    document.getElementById('fs-btn').textContent='⛶ מסך מלא';
+  }
+}
+
+document.addEventListener('fullscreenchange', onFSChange);
+document.addEventListener('webkitfullscreenchange', onFSChange);
+function onFSChange(){
+  const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  document.body.classList.toggle('fullscreen', isFS);
+  document.getElementById('fs-btn').textContent = isFS ? '⛶ יציאה' : '⛶ מסך מלא';
+}
+
+// ═══════════════════════════
+// TOAST
+// ═══════════════════════════
+
+const _SUPA='https://gsejqwqoreufotqeuzdf.supabase.co';
+const _KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+const _H={'apikey':_KEY,'Authorization':`Bearer ${_KEY}`,'Content-Type':'application/json'};
+
+async function supaFetch(path, method='GET', body=null){
+  const res=await fetch(`${_SUPA}/rest/v1/${path}`,{
+    method, headers:_H, body:body?JSON.stringify(body):undefined
+  });
+  const txt=await res.text();
+  return txt?JSON.parse(txt):null;
+}
+
+// After match done — propagate winner/loser to next matches
+// Also auto-processes BYE if next match has only one player
+async function propagateWinner(matchId, winnerId, loserId){
+  if(!matchId) return;
+  try{
+    const rows=await supaFetch(`matches?id=eq.${matchId}&select=w_to_match,w_to_side,l_to_match,l_to_side,category_id`);
+    const m=rows?.[0];
+    if(!m) return;
+    const catId=m.category_id;
+
+    // Propagate winner to next match
+    if(m.w_to_match&&winnerId){
+      const field=m.w_to_side==='blue'?'blue_id':'white_id';
+      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,'PATCH',{[field]:winnerId});
+      // Check if next match is now a BYE (has one player, other is null)
+      await autoProcessBye(catId, m.w_to_match);
+    }
+    // Propagate loser to consolation
+    if(m.l_to_match&&loserId){
+      const field=m.l_to_side==='blue'?'blue_id':'white_id';
+      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,'PATCH',{[field]:loserId});
+      // Check if consolation match is now a BYE
+      await autoProcessBye(catId, m.l_to_match);
+    }
+  }catch(e){console.error('propagate:',e);}
+}
+
+// Auto-process a match as BYE ONLY if it has exactly one player AND the other slot is NULL
+// This means the match was originally a bye (odd-number bracket), not a future match
+async function autoProcessBye(catId, matchNum){
+  try{
+    const rows=await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${matchNum}&select=id,blue_id,white_id,status,stage_type,w_to_match,w_to_side,win_reason`);
+    const m=rows?.[0];
+    if(!m) return;
+    if(m.status==='done'||m.status==='bye'||m.win_reason==='bye') return;
+    // Both players present = normal match, never auto-bye
+    if(m.blue_id&&m.white_id) return;
+    // No players at all = future match not yet filled, skip
+    if(!m.blue_id&&!m.white_id) return;
+    // Exactly one player AND this is a consolation/rep match (stage_type=R)
+    // Only auto-bye consolation matches, never winners bracket
+    if(m.stage_type!=='R') return;
+    const byeWinner=m.blue_id||m.white_id;
+    // Mark as bye
+    await supaFetch(`matches?id=eq.${m.id}`,'PATCH',{
+      status:'bye', winner_id:byeWinner, win_reason:'bye'
+    });
+    // Propagate further only if the next match also becomes a bye
+    if(m.w_to_match&&byeWinner){
+      const field=m.w_to_side==='blue'?'blue_id':'white_id';
+      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,'PATCH',{[field]:byeWinner});
+      await autoProcessBye(catId, m.w_to_match);
+    }
+  }catch(e){console.error('autoProcessBye:',e);}
+}
+
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111318;border:1px solid #1e2130;border-radius:7px;padding:8px 16px;font-size:12px;color:#4ae89a;z-index:999;pointer-events:none;white-space:nowrap;';
+  t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2500);
 }
 </script>
 </body>
