@@ -207,8 +207,9 @@ async function tryEnter(){
       let nextCat = null;
       
       for(const cat of tatamiCats){
-        const matches = await DB.getMatches(cat.id);
-        const pending = (matches||[])
+        // cat.matches already loaded via getCategories join
+        const matches = cat.matches || [];
+        const pending = matches
           .filter(m=>m.status==='pending' && m.blue_id && m.white_id && m.win_reason!=='bye')
           .sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
         if(pending.length){
