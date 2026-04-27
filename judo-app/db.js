@@ -8,20 +8,24 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 // ── HTTP helper ──
 async function supa(method, path, body) {
+  const prefer = method === 'POST' ? 'return=representation' : 
+                 method === 'PATCH' ? 'return=minimal' : 'return=representation';
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
     method,
     headers: {
       'apikey': SUPA_KEY,
       'Authorization': `Bearer ${SUPA_KEY}`,
       'Content-Type': 'application/json',
-      'Prefer': method === 'POST' ? 'return=representation' : 'return=representation',
+      'Prefer': prefer,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
     const err = await res.text();
+    console.error(`Supabase ${method} ${path}: ${res.status}`, err);
     throw new Error(`Supabase ${method} ${path}: ${res.status} ${err}`);
   }
+  if(method==='PATCH'||method==='DELETE') return true;
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
