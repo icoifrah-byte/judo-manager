@@ -185,7 +185,6 @@ async function tryEnter(){
     setTimeout(()=>document.getElementById('pin-input').classList.remove('error'),600);
     return;
   }
-
   if(!selectedTatami){
     document.getElementById('err-msg').textContent = 'יש לבחור מזרן';
     return;
@@ -197,47 +196,58 @@ async function tryEnter(){
     banner: 'מזרן ' + selectedTatami,
   });
 
-  // Load first pending match for this tatami from Supabase
   try{
     const compId = localStorage.getItem('judo_active_comp');
     if(compId){
-      // Get all matches for this tatami
-      const matches = await DB.getMatchesByTatami(selectedTatami);
-      // Find first pending match with players
-      const next = matches?.find(m=>
-        m.status==='pending' && m.blue_id && m.white_id
-      );
-      if(next){
-        const bName = next.blue?.name||'';
-        const wName = next.white?.name||'';
-        const bClub = next.blue?.club||'';
-        const wClub = next.white?.club||'';
-        const catName = next.category?.name||'';
-        const stageLbl = catName + (next.stage ? ' · '+next.stage : '');
-        if(bName) params.set('blue', bName);
-        if(wName) params.set('white', wName);
-        if(bClub) params.set('bclub', bClub);
-        if(wClub) params.set('wclub', wClub);
-        if(stageLbl) params.set('stage', stageLbl);
-        if(next.id) params.set('matchid', next.id);
-        if(next.blue_id) params.set('blueid', next.blue_id);
-        if(next.white_id) params.set('whiteid', next.white_id);
-        params.set('banner', 'מזרן ' + selectedTatami + ' · ' + catName);
-        // Reset any other 'live' matches on this tatami to 'pending' first
-        try{
-          const _k='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
-          await fetch(`https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?tatami_id=eq.${selectedTatami}&status=eq.live`,{
+      // Find matches via category tatami assignment (reliable)
+      const cats = await DB.getCategories(compId);
+      const tatamiCats = (cats||[]).filter(c=>Number(c.tatami_id)===Number(selectedTatami));
+      
+      let nextMatch = null;
+      let nextCat = null;
+      
+      for(const cat of tatamiCats){
+        const matches = await DB.getMatches(cat.id);
+        const pending = (matches||[])
+          .filter(m=>m.status==='pending' && m.blue_id && m.white_id && m.win_reason!=='bye')
+          .sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
+        if(pending.length){
+          nextMatch = pending[0];
+          nextCat = cat;
+          break;
+        }
+      }
+      
+      if(nextMatch && nextCat){
+        const comps = nextCat.competitors||[];
+        const blue = comps.find(c=>c.id===nextMatch.blue_id);
+        const white = comps.find(c=>c.id===nextMatch.white_id);
+        
+        if(blue?.name)  params.set('blue',  blue.name);
+        if(white?.name) params.set('white', white.name);
+        if(blue?.club)  params.set('bclub', blue.club);
+        if(white?.club) params.set('wclub', white.club);
+        params.set('stage',  nextCat.name + (nextMatch.stage ? ' · '+nextMatch.stage : ''));
+        params.set('banner', 'מזרן '+selectedTatami+' · '+nextCat.name);
+        params.set('matchid', nextMatch.id);
+        params.set('blueid',  nextMatch.blue_id);
+        params.set('whiteid', nextMatch.white_id);
+        
+        // Reset any live matches on this tatami
+        const _k='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+        for(const cat of tatamiCats){
+          await fetch(`https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?category_id=eq.${cat.id}&status=eq.live`,{
             method:'PATCH',
             headers:{'apikey':_k,'Authorization':`Bearer ${_k}`,'Content-Type':'application/json'},
             body:JSON.stringify({status:'pending'})
-          });
-        }catch(e){console.warn('reset:',e);}
-        // Set this match as live
-        await DB.updateMatch(next.id, {status:'live'});
+          }).catch(()=>{});
+        }
+        // Mark this match as live
+        await DB.updateMatch(nextMatch.id, {status:'live'});
+        
+        const config = JSON.parse(localStorage.getItem('judo_config')||'{}');
+        if(config.match_duration) params.set('dur', config.match_duration);
       }
-      // Get match duration from competition settings
-      const config = JSON.parse(localStorage.getItem('judo_config')||'{}');
-      if(config.match_duration) params.set('dur', config.match_duration);
     }
   }catch(e){ console.error('load match:',e); }
 
