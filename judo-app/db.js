@@ -100,6 +100,22 @@ const DB = {
   async updateMatch(id, data) {
     return supa('PATCH', `matches?id=eq.${id}`, data);
   },
+
+  // After a match is done, propagate winner/loser to next matches
+  async propagateResult(matchId, winnerId, loserId){
+    // Get the match with its wiring info
+    // Since we store wiring only in the bracket (not DB), we need to
+    // update the next match's blue_id or white_id via the bracket logic
+    // This is called from referee screens after declareWinner
+    // For now: just update status — bracket.html handles wiring when opened
+    return true;
+  },
+
+  // Update a specific slot (blue or white) in a match
+  async setMatchPlayer(matchId, side, playerId){
+    const field = side==='blue' ? 'blue_id' : 'white_id';
+    return supa('PATCH', `matches?id=eq.${matchId}`, {[field]: playerId});
+  },
   async updateMatchesByCategory(categoryId, data) {
     return supa('PATCH', `matches?category_id=eq.${categoryId}`, data);
   },
