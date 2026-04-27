@@ -371,17 +371,8 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
     const matches=await DB.getMatchesByTatami(tatamiId);
     const next=matches?.find(m=>(m.status==='pending'||m.status==='suspended')&&m.blue_id&&m.white_id&&m.id!==skipMatchId);
     if(next){
-      // Reset any live matches back to pending first
-    try{
-      await DB.updateMatchesByCategory && DB.updateMatchesByCategory(null,{});
-      // Use direct fetch with proper template literal
-      const _key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
-      await fetch(`https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?tatami_id=eq.${tatamiId}&status=eq.live`,{
-        method:'PATCH',
-        headers:{'apikey':_key,'Authorization':`Bearer ${_key}`,'Content-Type':'application/json'},
-        body:JSON.stringify({status:'pending'})
-      });
-    }catch(e){console.warn('reset live:',e);}
+      // Small delay to ensure done status is saved to DB
+    await new Promise(r=>setTimeout(r,800));
     // Mark as live
       await DB.updateMatch(next.id,{status:'live'});
       // Navigate to same referee screen with new match params
