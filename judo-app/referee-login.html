@@ -225,14 +225,13 @@ async function tryEnter(){
         params.set('banner', 'מזרן ' + selectedTatami + ' · ' + catName);
         // Reset any other 'live' matches on this tatami to 'pending' first
         try{
-          const SURL='https://gsejqwqoreufotqeuzdf.supabase.co';
-          const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
-          await fetch(`${SURL}/rest/v1/matches?tatami_id=eq.${selectedTatami}&status=eq.live`,{
+          const _k='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+          await fetch(`https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?tatami_id=eq.${selectedTatami}&status=eq.live`,{
             method:'PATCH',
-            headers:{'apikey':SKEY,'Authorization':`Bearer ${SKEY}`,'Content-Type':'application/json'},
+            headers:{'apikey':_k,'Authorization':`Bearer ${_k}`,'Content-Type':'application/json'},
             body:JSON.stringify({status:'pending'})
           });
-        }catch(e){}
+        }catch(e){console.warn('reset:',e);}
         // Set this match as live
         await DB.updateMatch(next.id, {status:'live'});
       }
