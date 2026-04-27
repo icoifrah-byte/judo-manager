@@ -360,7 +360,8 @@ async function declareWinner(side,reason){
     nextBtn.className='ov-btn';
     nextBtn.textContent='⏭ קרב הבא';
     nextBtn.style.cssText='background:var(--acc,#e8c84a);color:#000;font-weight:700;';
-    nextBtn.onclick=()=>loadNextMatch(tatamiId);
+    const _currentMatchId=matchId;
+    nextBtn.onclick=()=>loadNextMatch(tatamiId, _currentMatchId);
     ovBtns.appendChild(nextBtn);
   }
 }
