@@ -1125,6 +1125,13 @@ async function saveAllMatchesToDB(br, catId){
   }catch(e){console.error('save all matches:',e);toast('⚠ שגיאה בשמירת קרבות');}
 }
 
+// Force reload a category bracket (clear cache)
+function reloadCat(catId){
+  delete bracketCache[catId];
+  const tab=document.querySelector('.tab.on');
+  if(tab) ldCat(catId||tab.dataset.catId, tab);
+}
+
 // Apply saved DB results onto a bracket
 function applyDBResults(br, dbMatches){
   dbMatches.forEach(dbM=>{
