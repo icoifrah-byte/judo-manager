@@ -339,6 +339,17 @@ async function declareWinner(side,reason){
         score:SC,
         is_offline:isOffline,
       });
+      // Propagate winner/loser to next matches
+      const bNameEl = document.getElementById('r-bname')||document.getElementById('blue-name');
+      const wNameEl = document.getElementById('r-wname')||document.getElementById('white-name');
+      // Get competitor IDs from URL params (set when match loaded)
+      const blueId = p.get('blueid');
+      const whiteId = p.get('whiteid');
+      if(blueId||whiteId){
+        const winnerId = side==='blue'?blueId:whiteId;
+        const loserId = side==='blue'?whiteId:blueId;
+        await propagateWinner(matchId, winnerId, loserId);
+      }
     }catch(e){console.error('save result:',e);}
   }
 
@@ -374,6 +385,8 @@ async function loadNextMatch(tatamiId){
       const params=new URLSearchParams({
         tatami:tatamiId,
         matchid:next.id,
+        blueid:next.blue_id||'',
+        whiteid:next.white_id||'',
         blue:next.blue?.name||'',
         white:next.white?.name||'',
         bclub:next.blue?.club||'',
@@ -632,6 +645,41 @@ function onFSC(){
   const isFS=!!(document.fullscreenElement||document.webkitFullscreenElement);
   document.body.classList.toggle('fullscreen',isFS);
   document.getElementById('fs-btn').textContent=isFS?'⛶ יציאה':'⛶ מסך מלא';
+}
+
+
+// After match done — propagate winner/loser to next matches
+async function propagateWinner(matchId, winnerId, loserId){
+  if(!matchId || typeof DB==='undefined') return;
+  try{
+    // Get current match with wiring
+    const res = await fetch(
+      `https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?id=eq.${matchId}&select=w_to_match,w_to_side,l_to_match,l_to_side,category_id`,
+      {headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ',
+       'Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ'}}
+    );
+    const rows = await res.json();
+    const m = rows?.[0];
+    if(!m) return;
+    
+    const catId = m.category_id;
+    const SUPA = 'https://gsejqwqoreufotqeuzdf.supabase.co';
+    const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+    const h = {'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Content-Type':'application/json'};
+
+    // Update winner's next match
+    if(m.w_to_match && winnerId){
+      const field = m.w_to_side==='blue' ? 'blue_id' : 'white_id';
+      await fetch(`${SUPA}/rest/v1/matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,
+        {method:'PATCH', headers:h, body:JSON.stringify({[field]:winnerId})});
+    }
+    // Update loser's next match (consolation)
+    if(m.l_to_match && loserId){
+      const field = m.l_to_side==='blue' ? 'blue_id' : 'white_id';
+      await fetch(`${SUPA}/rest/v1/matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,
+        {method:'PATCH', headers:h, body:JSON.stringify({[field]:loserId})});
+    }
+  }catch(e){console.error('propagate:',e);}
 }
 
 function showToast(msg){
