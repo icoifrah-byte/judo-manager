@@ -1045,14 +1045,10 @@ function loadDemo(){
 
 async function ldCat(catId, el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  if(el) el.classList.add('on');
+  if(el){el.classList.add('on');el.dataset.catId=catId;}
 
-  // Use cached bracket if exists
-  if(bracketCache[catId]){
-    render(bracketCache[catId]);
-    setTimeout(fit,60);
-    return;
-  }
+  // Always reload from DB to show latest results
+  // (use cache only as fallback if DB fails)
 
   // Find category data
   const cat=allCategories.find(c=>c.id===catId);
@@ -1134,19 +1130,37 @@ function reloadCat(catId){
 
 // Apply saved DB results onto a bracket
 function applyDBResults(br, dbMatches){
+  // First pass: update match status and player assignments from DB
   dbMatches.forEach(dbM=>{
     const m=br.matches.find(x=>x.id===dbM.match_num);
     if(!m)return;
     m.dbId=dbM.id;
+    
+    // Update blue/white from DB (propagation may have updated them)
+    if(dbM.blue_id){
+      const bComp=br.comps.find(c=>c.dbId===dbM.blue_id);
+      if(bComp) m.bC=bComp;
+    }
+    if(dbM.white_id){
+      const wComp=br.comps.find(c=>c.dbId===dbM.white_id);
+      if(wComp) m.wC=wComp;
+    }
+    
     if(dbM.status==='done'&&dbM.winner_id){
       const wComp=br.comps.find(c=>c.dbId===dbM.winner_id);
-      const lComp=br.comps.find(c=>c.dbId!==(dbM.winner_id)&&(c.dbId===dbM.blue_id||c.dbId===dbM.white_id));
+      const lComp=br.comps.find(c=>c.dbId!==dbM.winner_id&&(c.dbId===dbM.blue_id||c.dbId===dbM.white_id));
       if(wComp){
         m.wId=wComp.id; m.wComp=wComp;
         m.lId=lComp?.id||null; m.lComp=lComp||null;
         m.status='done';
         if(dbM.score) m.sc=dbM.score;
-        prop(m,br.matches);
+        // Don't call prop() here — DB already has the propagated data
+      }
+    } else if(dbM.status==='bye'&&dbM.winner_id){
+      const wComp=br.comps.find(c=>c.dbId===dbM.winner_id);
+      if(wComp){
+        m.wId=wComp.id; m.wComp=wComp;
+        m.status='done';
       }
     }
   });
