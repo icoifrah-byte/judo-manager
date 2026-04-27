@@ -692,23 +692,27 @@ async function propagateWinner(matchId, winnerId, loserId){
   }catch(e){console.error('propagate:',e);}
 }
 
-// Auto-process a match as BYE if it has exactly one player
+// Auto-process a match as BYE ONLY if it has exactly one player AND the other slot is NULL
+// This means the match was originally a bye (odd-number bracket), not a future match
 async function autoProcessBye(catId, matchNum){
   try{
-    const rows=await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${matchNum}&select=id,blue_id,white_id,status,w_to_match,w_to_side,l_to_match,l_to_side,win_reason`);
+    const rows=await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${matchNum}&select=id,blue_id,white_id,status,stage_type,w_to_match,w_to_side,win_reason`);
     const m=rows?.[0];
     if(!m) return;
-    // Already processed or has both players
-    if(m.status==='done'||m.status==='bye') return;
-    if(m.blue_id&&m.white_id) return; // normal match, skip
-    // Has exactly one player → BYE
+    if(m.status==='done'||m.status==='bye'||m.win_reason==='bye') return;
+    // Both players present = normal match, never auto-bye
+    if(m.blue_id&&m.white_id) return;
+    // No players at all = future match not yet filled, skip
+    if(!m.blue_id&&!m.white_id) return;
+    // Exactly one player AND this is a consolation/rep match (stage_type=R)
+    // Only auto-bye consolation matches, never winners bracket
+    if(m.stage_type!=='R') return;
     const byeWinner=m.blue_id||m.white_id;
-    if(!byeWinner) return;
-    // Mark as done/bye
+    // Mark as bye
     await supaFetch(`matches?id=eq.${m.id}`,'PATCH',{
       status:'bye', winner_id:byeWinner, win_reason:'bye'
     });
-    // Propagate the bye winner further
+    // Propagate further only if the next match also becomes a bye
     if(m.w_to_match&&byeWinner){
       const field=m.w_to_side==='blue'?'blue_id':'white_id';
       await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,'PATCH',{[field]:byeWinner});
