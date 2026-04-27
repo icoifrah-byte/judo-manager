@@ -923,38 +923,68 @@ function onFSChange(){
 // TOAST
 // ═══════════════════════════
 
-// After match done — propagate winner/loser to next matches
-async function propagateWinner(matchId, winnerId, loserId){
-  if(!matchId || typeof DB==='undefined') return;
-  try{
-    // Get current match with wiring
-    const res = await fetch(
-      `https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?id=eq.${matchId}&select=w_to_match,w_to_side,l_to_match,l_to_side,category_id`,
-      {headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ',
-       'Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ'}}
-    );
-    const rows = await res.json();
-    const m = rows?.[0];
-    if(!m) return;
-    
-    const catId = m.category_id;
-    const SUPA = 'https://gsejqwqoreufotqeuzdf.supabase.co';
-    const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
-    const h = {'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Content-Type':'application/json'};
+const _SUPA='https://gsejqwqoreufotqeuzdf.supabase.co';
+const _KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+const _H={'apikey':_KEY,'Authorization':`Bearer ${_KEY}`,'Content-Type':'application/json'};
 
-    // Update winner's next match
-    if(m.w_to_match && winnerId){
-      const field = m.w_to_side==='blue' ? 'blue_id' : 'white_id';
-      await fetch(`${SUPA}/rest/v1/matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,
-        {method:'PATCH', headers:h, body:JSON.stringify({[field]:winnerId})});
+async function supaFetch(path, method='GET', body=null){
+  const res=await fetch(`${_SUPA}/rest/v1/${path}`,{
+    method, headers:_H, body:body?JSON.stringify(body):undefined
+  });
+  const txt=await res.text();
+  return txt?JSON.parse(txt):null;
+}
+
+// After match done — propagate winner/loser to next matches
+// Also auto-processes BYE if next match has only one player
+async function propagateWinner(matchId, winnerId, loserId){
+  if(!matchId) return;
+  try{
+    const rows=await supaFetch(`matches?id=eq.${matchId}&select=w_to_match,w_to_side,l_to_match,l_to_side,category_id`);
+    const m=rows?.[0];
+    if(!m) return;
+    const catId=m.category_id;
+
+    // Propagate winner to next match
+    if(m.w_to_match&&winnerId){
+      const field=m.w_to_side==='blue'?'blue_id':'white_id';
+      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,'PATCH',{[field]:winnerId});
+      // Check if next match is now a BYE (has one player, other is null)
+      await autoProcessBye(catId, m.w_to_match);
     }
-    // Update loser's next match (consolation)
-    if(m.l_to_match && loserId){
-      const field = m.l_to_side==='blue' ? 'blue_id' : 'white_id';
-      await fetch(`${SUPA}/rest/v1/matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,
-        {method:'PATCH', headers:h, body:JSON.stringify({[field]:loserId})});
+    // Propagate loser to consolation
+    if(m.l_to_match&&loserId){
+      const field=m.l_to_side==='blue'?'blue_id':'white_id';
+      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,'PATCH',{[field]:loserId});
+      // Check if consolation match is now a BYE
+      await autoProcessBye(catId, m.l_to_match);
     }
   }catch(e){console.error('propagate:',e);}
+}
+
+// Auto-process a match as BYE if it has exactly one player
+async function autoProcessBye(catId, matchNum){
+  try{
+    const rows=await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${matchNum}&select=id,blue_id,white_id,status,w_to_match,w_to_side,l_to_match,l_to_side,win_reason`);
+    const m=rows?.[0];
+    if(!m) return;
+    // Already processed or has both players
+    if(m.status==='done'||m.status==='bye') return;
+    if(m.blue_id&&m.white_id) return; // normal match, skip
+    // Has exactly one player → BYE
+    const byeWinner=m.blue_id||m.white_id;
+    if(!byeWinner) return;
+    // Mark as done/bye
+    await supaFetch(`matches?id=eq.${m.id}`,'PATCH',{
+      status:'bye', winner_id:byeWinner, win_reason:'bye'
+    });
+    // Propagate the bye winner further
+    if(m.w_to_match&&byeWinner){
+      const field=m.w_to_side==='blue'?'blue_id':'white_id';
+      await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.w_to_match}`,'PATCH',{[field]:byeWinner});
+      await autoProcessBye(catId, m.w_to_match);
+    }
+  }catch(e){console.error('autoProcessBye:',e);}
 }
 
 function showToast(msg){
