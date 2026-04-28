@@ -1147,7 +1147,7 @@ function reloadCat(catId){
 // Apply saved DB results onto a bracket
 function applyDBResults(br, dbMatches){
   dbMatches.forEach(dbM=>{
-    const m=br.matches.find(x=>x.id===dbM.match_num);
+    const m=br.matches.find(x=>String(x.id)===String(dbM.match_num));
     if(!m)return;
     m.dbId=dbM.id;
     
