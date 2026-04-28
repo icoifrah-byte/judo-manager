@@ -245,11 +245,24 @@ function renderTatami(t){
   const doneList=t.matches.filter(m=>m.status==='done'&&m.win_reason!=='bye');
   const lastDone=doneList.length?doneList[doneList.length-1]:null;
   const liveM=t.matches.find(m=>m.status==='live');
-  const upcoming=t.matches.filter(m=>
+  // Round-robin ordering: interleave one match per category
+  const _allUpcoming=t.matches.filter(m=>
     (m.status==='pending'||m.status==='suspended')&&
     m.win_reason!=='bye'&&
     (m.blue||m.white)
   );
+  // Group by category
+  const _catMap={};
+  _allUpcoming.forEach(m=>{
+    if(!_catMap[m.category]) _catMap[m.category]=[];
+    _catMap[m.category].push(m);
+  });
+  const _catKeys=Object.keys(_catMap);
+  const upcoming=[];
+  const _maxLen=_catKeys.length ? Math.max(..._catKeys.map(k=>_catMap[k].length)) : 0;
+  for(let _i=0;_i<_maxLen;_i++){
+    _catKeys.forEach(k=>{ if(_catMap[k][_i]) upcoming.push(_catMap[k][_i]); });
+  }
   const nonDone=upcoming;
 
   let rows='';
