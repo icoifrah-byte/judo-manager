@@ -551,6 +551,20 @@ async function loadRealData(){
       });
     });
 
+    // Apply round-robin ordering to upcoming matches per tatami
+    STATE.tatami.forEach(t=>{
+      if(!t.upcoming||!t.upcoming.length) return;
+      // Group by category, interleave one match per cat
+      const _cmap={};
+      t.upcoming.forEach(m=>{ if(!_cmap[m.category]) _cmap[m.category]=[]; _cmap[m.category].push(m); });
+      const _keys=Object.keys(_cmap);
+      const _ordered=[];
+      const _max=Math.max(..._keys.map(k=>_cmap[k].length));
+      for(let _i=0;_i<_max;_i++){
+        _keys.forEach(k=>{ if(_cmap[k][_i]) _ordered.push(_cmap[k][_i]); });
+      }
+      t.upcoming=_ordered;
+    });
     renderMain();
     renderCats();
 
