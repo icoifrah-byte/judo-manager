@@ -1138,13 +1138,12 @@ function reloadCat(catId){
 
 // Apply saved DB results onto a bracket
 function applyDBResults(br, dbMatches){
-  // First pass: update match status and player assignments from DB
   dbMatches.forEach(dbM=>{
     const m=br.matches.find(x=>x.id===dbM.match_num);
     if(!m)return;
     m.dbId=dbM.id;
     
-    // Update blue/white from DB (propagation may have updated them)
+    // Update blue/white from DB
     if(dbM.blue_id){
       const bComp=br.comps.find(c=>c.dbId===dbM.blue_id);
       if(bComp) m.bC=bComp;
@@ -1154,21 +1153,17 @@ function applyDBResults(br, dbMatches){
       if(wComp) m.wC=wComp;
     }
     
-    if(dbM.status==='done'&&dbM.winner_id){
+    if((dbM.status==='done'||dbM.status==='bye')&&dbM.winner_id){
       const wComp=br.comps.find(c=>c.dbId===dbM.winner_id);
       const lComp=br.comps.find(c=>c.dbId!==dbM.winner_id&&(c.dbId===dbM.blue_id||c.dbId===dbM.white_id));
       if(wComp){
         m.wId=wComp.id; m.wComp=wComp;
-        m.lId=lComp?.id||null; m.lComp=lComp||null;
+        m.lId=lComp?lComp.id:null; m.lComp=lComp||null;
         m.status='done';
         if(dbM.score) m.sc=dbM.score;
-        // Don't call prop() here — DB already has the propagated data
-      }
-    } else if(dbM.status==='bye'&&dbM.winner_id){
-      const wComp=br.comps.find(c=>c.dbId===dbM.winner_id);
-      if(wComp){
-        m.wId=wComp.id; m.wComp=wComp;
-        m.status='done';
+        if(dbM.win_reason) m.wr=dbM.win_reason;
+        // For knockout: propagate in memory to fill next matches
+        if(br.type!=='league') prop(m, br.matches);
       }
     }
   });
