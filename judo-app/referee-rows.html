@@ -333,8 +333,12 @@ async function declareWinner(side,reason){
   const tatamiId=p.get('tatami');
   if(matchId&&typeof DB!=='undefined'){
     try{
+      // Determine winner_id from side and URL params
+      const _winnerId = side==='blue' ? p.get('blueid') : p.get('whiteid');
+      const _loserId  = side==='blue' ? p.get('whiteid') : p.get('blueid');
       await DB.updateMatch(matchId,{
         status:'done',
+        winner_id: _winnerId||null,
         win_reason:reason,
         score:SC,
         is_offline:isOffline,
@@ -343,12 +347,9 @@ async function declareWinner(side,reason){
       const bNameEl = document.getElementById('r-bname')||document.getElementById('blue-name');
       const wNameEl = document.getElementById('r-wname')||document.getElementById('white-name');
       // Get competitor IDs from URL params (set when match loaded)
-      const blueId = p.get('blueid');
-      const whiteId = p.get('whiteid');
-      if(blueId||whiteId){
-        const winnerId = side==='blue'?blueId:whiteId;
-        const loserId = side==='blue'?whiteId:blueId;
-        await propagateWinner(matchId, winnerId, loserId);
+      // Use same winner/loser IDs as saved above
+      if(_winnerId||_loserId){
+        await propagateWinner(matchId, _winnerId, _loserId);
       }
     }catch(e){console.error('save result:',e);}
   }
