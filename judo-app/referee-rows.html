@@ -433,13 +433,15 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
       // Actually: getNextBlock already excludes skipMatchId, so if block has matches
       // AND they're same stage as skip → continue in same cat
       const skipMatch=(tatamiCats[currentCatIdx].matches||[]).find(m=>m.id===skipMatchId);
-      if(skipMatch){
+      const isCurrentLeague = tatamiCats[currentCatIdx].method==='league';
+      if(skipMatch && !isCurrentLeague){
+        // For knockout: stay in same stage if more matches remain
         const sameStageRemaining=block.filter(m=>m.stage===skipMatch.stage);
         if(sameStageRemaining.length){
-          // Still matches in same stage of same category → stay in same cat
-          currentBlockIdx=0; // will pick first remaining
+          currentBlockIdx=0; // pick next match in same stage
         }
       }
+      // League: always move to next category (currentBlockIdx stays -1)
     }
 
     let next=null, nextCat=null;
