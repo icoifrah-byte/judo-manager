@@ -748,10 +748,11 @@ async function supaFetch(path, method='GET', body=null){
 async function propagateWinner(matchId, winnerId, loserId){
   if(!matchId) return;
   try{
-    const rows=await supaFetch(`matches?id=eq.${matchId}&select=w_to_match,w_to_side,l_to_match,l_to_side,category_id`);
+    const rows=await supaFetch(`matches?id=eq.${matchId}&select=w_to_match,w_to_side,l_to_match,l_to_side,category_id,stage`);
     const m=rows?.[0];
     if(!m) return;
     const catId=m.category_id;
+    const currentStage=m.stage||'';
 
     // Propagate winner to next match
     if(m.w_to_match&&winnerId){
@@ -764,9 +765,25 @@ async function propagateWinner(matchId, winnerId, loserId){
     if(m.l_to_match&&loserId){
       const lField=m.l_to_side==='blue'?'blue_id':'white_id';
       await supaFetch(`matches?category_id=eq.${catId}&match_num=eq.${m.l_to_match}`,'PATCH',{[lField]:loserId});
-      await new Promise(r=>setTimeout(r,400));
-      await checkAndProcessBye(catId, m.l_to_match);
     }
+    
+    // After propagation: check if ALL matches in current W stage are done
+    // Only then process BYEs in consolation
+    try{
+      // Get current match's stage to know which W stage just finished
+      const stageMatches=await supaFetch(`matches?category_id=eq.${catId}&stage=eq.${encodeURIComponent(currentStage)}&stage_type=eq.W&select=id,status`);
+      const allStageDone=stageMatches&&stageMatches.length>0&&stageMatches.every(sm=>sm.status==='done'||sm.status==='bye');
+      if(allStageDone){
+        // Get all consolation matches with exactly one player - process each as BYE
+        const consolationMatches=await supaFetch(`matches?category_id=eq.${catId}&stage_type=eq.R&status=eq.pending&select=id,blue_id,white_id,match_num`);
+        if(consolationMatches){
+          for(const cm of consolationMatches){
+            const hasOne=(cm.blue_id&&!cm.white_id)||(!cm.blue_id&&cm.white_id);
+            if(hasOne) await checkAndProcessBye(catId, cm.match_num);
+          }
+        }
+      }
+    }catch(e){console.warn('bye check:',e);}
   }catch(e){console.error('propagate:',e);}
 }
 
