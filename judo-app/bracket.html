@@ -736,9 +736,9 @@ function card(m,br){
 
   div.innerHTML=`
     <div class="mbg${m.type==='R'?' r':''}${m.place==='final'?' f':''}">#${m.id} ${m.stage}</div>
-    ${srow(m,'blue', isR1,bWin,done?`${m.sc.bI}${m.sc.bW}${m.sc.bY}`:'',m.sc?.bS)}
+    ${srow(m,'blue', isR1,bWin,done&&m.sc?`${m.sc.bI??''}${m.sc.bW??''}${m.sc.bY??''}`:'',m.sc?.bS)}
     <div style="height:1px;background:var(--bg)"></div>
-    ${srow(m,'white',isR1,wWin,done?`${m.sc.wI}${m.sc.wW}${m.sc.wY}`:'',m.sc?.wS)}
+    ${srow(m,'white',isR1,wWin,done&&m.sc?`${m.sc.wI??''}${m.sc.wW??''}${m.sc.wY??''}`:'',m.sc?.wS)}
     ${m.place==='final'?'<div class="plbl" style="color:var(--accent)">🥇 אלוף</div>':''}
     ${m.place==='3rd'?'<div class="plbl" style="color:#c07840">🥉 מקום 3</div>':''}
     <div class="mact">
@@ -1168,7 +1168,8 @@ function applyDBResults(br, dbMatches){
         m.wId=wComp.id; m.wComp=wComp;
         m.lId=lComp?lComp.id:null; m.lComp=lComp||null;
         m.status='done';
-        if(dbM.score) m.sc=dbM.score;
+        if(!m.sc) m.sc={bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0};
+        if(dbM.score && typeof dbM.score==='object') m.sc=dbM.score;
         if(dbM.win_reason) m.wr=dbM.win_reason;
         // For knockout: propagate in memory to fill next matches
         if(br.type!=='league') prop(m, br.matches);
