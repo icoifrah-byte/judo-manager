@@ -619,23 +619,27 @@ function renderResults(br){
     if(lC) places.push({place:2,comp:lC});
   }
 
-  // League: sort by wins
+  // League: sort by wins — only show results when all matches done
   if(br.type==='league'){
-    const scores={};
-    br.comps.forEach(c=>scores[c.id]={comp:c,pts:0,wins:0});
-    ms.forEach(m=>{
-      if(m.status!=='done')return;
-      if(m.wComp) scores[m.wComp.id].pts+=2;
-      if(m.lComp) scores[m.lComp.id].pts+=0;
-    });
-    const sorted=Object.values(scores).sort((a,b)=>b.pts-a.pts);
-    sorted.forEach((s,i)=>places.push({place:i+1,comp:s.comp,pts:s.pts}));
-    el.innerHTML=sorted.map((s,i)=>`
-      <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
-        <div style="width:18px;height:18px;border-radius:50%;${placeStyle(i+1)};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
-        <div style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.comp.name}</div>
-        <div style="font-size:10px;color:var(--text2)">${s.pts}pt</div>
-      </div>`).join('');
+    const allDone=ms.every(m=>m.status==='done');
+    if(allDone){
+      const scores={};
+      br.comps.forEach(c=>scores[c.id]={comp:c,pts:0,wins:0});
+      ms.forEach(m=>{
+        if(m.status!=='done')return;
+        if(m.wComp){scores[m.wComp.id].pts+=2;scores[m.wComp.id].wins++;}
+      });
+      const sorted=Object.values(scores).sort((a,b)=>b.pts-a.pts||b.wins-a.wins);
+      sorted.forEach((s,i)=>places.push({place:i+1,comp:s.comp,pts:s.pts}));
+      el.innerHTML=sorted.map((s,i)=>`
+        <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <div style="width:18px;height:18px;border-radius:50%;${placeStyle(i+1)};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+          <div style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.comp.name}</div>
+          <div style="font-size:10px;color:var(--text2)">${s.pts}pt</div>
+        </div>`).join('');
+    } else {
+      el.innerHTML='<div style="padding:12px;color:var(--text2);font-size:11px;text-align:center">ממתין לסיום כל הקרבות</div>';
+    }
     return;
   }
 
@@ -644,7 +648,11 @@ function renderResults(br){
   const bronzeMs=ms.filter(m=>m.place==='3rd');
   bronzeMs.forEach(m=>{
     if(m.status==='done'&&m.wComp) places.push({place:3,comp:m.wComp});
-    if(m.status==='done'&&m.lComp) places.push({place:5,comp:m.lComp});
+    // Loser of bronze match: 4th place (only if single bronze match)
+    // If multiple bronze matches exist, loser gets no explicit place
+    if(m.status==='done'&&m.lComp&&bronzeMs.length===1){
+      places.push({place:4,comp:m.lComp});
+    }
   });
   // Semi losers who haven't been placed: place 5 (if only 1 bronze match) or already handled
   // All others still in it
