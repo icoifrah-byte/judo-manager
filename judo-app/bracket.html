@@ -646,17 +646,25 @@ function renderResults(br){
   // Knockout: collect places from match results
   // 3rd place: winners of matches with place='3rd'
   const bronzeMs=ms.filter(m=>m.place==='3rd');
-  bronzeMs.forEach(m=>{
-    if(m.status==='done'&&m.wComp) places.push({place:3,comp:m.wComp});
-    // Loser of bronze match → place 5
-    if(m.status==='done'&&m.lComp) places.push({place:5,comp:m.lComp});
-  });
-  // Place 5 matches (winners→5, losers→7)
-  const place5Ms=ms.filter(m=>m.place==='5th');
-  place5Ms.forEach(m=>{
-    if(m.status==='done'&&m.wComp) places.push({place:5,comp:m.wComp});
-    if(m.status==='done'&&m.lComp) places.push({place:7,comp:m.lComp});
-  });
+  // Consolation matches sorted by advancement (highest match_num = most advanced)
+  const consolMs=ms.filter(m=>m.type==='R'&&m.status==='done').sort((a,b)=>b.id-a.id);
+  if(consolMs.length>0){
+    // Most advanced consolation match = final consolation (3rd place)
+    const consolFinal=consolMs[0];
+    if(consolFinal.wComp) places.push({place:3,comp:consolFinal.wComp});
+    if(consolFinal.lComp) places.push({place:5,comp:consolFinal.lComp});
+    // Semi-final consolation (one level below) → losers get 7th
+    const consolSemi=consolMs.filter(m=>m.id!==consolFinal.id&&
+      (m.wTo?.id===consolFinal.id||(consolMs[1]&&m.id===consolMs[1].id)));
+    // All done R matches except the final: losers who haven't been placed → 7th
+    const placed7=new Set(places.map(p=>p.comp?.id));
+    consolMs.slice(1).forEach(m=>{
+      if(m.lComp&&!placed7.has(m.lComp.id)){
+        places.push({place:7,comp:m.lComp});
+        placed7.add(m.lComp.id);
+      }
+    });
+  }
   // Semi losers who haven't been placed: place 5 (if only 1 bronze match) or already handled
   // All others still in it
   const placed=new Set(places.map(p=>p.comp?.id));
