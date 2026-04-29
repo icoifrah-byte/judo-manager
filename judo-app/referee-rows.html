@@ -685,20 +685,44 @@ function toggleOffline(){
 
 function openDelay(){document.getElementById('delay-ov').classList.remove('h');}
 async function confirmDelay(){
-  const n=+document.getElementById('delay-n').value||3;
   document.getElementById('delay-ov').classList.add('h');
   const p=new URLSearchParams(location.search);
   const matchId=p.get('matchid');
   const tatamiId=p.get('tatami');
-  if(matchId&&typeof DB!=='undefined'){
-    try{
-      await DB.updateMatch(matchId,{status:'pending'});
-      showToast('⏭ קרב נדחה — טוען הבא...');
-      if(tatamiId) await loadNextMatch(tatamiId, matchId); // pass current to skip
-      else showToast('⚠ אין מזרן מוגדר');
-    }catch(e){console.error('delay:',e);showToast('⚠ שגיאה');}
-  } else {
-    showToast('⏭ קרב נדחה');
+  if(!matchId||typeof DB==='undefined'){ showToast('⏭ קרב נדחה'); return; }
+  try{
+    // Get current match order
+    const rows=await supaFetch('matches?id=eq.'+matchId+'&select=order_in_tatami,category_id');
+    const curOrder=(rows&&rows[0])?rows[0].order_in_tatami||999:999;
+    
+    // Collect all pending matches in this tatami, sorted by order
+    const compId=localStorage.getItem('judo_active_comp');
+    const cats=await DB.getCategories(compId);
+    const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
+    const allPending=[];
+    tatamiCats.forEach(cat=>{
+      (cat.matches||[])
+        .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==matchId)
+        .forEach(m=>allPending.push(m));
+    });
+    allPending.sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
+    
+    // Place after 3rd pending match
+    const target=allPending[2];
+    let newOrder;
+    if(target){
+      const after=allPending[3];
+      newOrder=after?(target.order_in_tatami+after.order_in_tatami)/2:target.order_in_tatami+1;
+    } else {
+      newOrder=(allPending[allPending.length-1]?.order_in_tatami||curOrder)+1;
+    }
+    
+    await DB.updateMatch(matchId,{status:'pending', order_in_tatami:newOrder});
+    showToast('⏭ קרב נדחה ב-3 קרבות');
+    if(tatamiId) await loadNextMatch(tatamiId, matchId);
+  }catch(e){
+    console.error('delay:',e);
+    showToast('⚠ שגיאה');
   }
 }
 
