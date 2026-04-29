@@ -712,12 +712,12 @@ async function confirmDelay(){
     let newOrder;
     if(target){
       const after=allPending[3];
-      newOrder=after?(target.order_in_tatami+after.order_in_tatami)/2:target.order_in_tatami+1;
+      newOrder=after?Math.round((target.order_in_tatami+after.order_in_tatami)/2):target.order_in_tatami+1;
     } else {
       newOrder=(allPending[allPending.length-1]?.order_in_tatami||curOrder)+1;
     }
     
-    await DB.updateMatch(matchId,{status:'pending', order_in_tatami:newOrder});
+    await DB.updateMatch(matchId,{status:'pending', order_in_tatami:Math.round(newOrder)});
     showToast('⏭ קרב נדחה ב-3 קרבות');
     if(tatamiId) await loadNextMatch(tatamiId, matchId);
   }catch(e){
