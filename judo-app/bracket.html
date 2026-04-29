@@ -648,11 +648,14 @@ function renderResults(br){
   const bronzeMs=ms.filter(m=>m.place==='3rd');
   bronzeMs.forEach(m=>{
     if(m.status==='done'&&m.wComp) places.push({place:3,comp:m.wComp});
-    // Loser of bronze match: 4th place (only if single bronze match)
-    // If multiple bronze matches exist, loser gets no explicit place
-    if(m.status==='done'&&m.lComp&&bronzeMs.length===1){
-      places.push({place:4,comp:m.lComp});
-    }
+    // Loser of bronze match → place 5
+    if(m.status==='done'&&m.lComp) places.push({place:5,comp:m.lComp});
+  });
+  // Place 5 matches (winners→5, losers→7)
+  const place5Ms=ms.filter(m=>m.place==='5th');
+  place5Ms.forEach(m=>{
+    if(m.status==='done'&&m.wComp) places.push({place:5,comp:m.wComp});
+    if(m.status==='done'&&m.lComp) places.push({place:7,comp:m.lComp});
   });
   // Semi losers who haven't been placed: place 5 (if only 1 bronze match) or already handled
   // All others still in it
