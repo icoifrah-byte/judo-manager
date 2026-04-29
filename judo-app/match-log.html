@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>יומן קרבות — Judo Manager</title>
+<script src="db.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: #2e3348; --text: #e8eaf6; --text2: #8a90b0; --text3: #555a7a;
+    --accent: #e8c84a; --grn: #4ade80; --red: #f87171; --blue: #60a5fa;
+    --white-clr: #d0d0d0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+
+  /* Header */
+  .header{display:flex;align-items:center;gap:16px;padding:14px 20px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+  .header-title{font-size:18px;font-weight:700;color:var(--accent);}
+  .back-btn{padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:6px;cursor:pointer;font-size:13px;text-decoration:none;display:flex;align-items:center;gap:6px;}
+  .back-btn:hover{background:var(--surface2);}
+
+  /* Toolbar */
+  .toolbar{display:flex;align-items:center;gap:10px;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .search-input{flex:1;min-width:180px;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;outline:none;}
+  .search-input:focus{border-color:var(--accent);}
+  .sort-btn{padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:12px;cursor:pointer;white-space:nowrap;}
+  .sort-btn.active{border-color:var(--accent);color:var(--accent);}
+  .print-btn{padding:7px 14px;background:var(--accent);border:none;border-radius:6px;color:#000;font-size:12px;font-weight:700;cursor:pointer;margin-right:auto;}
+  .count-badge{font-size:12px;color:var(--text2);}
+
+  /* Table */
+  .table-wrap{padding:16px 20px;overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{padding:8px 10px;text-align:right;color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);white-space:nowrap;}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+  tbody tr:hover{background:var(--surface);}
+  td{padding:9px 10px;vertical-align:middle;white-space:nowrap;}
+  td.time{color:var(--text2);font-size:12px;font-variant-numeric:tabular-nums;}
+  td.tatami{color:var(--accent);font-weight:700;font-size:12px;}
+  td.category{color:var(--text2);font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;}
+  td.duration{color:var(--text3);font-size:11px;font-variant-numeric:tabular-nums;}
+  
+  .competitor{display:flex;align-items:center;gap:6px;}
+  .comp-name{font-weight:600;}
+  .comp-name.winner{color:var(--grn);}
+  .score-badge{font-family:monospace;font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:4px;color:var(--text);}
+  .score-badge.winner-score{background:rgba(74,222,128,.15);color:var(--grn);}
+  .shido{font-size:10px;color:var(--red);}
+  
+  .vs{color:var(--text3);font-size:11px;padding:0 4px;}
+  .win-reason{font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 5px;border-radius:3px;}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--text2);}
+  .empty-state .icon{font-size:48px;margin-bottom:12px;}
+  .loading{text-align:center;padding:40px;color:var(--text2);}
+
+  /* Print */
+  @media print {
+    body{background:#fff;color:#000;}
+    .toolbar,.back-btn,.print-btn{display:none!important;}
+    .header{background:#fff;border-bottom:2px solid #000;position:static;}
+    .header-title{color:#000;}
+    table{font-size:11px;}
+    tbody tr:hover{background:transparent;}
+    td.tatami{color:#000;}
+    .comp-name.winner{color:#006400;}
+    .score-badge.winner-score{background:#e8f5e9;color:#006400;}
+    .score-badge{background:#f5f5f5;}
+    @page{size:A4 landscape;margin:1cm;}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="index.html" class="back-btn">← ניהול</a>
+  <span class="header-title">⚔️ יומן קרבות</span>
+  <span class="count-badge" id="count-badge"></span>
+</div>
+
+<div class="toolbar">
+  <input class="search-input" id="search" placeholder="🔍 חיפוש שם / קטגוריה..." oninput="applyFilters()">
+  <button class="sort-btn active" id="sort-time" onclick="setSort('time')">⏱ לפי זמן</button>
+  <button class="sort-btn" id="sort-cat" onclick="setSort('cat')">📁 לפי קטגוריה</button>
+  <button class="print-btn" onclick="window.print()">🖨️ הדפסה</button>
+</div>
+
+<div class="table-wrap">
+  <div class="loading" id="loading">⏳ טוען נתונים...</div>
+  <table id="matches-table" style="display:none">
+    <thead>
+      <tr>
+        <th>שעה</th>
+        <th>מזרן</th>
+        <th>קטגוריה</th>
+        <th>לבן</th>
+        <th>תוצאה</th>
+        <th>כחול</th>
+        <th>סיבה</th>
+        <th>משך</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty-state" id="empty" style="display:none">
+    <div class="icon">📋</div>
+    <div>אין קרבות להצגה</div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL='https://gsejqwqoreufotqeuzdf.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+
+let allRows = [], sortMode = 'time';
+
+async function loadData(){
+  const compId = localStorage.getItem('judo_active_comp');
+  if(!compId){ document.getElementById('loading').textContent='אין תחרות פעילה'; return; }
+
+  try{
+    // Load categories with competitors
+    const cats = await DB.getCategories(compId);
+    const rows = [];
+
+    for(const cat of (cats||[])){
+      const matches = (cat.matches||[]).filter(m=>m.status==='done'&&m.win_reason!=='bye');
+      const comps = cat.competitors||[];
+      
+      for(const m of matches){
+        const blue = comps.find(c=>c.id===m.blue_id);
+        const white = comps.find(c=>c.id===m.white_id);
+        const sc = m.score||{};
+        rows.push({
+          matchId: m.id,
+          time: m.updated_at||'',
+          tatami: m.tatami_id||cat.tatami_id||'?',
+          category: cat.name,
+          whiteName: white?.name||'?',
+          blueName: blue?.name||'?',
+          winnerId: m.winner_id,
+          blueId: m.blue_id,
+          whiteId: m.white_id,
+          winReason: m.win_reason||'',
+          sc,
+          stage: m.stage||'',
+        });
+      }
+    }
+
+    // Sort by updated_at (proxy for match time)
+    rows.sort((a,b)=>a.time.localeCompare(b.time));
+    allRows = rows;
+    applyFilters();
+    document.getElementById('loading').style.display='none';
+    document.getElementById('matches-table').style.display='table';
+  }catch(e){
+    console.error(e);
+    document.getElementById('loading').textContent='שגיאה בטעינת נתונים';
+  }
+}
+
+function fmtTime(iso){
+  if(!iso) return '—';
+  try{
+    const d=new Date(iso);
+    return d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  }catch{return iso.slice(11,16)||'—';}
+}
+
+function fmtScore(sc, side){
+  // side: 'blue' or 'white'
+  const i=side==='blue'?sc.bI:sc.wI;
+  const w=side==='blue'?sc.bW:sc.wW;
+  const y=side==='blue'?sc.bY:sc.wY;
+  const s=side==='blue'?sc.bS:sc.wS;
+  return {score:`${i??0}${w??0}${y??0}`, shido:s||0};
+}
+
+function setSort(mode){
+  sortMode=mode;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sort-'+mode).classList.add('active');
+  applyFilters();
+}
+
+function applyFilters(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  let rows=[...allRows];
+  
+  if(q) rows=rows.filter(r=>
+    r.whiteName.toLowerCase().includes(q)||
+    r.blueName.toLowerCase().includes(q)||
+    r.category.toLowerCase().includes(q)
+  );
+  
+  if(sortMode==='cat') rows.sort((a,b)=>a.category.localeCompare(b.category)||a.time.localeCompare(b.time));
+  else rows.sort((a,b)=>a.time.localeCompare(b.time));
+
+  document.getElementById('count-badge').textContent=`${rows.length} קרבות`;
+  
+  const tbody=document.getElementById('tbody');
+  if(!rows.length){
+    document.getElementById('matches-table').style.display='none';
+    document.getElementById('empty').style.display='block';
+    return;
+  }
+  document.getElementById('matches-table').style.display='table';
+  document.getElementById('empty').style.display='none';
+  
+  tbody.innerHTML=rows.map(r=>{
+    const isBlueWinner=r.winnerId===r.blueId;
+    const isWhiteWinner=r.winnerId===r.whiteId;
+    const bSc=fmtScore(r.sc,'blue');
+    const wSc=fmtScore(r.sc,'white');
+    
+    return `<tr>
+      <td class="time">${fmtTime(r.time)}</td>
+      <td class="tatami">מזרן ${r.tatami}</td>
+      <td class="category">${r.category}</td>
+      <td>
+        <span class="comp-name${isWhiteWinner?' winner':''}">${r.whiteName}</span>
+        <span class="shido">${wSc.shido>0?` ×${wSc.shido}`:''}</span>
+      </td>
+      <td>
+        <span class="score-badge${isWhiteWinner?' winner-score':''}">${wSc.score}</span>
+        <span class="vs">—</span>
+        <span class="score-badge${isBlueWinner?' winner-score':''}">${bSc.score}</span>
+      </td>
+      <td>
+        <span class="comp-name${isBlueWinner?' winner':''}">${r.blueName}</span>
+        <span class="shido">${bSc.shido>0?` ×${bSc.shido}`:''}</span>
+      </td>
+      <td><span class="win-reason">${r.winReason}</span></td>
+      <td class="duration">—</td>
+    </tr>`;
+  }).join('');
+}
+
+loadData();
+</script>
+</body>
+</html>
