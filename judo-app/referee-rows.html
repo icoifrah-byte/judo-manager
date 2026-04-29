@@ -66,6 +66,8 @@ body.fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
 .shido-dots{display:flex;gap:5px;align-items:center;}
 .r-nameblock{flex:1;text-align:right;display:flex;flex-direction:column;justify-content:center;padding-right:4px;}
 .r-name{font-size:clamp(15px,3.5vw,22px);font-weight:700;}
+body.fullscreen .r-name{font-size:clamp(24px,5vw,42px);}
+body.fullscreen .r-club{font-size:14px;margin-top:3px;}
 .blue .r-name{color:#fff;}
 .white .r-name{color:#111;}
 .r-club{font-size:10px;margin-top:1px;}
@@ -102,7 +104,7 @@ body.fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
 
 /* offline badge */
 #offline-fullscreen-badge{display:none;position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(155,89,182,.25);border:1px solid #9b59b6;border-radius:6px;padding:3px 14px;font-size:11px;font-weight:700;color:#b07fda;z-index:60;pointer-events:none;white-space:nowrap;}
-body.fullscreen #offline-fullscreen-badge.show{display:flex;}
+body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
 
 /* modals */
 .side-ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
