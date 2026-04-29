@@ -314,6 +314,35 @@ td{padding:9px 12px;font-size:13px;}
           <button class="btn btn-secondary btn-sm" onclick="goToReferee()">⚖️ פתח מסך שופט</button>
           <span style="font-size:11px;color:var(--text2)">שתף קוד זה עם השופטים</span>
         </div>
+        <!-- ════ SOUND SETTINGS ════ -->
+        <div class="divider" style="margin:16px 0"></div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">🔊 צלילי שעון שיפוט</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="form-group">
+            <label style="font-size:12px;color:var(--text2);margin-bottom:6px;display:block">צליל איפון (Ippon)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label class="btn btn-secondary btn-sm" style="cursor:pointer;padding:6px 12px;">
+                📂 בחר קובץ
+                <input type="file" accept="audio/*" style="display:none" onchange="uploadSound('ippon',this)">
+              </label>
+              <span id="sound-ippon-name" style="font-size:11px;color:var(--text2)">לא נבחר</span>
+              <button id="sound-ippon-play" style="display:none;background:none;border:none;cursor:pointer;font-size:16px" onclick="testSound('ippon')" title="בדוק">▶️</button>
+              <button id="sound-ippon-clear" style="display:none;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:11px;color:var(--red);padding:2px 8px" onclick="clearSound('ippon')">✕</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label style="font-size:12px;color:var(--text2);margin-bottom:6px;display:block">צליל נגמר הזמן</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label class="btn btn-secondary btn-sm" style="cursor:pointer;padding:6px 12px;">
+                📂 בחר קובץ
+                <input type="file" accept="audio/*" style="display:none" onchange="uploadSound('timeup',this)">
+              </label>
+              <span id="sound-timeup-name" style="font-size:11px;color:var(--text2)">לא נבחר</span>
+              <button id="sound-timeup-play" style="display:none;background:none;border:none;cursor:pointer;font-size:16px" onclick="testSound('timeup')" title="בדוק">▶️</button>
+              <button id="sound-timeup-clear" style="display:none;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:11px;color:var(--red);padding:2px 8px" onclick="clearSound('timeup')">✕</button>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
     </div>
@@ -1237,6 +1266,48 @@ function goToReferee(){
   const c=C();
   if(c?.dbId) localStorage.setItem('judo_active_comp', c.dbId);
   location.href='referee-login.html';
+}
+
+// ════ SOUND MANAGEMENT ════
+function uploadSound(type, input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    localStorage.setItem('judo_sound_'+type, e.target.result);
+    localStorage.setItem('judo_sound_'+type+'_name', file.name);
+    document.getElementById('sound-'+type+'-name').textContent = file.name;
+    document.getElementById('sound-'+type+'-play').style.display = 'inline';
+    document.getElementById('sound-'+type+'-clear').style.display = 'inline';
+    showAlert('success', '✓ צליל נשמר: '+file.name);
+  };
+  reader.readAsDataURL(file);
+}
+
+function testSound(type){
+  const data = localStorage.getItem('judo_sound_'+type);
+  if(!data) return;
+  const audio = new Audio(data);
+  audio.play().catch(e=>console.error(e));
+}
+
+function clearSound(type){
+  localStorage.removeItem('judo_sound_'+type);
+  localStorage.removeItem('judo_sound_'+type+'_name');
+  document.getElementById('sound-'+type+'-name').textContent = 'לא נבחר';
+  document.getElementById('sound-'+type+'-play').style.display = 'none';
+  document.getElementById('sound-'+type+'-clear').style.display = 'none';
+}
+
+function initSoundUI(){
+  ['ippon','timeup'].forEach(type=>{
+    const name = localStorage.getItem('judo_sound_'+type+'_name');
+    if(name){
+      document.getElementById('sound-'+type+'-name').textContent = name;
+      document.getElementById('sound-'+type+'-play').style.display = 'inline';
+      document.getElementById('sound-'+type+'-clear').style.display = 'inline';
+    }
+  });
 }
 
 // INIT — load from Supabase
