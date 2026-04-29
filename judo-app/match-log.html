@@ -143,6 +143,8 @@ async function loadData(){
           winReason: m.win_reason||'',
           sc,
           stage: m.stage||'',
+          startedAt: m.started_at||'',
+          endedAt: m.ended_at||m.updated_at||'',
         });
       }
     }
@@ -167,13 +169,33 @@ function fmtTime(iso){
   }catch{return iso.slice(11,16)||'—';}
 }
 
+function fmtDuration(start, end){
+  if(!start||!end) return '—';
+  try{
+    const ms=new Date(end)-new Date(start);
+    if(ms<0||ms>3600000) return '—';
+    const s=Math.floor(ms/1000);
+    const m=Math.floor(s/60);
+    return `${m}:${String(s%60).padStart(2,'0')}`;
+  }catch{return '—';}
+}
+
 function fmtScore(sc, side){
-  // side: 'blue' or 'white'
-  const i=side==='blue'?sc.bI:sc.wI;
-  const w=side==='blue'?sc.bW:sc.wW;
-  const y=side==='blue'?sc.bY:sc.wY;
-  const s=side==='blue'?sc.bS:sc.wS;
-  return {score:`${i??0}${w??0}${y??0}`, shido:s||0};
+  if(!sc) return {score:'000', shido:0};
+  // Support both formats: {bI,bW,bY,bS} and {blue:{I,W,Y,S},white:{I,W,Y,S}}
+  let i,w,y,s;
+  if(sc.blue||sc.white){
+    // New format: {blue:{I,W,Y,S}, white:{I,W,Y,S}}
+    const d=side==='blue'?sc.blue:sc.white;
+    i=d?.I??0; w=d?.W??0; y=d?.Y??0; s=d?.S??0;
+  } else {
+    // Old format: {bI,bW,bY,bS,wI,wW,wY,wS}
+    i=side==='blue'?sc.bI??0:sc.wI??0;
+    w=side==='blue'?sc.bW??0:sc.wW??0;
+    y=side==='blue'?sc.bY??0:sc.wY??0;
+    s=side==='blue'?sc.bS??0:sc.wS??0;
+  }
+  return {score:`${i}${w}${y}`, shido:s||0};
 }
 
 function setSort(mode){
@@ -231,7 +253,7 @@ function applyFilters(){
         <span class="shido">${bSc.shido>0?` ×${bSc.shido}`:''}</span>
       </td>
       <td><span class="win-reason">${r.winReason}</span></td>
-      <td class="duration">—</td>
+      <td class="duration">${fmtDuration(r.startedAt, r.endedAt)}</td>
     </tr>`;
   }).join('');
 }
