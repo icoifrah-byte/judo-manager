@@ -42,6 +42,10 @@ body.fullscreen #app{height:100vh;width:100vw;}
   border-bottom:1px solid rgba(255,255,255,.07);
 }
 .player-name{font-size:15px;font-weight:700;line-height:1.2;}
+/* Fullscreen: bigger name row */
+body.fullscreen .info-strip{padding:16px 20px;}
+body.fullscreen .player-name{font-size:28px;}
+body.fullscreen .player-meta{font-size:13px;margin-top:4px;}
 .blue .player-name{color:#ffffff;}
 .white .player-name{color:#111118;}
 .player-meta{font-size:10px;color:#888898;margin-top:1px;}
@@ -161,9 +165,9 @@ body.fullscreen #ctrl-bar{display:none!important;visibility:hidden;}
 /* offline badge handled inline */
 
 /* show fullscreen offline badge */
-:fullscreen #offline-fullscreen-badge{display:flex!important;}
-:-webkit-full-screen #offline-fullscreen-badge{display:flex!important;}
-body.fullscreen #offline-fullscreen-badge{display:flex!important;}
+:fullscreen #offline-fullscreen-badge{display:none!important;}
+:-webkit-full-screen #offline-fullscreen-badge{display:none!important;}
+body.fullscreen #offline-fullscreen-badge{display:none!important;}
 body.fullscreen #app{background:#0a0a0e;}
 
 /* offline badge */
