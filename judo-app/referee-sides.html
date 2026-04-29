@@ -672,6 +672,7 @@ async function declareWinner(side,reason){
         win_reason:reason,
         score:SC,
         is_offline:isOffline,
+        ended_at: new Date().toISOString(),
       });
       // Propagate winner/loser to next matches
       const bNameEl = document.getElementById('r-bname')||document.getElementById('blue-name');
@@ -797,7 +798,7 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
       const comps=nextCat.competitors||[];
       const blue=comps.find(c=>c.id===next.blue_id);
       const white=comps.find(c=>c.id===next.white_id);
-      await DB.updateMatch(next.id,{status:'live'});
+      await DB.updateMatch(next.id,{status:'live', started_at: new Date().toISOString()});
       const target=location.pathname.includes('sides')?'referee-sides.html':'referee-rows.html';
       const params=new URLSearchParams({
         tatami:tatamiId, matchid:next.id,
