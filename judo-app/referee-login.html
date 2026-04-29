@@ -262,7 +262,7 @@ async function tryEnter(){
           }).catch(()=>{});
         }
         // Mark this match as live
-        await DB.updateMatch(nextMatch.id, {status:'live'});
+        await DB.updateMatch(nextMatch.id, {status:'live', started_at: new Date().toISOString()});
         
         const config = JSON.parse(localStorage.getItem('judo_config')||'{}');
         if(config.match_duration) params.set('dur', config.match_duration);
