@@ -432,7 +432,7 @@ function pauseMain(){
   stopOsaeInterval();
 }
 
-function checkTimeEnd(){
+function checkTimeEnd(){ playSound('timeup');
   const b=SC.blue,w=SC.white;
   let win=null;
   if(b.W!==w.W)win=b.W>w.W?'blue':'white';
@@ -644,7 +644,7 @@ function checkWin(){
   if(w.S>=3){ declareWinner('blue','Hansoku-make'); return; }
 }
 
-async function declareWinner(side,reason){
+async function declareWinner(side,reason){ if(reason==='Ippon'||reason==='Waza-ari × 2') playSound('ippon');
   pauseMain();stopOsaeInterval();status='done';
   const bName=document.getElementById('blue-name').textContent;
   const wName=document.getElementById('white-name').textContent;
@@ -1116,6 +1116,15 @@ async function autoProcessBye(catId, matchNum){
       // recursive call disabled
     }
   }catch(e){console.error('autoProcessBye:',e);}
+}
+
+function playSound(type){
+  try{
+    const data=localStorage.getItem('judo_sound_'+type);
+    if(!data) return;
+    const a=new Audio(data);
+    a.play().catch(()=>{});
+  }catch(e){}
 }
 
 function showToast(msg){
