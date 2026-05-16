@@ -148,6 +148,7 @@ td{padding:9px 12px;font-size:13px;}
 .chk-label:hover{border-color:var(--purple);}
 .chk-label input:checked+span{color:var(--purple);font-weight:700;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -199,6 +200,7 @@ td{padding:9px 12px;font-size:13px;}
       <div class="tab" onclick="switchTab('t-tatami',this)">🟩 מזרנים</div>
       <div class="tab" onclick="switchTab('t-champ',this)">👑 אלוף האלופים</div>
       <div class="tab" onclick="switchTab('t-settings',this)">⚙️ הגדרות</div>
+      <button class="btn btn-secondary btn-sm" onclick="exportMedals()" style="margin-right:auto;margin-left:8px;" title="ייצוא מדליות לאקסל">🥇 ייצוא מדליות</button>
     </div>
 
     <!-- COMPETITORS -->
@@ -1266,6 +1268,102 @@ function goToReferee(){
   const c=C();
   if(c?.dbId) localStorage.setItem('judo_active_comp', c.dbId);
   location.href='referee-login.html';
+}
+
+
+// ════ EXPORT MEDALS ════
+async function exportMedals(){
+  const c=C();
+  if(!c){ showAlert('error','אין תחרות פעילה'); return; }
+  showAlert('success','⏳ מכין קובץ...');
+
+  try{
+    // Load fresh data from DB
+    const cats = await DB.getCategories(c.dbId);
+    const rows = [];
+
+    for(const cat of (cats||[])){
+      const comps = cat.competitors||[];
+      const matches = cat.matches||[];
+      const isLeague = cat.method==='league';
+
+      // Calculate places using same logic as bracket.html
+      const places = calcPlaces(matches, comps, isLeague);
+      
+      for(const p of places){
+        if(!p.comp) continue;
+        const medal = p.place===1?'זהב':p.place===2?'כסף':(p.place===3||p.place===5)?'ארד':'';
+        rows.push({
+          'external_id': p.comp.external_id||p.comp.id||'',
+          'שם מלא': p.comp.name||'',
+          'מועדון': p.comp.club||'',
+          'קטגוריה': cat.name||'',
+          'מקום': p.place,
+          'מדליה': medal,
+        });
+      }
+    }
+
+    if(!rows.length){ showAlert('error','אין תוצאות לייצוא'); return; }
+
+    // Sort by place
+    rows.sort((a,b)=>a['מקום']-b['מקום']||a['קטגוריה'].localeCompare(b['קטגוריה']));
+
+    // Create Excel
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header:['external_id','שם מלא','מועדון','קטגוריה','מקום','מדליה']
+    });
+    // Column widths
+    ws['!cols']=[{wch:15},{wch:20},{wch:18},{wch:15},{wch:8},{wch:8}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'מדליות');
+    const fname = (c.name||'תחרות').replace(/[^\w֐-׿]/g,'_')+'_מדליות.xlsx';
+    XLSX.writeFile(wb, fname);
+    showAlert('success','✓ הקובץ הורד: '+fname);
+  }catch(e){
+    console.error('exportMedals:',e);
+    showAlert('error','שגיאה בייצוא: '+e.message);
+  }
+}
+
+function calcPlaces(matches, comps, isLeague){
+  const places = [];
+  if(isLeague){
+    const allDone = matches.every(m=>m.status==='done');
+    if(!allDone) return places;
+    const scores={};
+    comps.forEach(c=>scores[c.id]={comp:c,pts:0,wins:0});
+    matches.forEach(m=>{
+      if(m.status!=='done') return;
+      const wComp=comps.find(c=>c.id===m.winner_id);
+      const lComp=comps.find(c=>c.id!==m.winner_id&&(c.id===m.blue_id||c.id===m.white_id));
+      if(wComp){scores[wComp.id].pts+=2;scores[wComp.id].wins++;}
+    });
+    const sorted=Object.values(scores).sort((a,b)=>b.pts-a.pts||b.wins-a.wins);
+    sorted.forEach((s,i)=>places.push({place:i+1,comp:s.comp}));
+  } else {
+    // Final
+    const fin=matches.find(m=>m.stage==='גמר'&&m.status==='done');
+    if(fin){
+      const wComp=comps.find(c=>c.id===fin.winner_id);
+      const lComp=comps.find(c=>c.id!==fin.winner_id&&(c.id===fin.blue_id||c.id===fin.white_id));
+      if(wComp) places.push({place:1,comp:wComp});
+      if(lComp) places.push({place:2,comp:lComp});
+    }
+    // Bronze (place='3rd')
+    matches.filter(m=>m.win_reason!=='bye'&&m.status==='done')
+      .filter(m=>{
+        // consol final = highest id R match
+        const rMs=matches.filter(x=>x.stage_type==='R'&&x.status==='done').sort((a,b)=>b.match_num-a.match_num);
+        return rMs[0]&&m.id===rMs[0].id||rMs[1]&&m.id===rMs[1].id;
+      }).forEach(m=>{
+        const wComp=comps.find(c=>c.id===m.winner_id);
+        const lComp=comps.find(c=>c.id!==m.winner_id&&(c.id===m.blue_id||c.id===m.white_id));
+        if(wComp&&!places.find(p=>p.comp?.id===wComp.id)) places.push({place:3,comp:wComp});
+        if(lComp&&!places.find(p=>p.comp?.id===lComp.id)) places.push({place:5,comp:lComp});
+      });
+  }
+  return places;
 }
 
 // ════ SOUND MANAGEMENT ════
