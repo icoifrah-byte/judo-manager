@@ -154,7 +154,7 @@ body.fullscreen .player-meta{font-size:13px;margin-top:4px;}
    No text flipping needed
    ════════════════════════════════ */
 #halves.mirrored{direction:rtl;}
-.flipped{transform:scaleX(-1);}
+
 #halves.mirrored .half{direction:ltr;}
 
 /* fullscreen mode — hide ctrl-bar */
@@ -398,15 +398,16 @@ function toggleMirror(){
   document.getElementById('mirror-btn').textContent = mirrored ? '⇄ החלף צדדים' : '⇄ רגיל';
 }
 
-let flipped = false;
+let flipped=false;
 function toggleFlip(){
-  flipped = !flipped;
-  // Apply scaleX(-1) to the entire app container
-  const app = document.getElementById('app') || document.body;
-  app.style.transform = flipped ? 'scaleX(-1)' : '';
-  app.style.transformOrigin = '50% 50%';
-  document.getElementById('flip-btn').classList.toggle('on', flipped);
-  document.getElementById('flip-btn').textContent = flipped ? '🪞 מראה' : '🪞 רגיל';
+  flipped=!flipped;
+  // Reverse the order of blue/white panels visually (no text flip)
+  const halves=document.getElementById('halves');
+  if(halves){
+    halves.style.flexDirection=flipped?'row-reverse':'row';
+  }
+  document.getElementById('flip-btn').classList.toggle('on',flipped);
+  document.getElementById('flip-btn').textContent=flipped?'🪞 מראה':'🪞 רגיל';
 }
 // init from URL or default (false = normal on computer)
 document.getElementById('halves').classList.toggle('mirrored', mirrored);
