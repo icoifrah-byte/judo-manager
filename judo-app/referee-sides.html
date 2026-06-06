@@ -154,6 +154,7 @@ body.fullscreen .player-meta{font-size:13px;margin-top:4px;}
    No text flipping needed
    ════════════════════════════════ */
 #halves.mirrored{direction:rtl;}
+.flipped{transform:scaleX(-1);}
 #halves.mirrored .half{direction:ltr;}
 
 /* fullscreen mode — hide ctrl-bar */
@@ -218,7 +219,8 @@ body.fullscreen #app{background:#0a0a0e;}
   <button class="ctrl-btn" id="offline-btn" onclick="toggleOffline()" title="קרב אופליין">◌ אופליין</button>
   <span id="offline-badge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;background:rgba(155,89,182,.2);color:#b07fda;border:1px solid rgba(155,89,182,.4);">◌ לא נרשם</span>
   <button class="ctrl-btn" onclick="openChangeDuration()" title="שנה זמן קרב">⏱ זמן</button>
-  <button class="ctrl-btn on" id="mirror-btn" onclick="toggleMirror()">⇄ מראה</button>
+  <button class="ctrl-btn on" id="mirror-btn" onclick="toggleMirror()">⇄ החלף צדדים</button>
+  <button class="ctrl-btn" id="flip-btn" onclick="toggleFlip()">🪞 מראה</button>
   <button class="ctrl-btn" onclick="enterFullscreen()" title="מסך מלא" id="fs-btn">⛶ מסך מלא</button>
   <button class="ctrl-btn" onclick="location.href='referee.html'">← חזור</button>
 </div>
@@ -393,7 +395,18 @@ function toggleMirror(){
   mirrored = !mirrored;
   document.getElementById('halves').classList.toggle('mirrored', mirrored);
   document.getElementById('mirror-btn').classList.toggle('on', mirrored);
-  document.getElementById('mirror-btn').textContent = mirrored ? '⇄ מראה' : '⇄ רגיל';
+  document.getElementById('mirror-btn').textContent = mirrored ? '⇄ החלף צדדים' : '⇄ רגיל';
+}
+
+let flipped = false;
+function toggleFlip(){
+  flipped = !flipped;
+  // Apply scaleX(-1) to the entire app container
+  const app = document.getElementById('app') || document.body;
+  app.style.transform = flipped ? 'scaleX(-1)' : '';
+  app.style.transformOrigin = '50% 50%';
+  document.getElementById('flip-btn').classList.toggle('on', flipped);
+  document.getElementById('flip-btn').textContent = flipped ? '🪞 מראה' : '🪞 רגיל';
 }
 // init from URL or default (false = normal on computer)
 document.getElementById('halves').classList.toggle('mirrored', mirrored);
