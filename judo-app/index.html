@@ -666,13 +666,26 @@ async function addCompManual(){
   // Save to Supabase
   if(c.dbId){
     try{
-      const cat=c.categories.find(ct=>ct.name===catName);
+      let cat=c.categories.find(ct=>ct.name===catName);
+      // Create category in DB if it doesn't have a dbId yet
+      if(cat && !cat.dbId){
+        const catRow=await DB.createCategory({
+          competition_id:c.dbId,
+          name:cat.name,
+          method:cat.method||'knockout',
+          status:'pending',
+        });
+        if(catRow) cat.dbId=catRow.id||catRow[0]?.id;
+      }
       const catDbId=cat?.dbId||null;
       if(catDbId){
         const row=await DB.upsertCompetitors([{category_id:catDbId,name,club,seed:null}]);
-        if(row?.[0])comp.dbId=row[0].id;
+        if(row?.[0]) comp.dbId=row[0].id;
+        showAlert('success',`✓ ${name} נשמר`);
+      } else {
+        showAlert('error','⚠ לא ניתן לשמור — נסה לרענן');
       }
-    }catch(e){console.error('save comp:',e);}
+    }catch(e){console.error('save comp:',e);showAlert('error','⚠ שגיאה בשמירה');}
   }
 }
 
