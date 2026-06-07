@@ -34,7 +34,10 @@ body.fullscreen #app{height:100vh;width:100vw;}
 .half.blue{background:#0033aa;}
 .half.white{background:#f0f0f0;border-left:2px solid #cccccc;}
 .white .sc-lbl{color:#aaaaaa;}
-.white .info-strip{border-bottom:1px solid #dddddd;}
+.white .info-strip{
+  flex-shrink:0;padding:8px 14px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
 
 /* player info strip */
 .info-strip{
@@ -220,7 +223,7 @@ body.fullscreen #app{background:#0a0a0e;}
   <span id="offline-badge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;background:rgba(155,89,182,.2);color:#b07fda;border:1px solid rgba(155,89,182,.4);">◌ לא נרשם</span>
   <button class="ctrl-btn" onclick="openChangeDuration()" title="שנה זמן קרב">⏱ זמן</button>
   <button class="ctrl-btn on" id="mirror-btn" onclick="toggleMirror()">⇄ החלף צדדים</button>
-  <button class="ctrl-btn" id="flip-btn" onclick="toggleFlip()" title="לפני השימוש: Windows + P ← בחר Extend">🪞 מראה</button><span style="font-size:9px;color:#555a7a;margin-right:4px;" title="נדרש מסך שני">Win+P→Extend</span>
+  <button class="ctrl-btn" id="mirror-open-btn" onclick="openMirror()">🪞 מראה</button><span style="font-size:9px;color:#555a7a;margin-right:4px;" title="נדרש מסך שני">Win+P→Extend</span>
   <button class="ctrl-btn" onclick="enterFullscreen()" title="מסך מלא" id="fs-btn">⛶ מסך מלא</button>
   <button class="ctrl-btn" onclick="location.href='referee.html'">← חזור</button>
 </div>
@@ -368,6 +371,9 @@ body.fullscreen #app{background:#0a0a0e;}
 </div>
 
 <script>
+const mirrorChannel = new BroadcastChannel('judo_mirror');
+let mirrorWin = null;
+
 // ═══════════════════════════
 // STATE
 // ═══════════════════════════
@@ -469,7 +475,7 @@ function checkTimeEnd(){ playSound('timeup');
   showToast('⏱ לחץ על השעון להתחיל גולדן סקור');
 }
 
-function syncMainClock(){
+function syncMainClock(){ broadcastState();
   const el=document.getElementById('main-clock');
   const gs=status==='golden';
   const running=status==='live';
@@ -854,7 +860,7 @@ function resetMatch(){
 // ═══════════════════════════
 // SYNC UI
 // ═══════════════════════════
-function syncScore(){
+function syncScore(){ broadcastState();
   ['I','W','Y'].forEach(k=>{
     const bEl=document.getElementById('b-'+k);
     const wEl=document.getElementById('w-'+k);
@@ -1169,6 +1175,41 @@ function playSound(type){
     const a=new Audio(data);
     a.play().catch(()=>{});
   }catch(e){}
+}
+
+
+// Send state to mirror window
+function broadcastState(){
+  const p = new URLSearchParams(location.search);
+  mirrorChannel.postMessage({
+    blueName: document.getElementById('blue-name')?.textContent || document.getElementById('r-bname')?.textContent || '',
+    whiteName: document.getElementById('white-name')?.textContent || document.getElementById('r-wname')?.textContent || '',
+    blueMeta: document.getElementById('blue-meta')?.textContent || document.getElementById('r-bmeta')?.textContent || '',
+    whiteMeta: document.getElementById('white-meta')?.textContent || document.getElementById('r-wmeta')?.textContent || '',
+    sc: SC,
+    timeLeft: timeLeft,
+    golden: status==='golden',
+    osaeTime: osaeTime,
+    osaeActive: osaeActive,
+    stage: p.get('stage')||'',
+  });
+}
+
+// Listen for state requests from mirror window
+mirrorChannel.onmessage = e => {
+  if(e.data?.type==='request_state') broadcastState();
+};
+
+function openMirror(){
+  const url = location.href.replace(/referee-(sides|rows)/, 'referee-mirror')
+    .replace('referee-mirror', location.pathname.includes('sides') ? 
+      '../judo-app/referee-mirror' : '../judo-app/referee-mirror')
+    .replace(location.pathname, '/judo-app/referee-mirror.html');
+  // Simple: open mirror page
+  const base = location.href.split('?')[0].replace(/referee-(sides|rows)\.html/, 'referee-mirror.html');
+  mirrorWin = window.open(base, 'judo_mirror_window', 'width=1280,height=720');
+  document.getElementById('mirror-open-btn').textContent = '🪞 מראה ✓';
+  document.getElementById('mirror-open-btn').classList.add('on');
 }
 
 function showToast(msg){
