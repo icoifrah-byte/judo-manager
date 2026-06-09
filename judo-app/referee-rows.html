@@ -138,7 +138,7 @@ body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
   <button class="ctrl-btn" onclick="openChangeDuration()">⏱ זמן</button>
   <button class="ctrl-btn" onclick="enterFullscreen()" id="fs-btn">⛶ מסך מלא</button>
   <button class="ctrl-btn" onclick="location.href='referee.html'">← חזור</button>
-  <button class="ctrl-btn" id="flip-btn" onclick="toggleFlip()" title="לפני השימוש: Windows + P ← בחר Extend">🪞 מראה</button><span style="font-size:9px;color:#555a7a;margin-right:4px;" title="נדרש מסך שני">Win+P→Extend</span>
+  <button class="ctrl-btn" id="mirror-open-btn" onclick="openMirror()">🪞 מראה</button><span style="font-size:9px;color:#555a7a;margin-right:4px;" title="נדרש מסך שני">Win+P→Extend</span>
 </div>
 
 <div id="app">
@@ -613,7 +613,7 @@ function resetMatch(){
   syncScore();syncShido('blue');syncShido('white');syncMainClock();syncClockSub();syncOsaeClock();
 }
 
-function syncScore(){
+function syncScore(){ broadcastState();
   ['I','W','Y'].forEach(k=>{
     ['b','w'].forEach(s=>{
       const side=s==='b'?'blue':'white';
@@ -634,7 +634,7 @@ function syncShido(side){
   row.querySelectorAll('.shido-dot,.shido-sq').forEach((sq,i)=>sq.classList.toggle('on',SHIDO[side][i]));
 }
 
-function syncMainClock(){
+function syncMainClock(){ broadcastState();
   const el=document.getElementById('main-clock');
   const gs=status==='golden';
   const mm=Math.floor(timeLeft/60),ss=String(timeLeft%60).padStart(2,'0');
@@ -889,6 +889,46 @@ function toggleFlip(){
   }
   document.getElementById('flip-btn').classList.toggle('on',flipped);
   document.getElementById('flip-btn').textContent=flipped?'🪞 מראה':'🪞 רגיל';
+}
+
+// ════ MIRROR BROADCAST ════
+const mirrorChannel = new BroadcastChannel('judo_mirror');
+let mirrorWin = null;
+
+// Send state to mirror window
+function broadcastState(){
+  const p = new URLSearchParams(location.search);
+  mirrorChannel.postMessage({
+    blueName: document.getElementById('blue-name')?.textContent || document.getElementById('r-bname')?.textContent || '',
+    whiteName: document.getElementById('white-name')?.textContent || document.getElementById('r-wname')?.textContent || '',
+    blueMeta: document.getElementById('blue-meta')?.textContent || document.getElementById('r-bmeta')?.textContent || '',
+    whiteMeta: document.getElementById('white-meta')?.textContent || document.getElementById('r-wmeta')?.textContent || '',
+    sc: SC,
+    timeLeft: timeLeft,
+    golden: status==='golden',
+    osaeTime: osaeTime,
+    osaeActive: osaeActive,
+    stage: p.get('stage')||'',
+    winner: status==='done'?(document.getElementById('win-name')?.textContent||null):null,
+    winnerSide: status==='done'?(document.getElementById('win-name')?.style.color==='rgb(74, 144, 255)'?'blue':'white'):null,
+    winReason: status==='done'?(document.getElementById('win-reason')?.textContent||null):null,
+    status: status,
+  });
+}
+
+// Listen for state requests from mirror window
+mirrorChannel.onmessage = e => {
+  if(e.data?.type==='request_state') broadcastState();
+};
+
+function openMirror(){
+  // Build mirror URL from current URL
+  const base = location.href.split('?')[0]
+    .replace('referee-sides.html', 'referee-mirror.html')
+    .replace('referee-rows.html', 'referee-mirror.html');
+  mirrorWin = window.open(base, 'judo_mirror_window', 'width=1280,height=720');
+  document.getElementById('mirror-open-btn').textContent = '🪞 מראה ✓';
+  document.getElementById('mirror-open-btn').classList.add('on');
 }
 
 function showToast(msg){
