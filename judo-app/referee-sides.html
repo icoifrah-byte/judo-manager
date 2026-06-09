@@ -1209,7 +1209,7 @@ function openMirror(){
   const base = location.href.split('?')[0]
     .replace('referee-sides.html', 'referee-mirror.html')
     .replace('referee-rows.html', 'referee-mirror.html');
-  mirrorWin = window.open(base, 'judo_mirror_window', 'width=1280,height=720');
+  mirrorWin = window.open(base, 'judo_mirror_window', 'width='+screen.availWidth+',height='+screen.availHeight+',left=0,top=0');
   document.getElementById('mirror-open-btn').textContent = '🪞 מראה ✓';
   document.getElementById('mirror-open-btn').classList.add('on');
 }
