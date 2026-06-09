@@ -8,12 +8,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;width:100%;overflow:hidden;background:#0d0e14;color:#f0f0f0;font-family:'Heebo',sans-serif;touch-action:manipulation;}
+html,html,body{height:100%;margin:0;padding:0;}body{overflow:hidden;background:#0d0e14;color:#f0f0f0;font-family:'Heebo',sans-serif;touch-action:manipulation;}
 
 /* ════════════════════════════════
    LAYOUT: banner / halves / timer
    ════════════════════════════════ */
-#app{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+#app{height:100vh;display:flex;flex-direction:column;overflow:hidden;}
 :fullscreen #app{height:100vh;width:100vw;}
 :fullscreen #banner{position:relative;z-index:10;}
 :-webkit-full-screen #app{height:100vh;width:100vw;}
@@ -29,7 +29,7 @@ body.fullscreen #app{height:100vh;width:100vw;}
 #banner-text{font-size:14px;font-weight:600;color:#8a8fa0;letter-spacing:.3px;text-align:center;}
 
 /* HALVES ROW */
-#halves{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0;}
+#halves{flex:1;display:flex;min-height:0;overflow:hidden;}
 
 .half{display:flex;flex-direction:column;overflow:hidden;}
 .half.blue{background:#0033aa;}
@@ -93,7 +93,7 @@ body.fullscreen .player-meta{font-size:13px;margin-top:4px;}
    TIMER BAR
    ════════════════════════════════ */
 #timer-bar{
-  flex-shrink:0;height:150px;
+  flex-shrink:0;height:120px;
   background:#111318;border-top:2px solid #1e2130;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:8px;
@@ -1187,6 +1187,24 @@ function broadcastState(){} // no-op in mirror
 mirrorChannel.onmessage = e => {
   const d = e.data;
   if(!d||d.type==='request_state') return;
+  // Show winner overlay
+  if(d.winner!==undefined){
+    if(d.winner){
+      // Trigger declareWinner visually
+      const ov=document.getElementById('winner-overlay');
+      const wn=document.getElementById('win-name');
+      const wr=document.getElementById('win-reason');
+      if(ov&&wn&&wr){
+        wn.textContent=d.winner;
+        wn.style.color=d.winnerSide==='blue'?'#4a90ff':'#d0d0d0';
+        wr.textContent=d.winReason||'';
+        ov.classList.add('show');
+      }
+    } else {
+      const ov=document.getElementById('winner-overlay');
+      if(ov) ov.classList.remove('show');
+    }
+  }
   if(d.sc){
     const b=d.sc.blue||{}, w=d.sc.white||{};
     SC.blue.I=b.I??d.sc.bI??0; SC.blue.W=b.W??d.sc.bW??0;
