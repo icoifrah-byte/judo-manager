@@ -1201,12 +1201,10 @@ mirrorChannel.onmessage = e => {
 };
 
 function openMirror(){
-  const url = location.href.replace(/referee-(sides|rows)/, 'referee-mirror')
-    .replace('referee-mirror', location.pathname.includes('sides') ? 
-      '../judo-app/referee-mirror' : '../judo-app/referee-mirror')
-    .replace(location.pathname, '/judo-app/referee-mirror.html');
-  // Simple: open mirror page
-  const base = location.href.split('?')[0].replace(/referee-(sides|rows)\.html/, 'referee-mirror.html');
+  // Build mirror URL from current URL
+  const base = location.href.split('?')[0]
+    .replace('referee-sides.html', 'referee-mirror.html')
+    .replace('referee-rows.html', 'referee-mirror.html');
   mirrorWin = window.open(base, 'judo_mirror_window', 'width=1280,height=720');
   document.getElementById('mirror-open-btn').textContent = '🪞 מראה ✓';
   document.getElementById('mirror-open-btn').classList.add('on');
