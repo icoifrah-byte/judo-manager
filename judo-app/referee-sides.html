@@ -1192,6 +1192,10 @@ function broadcastState(){
     osaeTime: osaeTime,
     osaeActive: osaeActive,
     stage: p.get('stage')||'',
+    winner: status==='done'?(document.getElementById('win-name')?.textContent||null):null,
+    winnerSide: status==='done'?(document.getElementById('win-name')?.style.color==='rgb(74, 144, 255)'?'blue':'white'):null,
+    winReason: status==='done'?(document.getElementById('win-reason')?.textContent||null):null,
+    status: status,
   });
 }
 
