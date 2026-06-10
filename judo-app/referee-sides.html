@@ -456,7 +456,9 @@ function pauseMain(){
   stopOsaeInterval();
 }
 
-function checkTimeEnd(){ playSound('timeup');
+function checkTimeEnd(){
+  // If osaekomi is active, stop main clock display at 0:00 but let osae continue
+  if(osaeActive){ status='paused'; timeLeft=0; syncMainClock(); syncClockSub(); return; } playSound('timeup');
   const b=SC.blue,w=SC.white;
   let win=null;
   if(b.W!==w.W)win=b.W>w.W?'blue':'white';
@@ -500,7 +502,7 @@ function toggleOsae(){
 
 function startOsae(){
   osaeActive=true;
-  pauseMain();
+  // Do NOT pause main clock - runs in parallel
   if(osaeInterval) clearInterval(osaeInterval);
   osaeInterval=setInterval(()=>{
     osaeTime++;
@@ -511,7 +513,14 @@ function startOsae(){
       add(osaeSide,'I');
       osaeTime=0;
       syncOsaeClock();
-      if(status==='live'||status==='golden') startMain();
+      return;
+    }
+    // If no side assigned and reached 20s, stop and require manual choice
+    if(!osaeSide && osaeTime>=20){
+      stopOsaeInterval();
+      osaeActive=false;
+      syncOsaeClock();
+      showToast('⚠ בחר צד לריתוק — הריתוק הגיע ל-20 שניות');
       return;
     }
     syncOsaeClock();
@@ -597,7 +606,7 @@ function assignOsae(side){
   document.getElementById('sq-white').classList.toggle('sel',osaeSide==='white');
 }
 
-function syncOsaeClock(){
+function syncOsaeClock(){ broadcastState();
   const el=document.getElementById('osae-clock');
   const ss=String(osaeTime).padStart(2,'0');
   el.textContent=ss;
@@ -1196,6 +1205,7 @@ function broadcastState(){
     winnerSide: status==='done'?(document.getElementById('win-name')?.style.color==='rgb(74, 144, 255)'?'blue':'white'):null,
     winReason: status==='done'?(document.getElementById('win-reason')?.textContent||null):null,
     status: status,
+    osaeActive: osaeActive,
   });
 }
 
