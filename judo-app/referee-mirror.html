@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,html{height:100%;}body{height:100%;margin:0;padding:0;overflow:hidden;display:flex;flex-direction:column;background:#0d0e14;color:#f0f0f0;font-family:'Heebo',sans-serif;touch-action:manipulation;}
+html,body{height:100%;margin:0;padding:0;}body{overflow:hidden;display:flex;flex-direction:column;background:#0d0e14;color:#f0f0f0;font-family:'Heebo',sans-serif;touch-action:manipulation;}
 
 /* ════════════════════════════════
    LAYOUT: banner / halves / timer
@@ -29,27 +29,27 @@ body.fullscreen #app{height:100vh;width:100vw;}
 #banner-text{font-size:14px;font-weight:600;color:#8a8fa0;letter-spacing:.3px;text-align:center;}
 
 /* HALVES ROW */
-#halves{flex:1;display:flex;min-height:0;overflow:hidden;}
+#halves{flex:0 0 58%;display:flex;overflow:hidden;}
 
-.half{display:flex;flex-direction:column;overflow:hidden;}
+.half{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
 .half.blue{background:#0033aa;}
 .half.white{background:#f0f0f0;border-left:2px solid #cccccc;}
 .white .sc-lbl{color:#aaaaaa;}
 .white .info-strip{
-  flex-shrink:0;padding:12px 18px;
+  flex-shrink:0;padding:6px 14px;
   border-bottom:1px solid rgba(255,255,255,.07);
 }
 
 /* player info strip */
 .info-strip{
-  flex-shrink:0;padding:12px 18px;
+  flex-shrink:0;padding:6px 14px;
   border-bottom:1px solid rgba(255,255,255,.07);
 }
-.player-name{font-size:clamp(28px,5vw,72px);font-weight:700;line-height:1.1;}
+.player-name{font-size:clamp(20px,3.5vw,48px);font-weight:700;line-height:1.1;}
 /* Fullscreen: bigger name row */
 body.fullscreen .info-strip{padding:16px 20px;}
 body.fullscreen .player-name{font-size:28px;}
-body.fullscreen .player-meta{font-size:clamp(14px,2.5vw,36px);margin-top:4px;color:#888;}
+body.fullscreen .player-meta{font-size:clamp(11px,1.8vw,24px);margin-top:2px;color:#888;}
 .blue .player-name{color:#ffffff;}
 .white .player-name{color:#111118;}
 .player-meta{font-size:10px;color:#888898;margin-top:1px;}
@@ -70,7 +70,7 @@ body.fullscreen .player-meta{font-size:clamp(14px,2.5vw,36px);margin-top:4px;col
 .blue .sc-lbl{color:rgba(255,255,255,.4);}
 .sc-num{
   font-family:'Bebas Neue',sans-serif;
-  font-size:clamp(52px,12vw,96px);
+  font-size:clamp(32px,7vw,64px);
   line-height:1;
 }
 .sc-num{color:#3a3e50;}
@@ -82,18 +82,19 @@ body.fullscreen .player-meta{font-size:clamp(14px,2.5vw,36px);margin-top:4px;col
 
 /* shido row */
 .shido-row{
-  flex-shrink:0;display:flex;justify-content:center;gap:10px;
-  padding:6px 12px 10px;
+  flex-shrink:0;display:flex;justify-content:center;gap:8px;
+  padding:2px 8px 4px;
 }
 .shido-sq{width:24px;height:24px;border-radius:4px;border:2px solid #cccccc;background:transparent;cursor:pointer;transition:all .15s;}
 .shido-sq.on{background:#ff3030;border-color:#ff3030;}
-.blue .shido-sq{border-color:#2a2d3a;}
+.blue .shido-sq{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.05);}
+.white .shido-sq{border-color:rgba(0,0,0,.2);background:rgba(0,0,0,.05);}
 
 /* ════════════════════════════════
    TIMER BAR
    ════════════════════════════════ */
 #timer-bar{
-  flex-shrink:0;height:120px;
+  flex:1;min-height:0;
   background:#111318;border-top:2px solid #1e2130;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:8px;
@@ -101,7 +102,7 @@ body.fullscreen .player-meta{font-size:clamp(14px,2.5vw,36px);margin-top:4px;col
 
 /* main clock — click to start/pause */
 #main-clock{
-  font-family:'Bebas Neue',sans-serif;font-size:74px;
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(60px,8vh,110px);
   letter-spacing:4px;color:#ff3030;line-height:1;
   cursor:pointer;user-select:none;transition:color .3s,opacity .1s;
 }
@@ -113,7 +114,7 @@ body.fullscreen .player-meta{font-size:clamp(14px,2.5vw,36px);margin-top:4px;col
 @keyframes gpulse{0%,100%{opacity:1;}50%{opacity:.5;}}
 
 /* osaekomi row */
-#osae-row{display:flex;align-items:center;gap:12px;}
+#osae-row{display:flex;align-items:center;gap:12px;flex-direction:row-reverse;}
 
 /* blue assign square */
 .assign-sq{
@@ -128,7 +129,7 @@ body.fullscreen .player-meta{font-size:clamp(14px,2.5vw,36px);margin-top:4px;col
 /* osaekomi clock — click to start/stop */
 #osae-block{display:flex;flex-direction:column;align-items:center;cursor:pointer;}
 #osae-clock{
-  font-family:'Bebas Neue',sans-serif;font-size:36px;
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(30px,5vh,60px);
   letter-spacing:2px;line-height:1;color:#3a3f50;
   user-select:none;transition:opacity .1s,color .2s;
 }
@@ -212,6 +213,8 @@ body.fullscreen #app{background:#0a0a0e;}
 }
 .ctrl-btn:hover{color:#f0f0f0;border-color:#4a4f60;}
 .ctrl-btn.on{background:rgba(155,89,182,.2);color:#9b59b6;border-color:#9b59b6;}
+
+
 </style>
 <script src="db.js"></script>
 </head>
@@ -1217,12 +1220,28 @@ mirrorChannel.onmessage = e => {
   if(d.whiteName!==undefined){const el=document.getElementById('white-name');if(el)el.textContent=d.whiteName||'—';}
   if(d.blueMeta!==undefined){const el=document.getElementById('blue-meta');if(el)el.textContent=d.blueMeta||'';}
   if(d.whiteMeta!==undefined){const el=document.getElementById('white-meta');if(el)el.textContent=d.whiteMeta||'';}
-  if(d.timeLeft!==undefined){timeLeft=d.timeLeft;status=d.golden?'golden':'paused';syncMainClock();}
-  if(d.osaeTime!==undefined){osaeTime=d.osaeTime;osaeActive=d.osaeActive||false;syncOsaeClock();}
+  if(d.timeLeft!==undefined){
+    timeLeft=d.timeLeft;
+    status=d.golden?'golden':(d.status||'live');
+    syncMainClock();
+  }
+  if(d.osaeTime!==undefined){
+    osaeTime=d.osaeTime;
+    osaeActive=d.osaeActive||false;
+    syncOsaeClock();
+  }
   if(d.stage!==undefined){const el=document.getElementById('banner-stage');if(el)el.textContent=d.stage;}
 };
 // Request initial state
 mirrorChannel.postMessage({type:'request_state'});
+
+// Mirror: disable user interaction but keep display working
+function toggleTimer(){ /* no-op */ }
+function toggleOsae(){ /* no-op */ }
+function toggleMirror(){ /* no-op */ }
+function assignOsae(){ /* no-op */ }
+
+
 
 // Auto fullscreen
 setTimeout(()=>{
