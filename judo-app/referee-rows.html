@@ -519,7 +519,9 @@ function startMain(){
 
 function pauseMain(){if(mainInterval){clearInterval(mainInterval);mainInterval=null;}stopOsaeInterval();}
 
-function checkTimeEnd(){ playSound('timeup');
+function checkTimeEnd(){
+  // If osaekomi is active, stop main clock display at 0:00 but let osae continue
+  if(osaeActive){ status='paused'; timeLeft=0; syncMainClock(); syncClockSub(); return; } playSound('timeup');
   const b=SC.blue,w=SC.white;
   let win=null;
   if(b.W!==w.W)win=b.W>w.W?'blue':'white';
@@ -544,14 +546,18 @@ function toggleOsae(){
 }
 
 function startOsae(){
-  osaeActive=true;pauseMain();
+  osaeActive=true; // parallel - no pauseMain
   if(osaeInterval)clearInterval(osaeInterval);
   osaeInterval=setInterval(()=>{
     osaeTime++;
     if(osaeSide&&getOsaeKey(osaeTime,osaeSide)==='I'&&osaeTime>=10){
       stopOsaeInterval();osaeActive=false;
       add(osaeSide,'I');osaeTime=0;syncOsaeClock();
-      if(status==='live'||status==='golden')startMain();return;
+      return;
+    }
+    if(!osaeSide&&osaeTime>=20){
+      stopOsaeInterval();osaeActive=false;syncOsaeClock();
+      showToast('⚠ בחר צד לריתוק — הגיע ל-20 שניות');return;
     }
     syncOsaeClock();
   },1000);
@@ -647,7 +653,7 @@ function syncClockSub(){
   const m={idle:'לחץ להתחלה',live:'',paused:'מושהה',golden:'⚡ גולדן סקור',done:'הסתיים'};
   document.getElementById('clock-sub').textContent=m[status]||'';}
 
-function syncOsaeClock(){
+function syncOsaeClock(){ broadcastState();
   const el=document.getElementById('osae-clock');
   el.textContent=String(osaeTime).padStart(2,'0');
   el.classList.toggle('active',osaeActive);
@@ -913,6 +919,7 @@ function broadcastState(){
     winnerSide: status==='done'?(document.getElementById('win-name')?.style.color==='rgb(74, 144, 255)'?'blue':'white'):null,
     winReason: status==='done'?(document.getElementById('win-reason')?.textContent||null):null,
     status: status,
+    osaeActive: osaeActive,
   });
 }
 
@@ -926,7 +933,7 @@ function openMirror(){
   const base = location.href.split('?')[0]
     .replace('referee-sides.html', 'referee-mirror.html')
     .replace('referee-rows.html', 'referee-mirror.html');
-  mirrorWin = window.open(base, 'judo_mirror_window', 'width=1280,height=720');
+  mirrorWin = window.open(base, 'judo_mirror_window', 'width='+screen.availWidth+',height='+screen.availHeight+',left=0,top=0');
   document.getElementById('mirror-open-btn').textContent = '🪞 מראה ✓';
   document.getElementById('mirror-open-btn').classList.add('on');
 }
