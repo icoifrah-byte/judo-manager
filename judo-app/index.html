@@ -503,13 +503,43 @@ function showScreen(name,el){
   if(name==='attend') renderAttendance();
 }
 
-function switchTab(id,el){
+async function switchTab(id,el){
   ['t-comp','t-cat','t-tatami','t-champ','t-settings'].forEach(t=>{
     const el=document.getElementById(t);if(el)el.style.display='none';
   });
   document.getElementById(id).style.display='block';
   document.querySelectorAll('#main-tabs .tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
+  // Refresh categories+competitors from DB when opening tatami tab
+  if(id==='t-tatami'){
+    const c=C();
+    if(c?.dbId){
+      try{
+        const cats=await DB.getCategories(c.dbId);
+        if(cats?.length){
+          cats.forEach(cat=>{
+            let local=c.categories.find(lc=>lc.id===cat.id||lc.name===cat.name);
+            if(!local){
+              local={id:cat.id,dbId:cat.id,name:cat.name,method:cat.method||'knockout',
+                     status:cat.status||'pending',tatamiId:cat.tatami_id||null,competitors:[],fromExcel:true};
+              c.categories.push(local);
+            } else {
+              local.dbId=cat.id;
+              local.tatamiId=cat.tatami_id||null;
+            }
+            // Update competitors
+            (cat.competitors||[]).forEach(cp=>{
+              if(!c.competitors.find(x=>x.dbId===cp.id)){
+                c.competitors.push({id:cp.id,dbId:cp.id,name:cp.name,club:cp.club||'',
+                  category:cat.name,tatami:cat.tatami_id?String(cat.tatami_id):null,fromExcel:true});
+              }
+            });
+          });
+          renderTatamiTab(c);
+        }
+      }catch(e){console.warn('refresh tatami:',e);}
+    }
+  }
 }
 
 // ════════════════════════════════
@@ -751,6 +781,13 @@ function selectDisplay(type){
 // ════════════════════════════════
 function openChampModal(){
   const c=C();if(!c)return;
+  // Populate tatami selector
+  const tatSel=document.getElementById('champ-tatami');
+  if(tatSel){
+    let opts='';
+    for(let i=1;i<=(c.tatami_count||1);i++) opts+=`<option value="${i}">מזרן ${i}</option>`;
+    tatSel.innerHTML=opts;
+  }
   document.getElementById('champ-cats').innerHTML=c.categories.map(cat=>`
     <label class="chk-label">
       <input type="checkbox" value="${cat.id}" onchange="updateChampPrev()">
@@ -779,15 +816,73 @@ function updateChampPrev(){
   ).join('');
 }
 
-function createChamp(){
+async function createChamp(){
   const c=C();if(!c)return;
   const name=document.getElementById('champ-name').value.trim()||'אלוף האלופים';
   const catIds=[...document.querySelectorAll('#champ-cats input:checked')].map(i=>i.value);
+  const tatamiId=+(document.getElementById('champ-tatami')?.value||1);
   if(catIds.length<2){alert('יש לבחור לפחות 2 קטגוריות');return;}
-  c.champions.push({id:Date.now(),name,cat_ids:catIds});
+  
   closeModal('champ-modal');
-  document.getElementById('champ-name').value='';
-  renderDash();showAlert('success',`✓ טורניר "${name}" נוצר`);
+  showAlert('success','⏳ יוצר טורניר...');
+  
+  try{
+    // 1. Find the champion (1st place) of each selected category
+    const champions=[];
+    const cats=await DB.getCategories(c.dbId);
+    for(const catId of catIds){
+      const cat=(cats||[]).find(x=>x.id===catId||x.id===String(catId));
+      if(!cat) continue;
+      const matches=cat.matches||[];
+      const comps=cat.competitors||[];
+      // Find final winner (knockout) or league leader
+      let champ=null;
+      if(cat.method==='league'){
+        const pts={};
+        comps.forEach(cp=>pts[cp.id]=0);
+        matches.filter(m=>m.status==='done'&&m.winner_id).forEach(m=>{pts[m.winner_id]=(pts[m.winner_id]||0)+2;});
+        const best=Object.entries(pts).sort((a,b)=>b[1]-a[1])[0];
+        if(best) champ=comps.find(cp=>cp.id===best[0]);
+      } else {
+        const fin=matches.find(m=>m.stage==='גמר'&&m.status==='done'&&m.winner_id);
+        if(fin) champ=comps.find(cp=>cp.id===fin.winner_id);
+      }
+      if(champ) champions.push({...champ,fromCat:cat.name});
+    }
+    
+    if(champions.length<2){
+      showAlert('error','⚠ אין מספיק אלופים — ודא שהקטגוריות הסתיימו');
+      return;
+    }
+    
+    // 2. Create new category in DB
+    const catRow=await DB.createCategory({
+      competition_id:c.dbId,
+      name:'👑 '+name,
+      method:'knockout',
+      status:'pending',
+      tatami_id:tatamiId,
+    });
+    const champCatId=catRow?.id||catRow?.[0]?.id;
+    if(!champCatId){ showAlert('error','⚠ שגיאה ביצירת קטגוריה'); return; }
+    
+    // 3. Add champions as competitors
+    const compRows=await DB.upsertCompetitors(
+      champions.map(ch=>({category_id:champCatId,name:ch.name,club:ch.club||'',seed:null}))
+    );
+    
+    // 4. Save to local state
+    c.champions.push({id:Date.now(),name,cat_ids:catIds,dbCatId:champCatId,tatami:tatamiId});
+    c.categories.push({id:champCatId,dbId:champCatId,name:'👑 '+name,method:'knockout',
+      status:'pending',tatamiId:tatamiId,competitors:[],fromExcel:false});
+    
+    document.getElementById('champ-name').value='';
+    renderDash();
+    showAlert('success',`✓ טורניר "${name}" נוצר עם ${champions.length} אלופים במזרן ${tatamiId} — פתח את עץ התחרות ליצירת הקרבות`);
+  }catch(e){
+    console.error('createChamp:',e);
+    showAlert('error','⚠ שגיאה ביצירת טורניר');
+  }
 }
 
 function deleteChamp(idx){
