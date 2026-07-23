@@ -307,12 +307,18 @@ function add(side,key){
   syncScore();checkWin();
 }
 
-function toggleShido(side,idx){
-  if(status==='done')return;
-  hist.push({side,snap:{...SC[side]},shidoSnap:[...SHIDO[side]]});
-  SHIDO[side][idx]=!SHIDO[side][idx];
-  SC[side].S=SHIDO[side].filter(Boolean).length;
-  syncShido(side);checkWin();
+function toggleShido(side, idx){
+  if(status==='done') return;
+  const cur = SHIDO[side].filter(Boolean).length;
+  // Shido always fills in order: left → middle → right.
+  // Clicking an already-marked square undoes back to it.
+  const next = (idx < cur) ? idx : Math.min(cur + 1, 3);
+  if(next === cur) return;
+  saveHist(side);
+  SHIDO[side] = [0,1,2].map(i => i < next);
+  SC[side].S = next;
+  syncShido(side);
+  checkWin();
 }
 
 function undoLast(){
