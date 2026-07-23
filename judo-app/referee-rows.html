@@ -297,6 +297,7 @@ let isOffline=false,mirrored=false,sidesSwapped=false;
 let pendingOsaeTime=0,pendingOsaeTimeout=null;
 
 function add(side,key){
+  if(_lpFired){ _lpFired=false; return; }
   if(status==='done')return;
   hist.push({side,snap:{...SC[side]},shidoSnap:[...SHIDO[side]]});
   if(key==='W'){
@@ -308,6 +309,7 @@ function add(side,key){
 }
 
 function toggleShido(side, idx){
+  if(_lpFired){ _lpFired=false; return; }
   if(status==='done') return;
   const cur = SHIDO[side].filter(Boolean).length;
   // Shido always fills in order: left → middle → right.
@@ -1028,6 +1030,71 @@ function closeAmbience(){
   if(_ambUrl){ URL.revokeObjectURL(_ambUrl); _ambUrl=null; }
 }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAmbience(); });
+
+function saveHist(side){
+  hist.push({side,snap:{...SC[side]},shidoSnap:[...SHIDO[side]]});
+}
+
+// ════ REMOVE SCORE / SHIDO — right-click (or long-press on touch) ════
+function sub(side,key){
+  if(status==='done') return;
+  const s=SC[side];
+  const cur = key==='I'?s.I : key==='W'?s.W : key==='Y'?s.Y : 0;
+  if(!cur) return;
+  saveHist(side);
+  if(key==='I') s.I=0;
+  else if(key==='W') s.W=Math.max(0,s.W-1);
+  else s.Y=Math.max(0,s.Y-1);
+  syncScore();
+  showToast('− '+key+' הוסר');
+}
+
+function subShido(side){
+  if(status==='done') return;
+  const cur=SHIDO[side].filter(Boolean).length;
+  if(!cur) return;
+  saveHist(side);
+  SHIDO[side]=[0,1,2].map(i=>i<cur-1);
+  SC[side].S=cur-1;
+  syncShido(side);
+  syncScore();
+  showToast('− שידו הוסר');
+}
+
+function _hitCell(t){
+  return t&&t.closest?t.closest('.score-col,.iwy-pill,.shido-sq,.shido-dot'):null;
+}
+function _sideOf(el){
+  const half=el.closest('.half,.row-half');
+  if(!half) return null;
+  return half.classList.contains('blue')?'blue':'white';
+}
+function removeAt(el){
+  const side=_sideOf(el);
+  if(!side) return;
+  if(el.classList.contains('shido-sq')||el.classList.contains('shido-dot')){ subShido(side); return; }
+  const lbl=(el.querySelector('.sc-lbl,.iwy-pill-lbl')||{}).textContent;
+  const key=(lbl||'').trim();
+  if(key==='I'||key==='W'||key==='Y') sub(side,key);
+}
+
+document.addEventListener('contextmenu',e=>{
+  const el=_hitCell(e.target);
+  if(!el) return;
+  e.preventDefault();
+  removeAt(el);
+});
+
+let _lpTimer=null, _lpFired=false;
+document.addEventListener('touchstart',e=>{
+  const el=_hitCell(e.target);
+  if(!el) return;
+  _lpFired=false;
+  clearTimeout(_lpTimer);
+  _lpTimer=setTimeout(()=>{ _lpFired=true; removeAt(el); },600);
+},{passive:true});
+['touchend','touchmove','touchcancel'].forEach(ev=>
+  document.addEventListener(ev,()=>clearTimeout(_lpTimer),{passive:true}));
 
 function showToast(msg){
   const t=document.createElement('div');
