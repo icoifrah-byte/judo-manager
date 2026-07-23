@@ -194,6 +194,56 @@ function setActiveCompId(id) {
   localStorage.setItem(DB_COMP_KEY, id);
 }
 
+
+// ══════════════════════════════════════════
+// MediaStore — IndexedDB storage for large media
+// (ambience video/image; localStorage is too small)
+// ══════════════════════════════════════════
+const MediaStore = {
+  _dbp: null,
+  _open() {
+    if (this._dbp) return this._dbp;
+    this._dbp = new Promise((resolve, reject) => {
+      const req = indexedDB.open('judo_media', 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('files')) db.createObjectStore('files');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return this._dbp;
+  },
+  async put(key, blob, meta) {
+    const db = await this._open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('files', 'readwrite');
+      tx.objectStore('files').put({ blob, meta: meta || {} }, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async get(key) {
+    const db = await this._open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('files', 'readonly');
+      const rq = tx.objectStore('files').get(key);
+      rq.onsuccess = () => resolve(rq.result || null);
+      rq.onerror = () => reject(rq.error);
+    });
+  },
+  async del(key) {
+    const db = await this._open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('files', 'readwrite');
+      tx.objectStore('files').delete(key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+};
+window.MediaStore = MediaStore;
+
 // ── Export ──
 window.DB = DB;
 window.getActiveCompId = getActiveCompId;
