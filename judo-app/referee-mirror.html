@@ -35,10 +35,7 @@ body.fullscreen #app{height:100vh;width:100vw;}
 .half.blue{background:#0033aa;}
 .half.white{background:#f0f0f0;border-left:2px solid #cccccc;}
 .white .sc-lbl{color:#aaaaaa;}
-.white .info-strip{
-  flex-shrink:0;padding:6px 14px;
-  border-bottom:1px solid rgba(255,255,255,.07);
-}
+.white .info-strip{border-bottom:1px solid #dddddd;}
 
 /* player info strip */
 .info-strip{
@@ -1214,7 +1211,9 @@ mirrorChannel.onmessage = e => {
     SC.blue.Y=b.Y??d.sc.bY??0; SC.blue.S=b.S??d.sc.bS??0;
     SC.white.I=w.I??d.sc.wI??0; SC.white.W=w.W??d.sc.wW??0;
     SC.white.Y=w.Y??d.sc.wY??0; SC.white.S=w.S??d.sc.wS??0;
-    syncScore();
+    SHIDO.blue=[0,1,2].map(i=>i<SC.blue.S);
+    SHIDO.white=[0,1,2].map(i=>i<SC.white.S);
+    syncScore(); syncShido('blue'); syncShido('white');
   }
   if(d.blueName!==undefined){const el=document.getElementById('blue-name');if(el)el.textContent=d.blueName||'—';}
   if(d.whiteName!==undefined){const el=document.getElementById('white-name');if(el)el.textContent=d.whiteName||'—';}
