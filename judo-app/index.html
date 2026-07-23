@@ -345,6 +345,19 @@ td{padding:9px 12px;font-size:13px;}
             </div>
           </div>
         </div>
+        <!-- ════ AMBIENCE MEDIA ════ -->
+        <div class="divider" style="margin:16px 0"></div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🎬 מסך אווירה</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:12px">סרטון או תמונה שיוצגו בלופ כשלוחצים "אווירה" בשעון השיפוט</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;padding:6px 12px;">
+            📂 בחר סרטון / תמונה
+            <input type="file" accept="video/*,image/*" style="display:none" onchange="uploadAmbience(this)">
+          </label>
+          <span id="amb-name" style="font-size:11px;color:var(--text2)">לא נבחר</span>
+          <button id="amb-clear" style="display:none;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:11px;color:var(--red);padding:2px 8px" onclick="clearAmbience()">✕ הסר</button>
+        </div>
+        <div id="amb-prev" style="margin-top:10px"></div>
         </div>
       </div>
     </div>
@@ -449,6 +462,9 @@ td{padding:9px 12px;font-size:13px;}
       <div class="form-grid cols1" style="gap:14px">
         <div class="form-group"><label>שם קטגוריה * (לדוגמה: U18 -73)</label><input type="text" class="form-control" id="cat-name-in" placeholder="U18 -73"></div>
         <div class="form-group"><label>זמן קרב מיוחד (שניות, ריק = ברירת מחדל)</label><input type="number" class="form-control" id="cat-dur-in" placeholder="180"></div>
+        <div class="form-group"><label>מזרן * (בלי מזרן הקטגוריה לא תופיע בשעון שיפוט)</label>
+          <select class="form-control" id="cat-tatami-in"></select>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -492,7 +508,17 @@ const DEF={golden_score:true,random_bye:true,yuko_enabled:true,match_duration:18
 
 const C=()=>S.competitions.find(c=>c.id===S.activeId)||null;
 
-function openModal(id){document.getElementById(id).classList.remove('hidden');}
+function openModal(id){
+  document.getElementById(id).classList.remove('hidden');
+  if(id==='add-cat-modal'){
+    const c=C(), sel=document.getElementById('cat-tatami-in');
+    if(c&&sel){
+      let o='';
+      for(let i=1;i<=(c.tatami_count||1);i++) o+=`<option value="${i}">מזרן ${i}</option>`;
+      sel.innerHTML=o;
+    }
+  }
+}
 function closeModal(id){document.getElementById(id).classList.add('hidden');}
 
 function showScreen(name,el){
@@ -510,6 +536,7 @@ async function switchTab(id,el){
   document.getElementById(id).style.display='block';
   document.querySelectorAll('#main-tabs .tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
+  if(id==='t-settings'){ try{ initSoundUI(); initAmbienceUI(); }catch(e){console.warn(e);} }
   // Refresh categories+competitors from DB when opening tatami tab
   if(id==='t-tatami'){
     const c=C();
@@ -639,16 +666,23 @@ async function addCatManual(){
   if(!name){alert('נדרש שם');return;}
   if(c.categories.find(cat=>cat.name===name)){alert('קטגוריה קיימת');return;}
   const dur=document.getElementById('cat-dur-in').value;
-  const localCat={id:Date.now(),name,duration:dur?+dur:null,competitors:[],fromExcel:false,method:'knockout'};
+  const tat=+(document.getElementById('cat-tatami-in')?.value||1);
+  const localCat={id:Date.now(),name,duration:dur?+dur:null,competitors:[],fromExcel:false,method:'knockout',tatamiId:tat};
   c.categories.push(localCat);
   closeModal('add-cat-modal');
   document.getElementById('cat-name-in').value='';
-  renderDash();showAlert('success','✓ קטגוריה נוספה');
+  renderDash();
   if(c.dbId){
     try{
-      const row=await DB.createCategory({competition_id:c.dbId,name,method:'knockout',status:'pending'});
-      if(row)localCat.dbId=row.id;
-    }catch(e){console.error('save category:',e);}
+      const row=await DB.createCategory({competition_id:c.dbId,name,method:'knockout',status:'pending',tatami_id:tat});
+      if(row){
+        localCat.dbId=row.id;
+        localCat.id=row.id;
+        showAlert('success',`✓ קטגוריה נוספה למזרן ${tat} — הוסף מתחרים ופתח את עץ התחרות ליצירת הקרבות`);
+      }
+    }catch(e){console.error('save category:',e);showAlert('error','⚠ שגיאה בשמירת הקטגוריה');}
+  } else {
+    showAlert('success','✓ קטגוריה נוספה');
   }
 }
 
@@ -699,13 +733,15 @@ async function addCompManual(){
       let cat=c.categories.find(ct=>ct.name===catName);
       // Create category in DB if it doesn't have a dbId yet
       if(cat && !cat.dbId){
+        const catTat=cat.tatamiId||(comp.tatami?parseInt(comp.tatami):null)||1;
         const catRow=await DB.createCategory({
           competition_id:c.dbId,
           name:cat.name,
           method:cat.method||'knockout',
           status:'pending',
+          tatami_id:catTat,
         });
-        if(catRow) cat.dbId=catRow.id||catRow[0]?.id;
+        if(catRow){ cat.dbId=catRow.id||catRow[0]?.id; cat.tatamiId=catTat; }
       }
       const catDbId=cat?.dbId||null;
       if(catDbId){
@@ -985,10 +1021,11 @@ async function confirmImport(){
             name:cat.name,
             method:cat.method||'knockout',
             status:'pending',
+            tatami_id:tatamiId||1,
           });
           if(row){
             cat.dbId=row.id;
-            cat.tatamiId=tatamiId;
+            cat.tatamiId=tatamiId||1;
           }
         }
       }
@@ -1396,7 +1433,7 @@ async function exportMedals(){
       const isLeague = cat.method==='league';
 
       // Calculate places using same logic as bracket.html
-      const places = calcPlaces(matches, comps, isLeague);
+      const places = calcPlaces(matches, comps, isLeague, cat.id);
       
       for(const p of places){
         if(!p.comp) continue;
@@ -1434,7 +1471,7 @@ async function exportMedals(){
   }
 }
 
-function calcPlaces(matches, comps, isLeague){
+function calcPlaces(matches, comps, isLeague, catId){
   const places = [];
   if(isLeague){
     const allDone = matches.every(m=>m.status==='done');
@@ -1448,7 +1485,15 @@ function calcPlaces(matches, comps, isLeague){
       if(wComp){scores[wComp.id].pts+=2;scores[wComp.id].wins++;}
     });
     const sorted=Object.values(scores).sort((a,b)=>b.pts-a.pts||b.wins-a.wins);
-    sorted.forEach((s,i)=>places.push({place:i+1,comp:s.comp}));
+    // manual placements set by the tournament manager (tie-break in bracket.html)
+    let manual={};
+    try{ manual=JSON.parse(localStorage.getItem('judo_league_places_'+catId)||'{}'); }catch(e){}
+    if(Object.keys(manual).length){
+      sorted.sort((a,b)=>(manual[a.comp.id]||99)-(manual[b.comp.id]||99)||b.pts-a.pts);
+      sorted.forEach((s,i)=>places.push({place:manual[s.comp.id]||i+1,comp:s.comp}));
+    } else {
+      sorted.forEach((s,i)=>places.push({place:i+1,comp:s.comp}));
+    }
   } else {
     // Final
     const fin=matches.find(m=>m.stage==='גמר'&&m.status==='done');
@@ -1471,7 +1516,70 @@ function calcPlaces(matches, comps, isLeague){
         if(lComp&&!places.find(p=>p.comp?.id===lComp.id)) places.push({place:5,comp:lComp});
       });
   }
+
+  // Small category rule: up to 6 competitors → 1st, 2nd, everyone else 3rd
+  if(comps.length<=6 && places.length){
+    const seen=new Set(places.map(p=>p.comp?.id));
+    // everyone already placed below 2nd becomes 3rd
+    places.forEach(p=>{ if(p.place>2) p.place=3; });
+    // anyone who fought but has no place yet also gets 3rd
+    comps.forEach(cp=>{
+      if(seen.has(cp.id)) return;
+      const fought=matches.some(m=>m.win_reason!=='bye'&&(m.blue_id===cp.id||m.white_id===cp.id));
+      if(fought) places.push({place:3,comp:cp});
+    });
+  }
   return places;
+}
+
+
+// ════ AMBIENCE MEDIA ════
+async function uploadAmbience(input){
+  const file=input.files[0];
+  if(!file) return;
+  try{
+    await MediaStore.put('ambience', file, {name:file.name, type:file.type});
+    localStorage.setItem('judo_ambience_name', file.name);
+    localStorage.setItem('judo_ambience_type', file.type);
+    initAmbienceUI();
+    showAlert('success','✓ מסך אווירה נשמר: '+file.name);
+  }catch(e){
+    console.error('ambience:',e);
+    showAlert('error','⚠ שגיאה בשמירת הקובץ');
+  }
+}
+
+async function clearAmbience(){
+  try{ await MediaStore.del('ambience'); }catch(e){}
+  localStorage.removeItem('judo_ambience_name');
+  localStorage.removeItem('judo_ambience_type');
+  initAmbienceUI();
+}
+
+async function initAmbienceUI(){
+  const nameEl=document.getElementById('amb-name');
+  const clrEl=document.getElementById('amb-clear');
+  const prev=document.getElementById('amb-prev');
+  if(!nameEl) return;
+  const nm=localStorage.getItem('judo_ambience_name');
+  const ty=localStorage.getItem('judo_ambience_type')||'';
+  if(prev) prev.innerHTML='';
+  if(!nm){
+    nameEl.textContent='לא נבחר';
+    if(clrEl) clrEl.style.display='none';
+    return;
+  }
+  nameEl.textContent=nm;
+  if(clrEl) clrEl.style.display='inline';
+  try{
+    const rec=await MediaStore.get('ambience');
+    if(rec?.blob&&prev){
+      const url=URL.createObjectURL(rec.blob);
+      prev.innerHTML = ty.startsWith('video')
+        ? `<video src="${url}" muted loop autoplay playsinline style="max-width:260px;border-radius:8px;border:1px solid var(--border)"></video>`
+        : `<img src="${url}" style="max-width:260px;border-radius:8px;border:1px solid var(--border)">`;
+    }
+  }catch(e){}
 }
 
 // ════ SOUND MANAGEMENT ════
