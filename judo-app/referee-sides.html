@@ -34,30 +34,27 @@ body.fullscreen #app{height:100vh;width:100vw;}
 .half.blue{background:#0033aa;}
 .half.white{background:#f0f0f0;border-left:2px solid #cccccc;}
 .white .sc-lbl{color:#aaaaaa;}
-.white .info-strip{
-  flex:1 1 0;min-height:0;
+.white .info-strip{border-bottom:1px solid #dddddd;}
+
+/* player info strip — takes ~40% of the half, score area gets the rest */
+.info-strip{
+  flex:2 1 0;min-height:0;
   display:flex;flex-direction:column;justify-content:center;
   padding:8px 14px;
-  border-bottom:1px solid rgba(255,255,255,.07);
-}
-
-/* player info strip */
-.info-strip{
-  flex-shrink:0;padding:8px 14px;
   border-bottom:1px solid rgba(255,255,255,.07);
 }
 .player-name{font-size:clamp(18px,4.5vh,40px);font-weight:700;line-height:1.15;}
 /* Fullscreen: bigger name row */
 body.fullscreen .info-strip{padding:10px 20px;}
 body.fullscreen .player-name{font-size:clamp(28px,6vh,58px);}
-body.fullscreen .player-meta{font-size:clamp(12px,2.2vh,22px);margin-top:5px;}
+body.fullscreen .player-meta{font-size:clamp(14px,2.6vh,28px);margin-top:6px;}
 .blue .player-name{color:#ffffff;}
 .white .player-name{color:#111118;}
-.player-meta{font-size:10px;color:#888898;margin-top:1px;}
+.player-meta{font-size:clamp(11px,2.2vh,20px);color:#888898;margin-top:4px;}
 
 /* IWY scoring area — fills remaining space */
 .score-area{
-  flex:2 1 0;display:flex;align-items:stretch;min-height:0;
+  flex:3 1 0;display:flex;align-items:stretch;min-height:0;
 }
 .score-col{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -667,9 +664,14 @@ function add(side, key){
 
 function toggleShido(side, idx){
   if(status==='done') return;
+  const cur = SHIDO[side].filter(Boolean).length;
+  // Shido always fills in order: left → middle → right.
+  // Clicking an already-marked square undoes back to it.
+  const next = (idx < cur) ? idx : Math.min(cur + 1, 3);
+  if(next === cur) return;
   saveHist(side);
-  SHIDO[side][idx] = !SHIDO[side][idx];
-  SC[side].S = SHIDO[side].filter(Boolean).length;
+  SHIDO[side] = [0,1,2].map(i => i < next);
+  SC[side].S = next;
   syncShido(side);
   checkWin();
 }
