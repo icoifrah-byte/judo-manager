@@ -59,6 +59,7 @@ html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--bg);color:
 .mu:hover .mact{opacity:1;pointer-events:all;}
 .abt{width:20px;height:20px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .abt:hover{color:var(--text);}
+.mdur{font-size:9px;color:var(--text2);padding:3px 6px;text-align:center;letter-spacing:.3px;border-top:1px solid var(--bg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .plbl{position:absolute;top:50%;right:-82px;transform:translateY(-50%);font-size:10px;font-weight:700;white-space:nowrap;pointer-events:none;}
 .sdot{position:absolute;bottom:2px;right:3px;font-size:8px;color:var(--accent);}
 .slbl{position:absolute;font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:2px;}
@@ -601,6 +602,25 @@ function render(br){
   renderResults(br);
 }
 
+// ── Manual league placements (used when wins are tied) ──
+function leagueKey(catId){ return 'judo_league_places_'+catId; }
+function getLeaguePlaces(catId){
+  if(!catId) return null;
+  try{ return JSON.parse(localStorage.getItem(leagueKey(catId))||'{}'); }catch(e){ return {}; }
+}
+function setLeaguePlace(catId,compId,place){
+  const cur=getLeaguePlaces(catId)||{};
+  // a place can only belong to one competitor
+  Object.keys(cur).forEach(k=>{ if(cur[k]===place) delete cur[k]; });
+  cur[compId]=place;
+  localStorage.setItem(leagueKey(catId),JSON.stringify(cur));
+  if(CB) renderResults(CB);
+}
+function clearLeaguePlaces(catId){
+  localStorage.removeItem(leagueKey(catId));
+  if(CB) renderResults(CB);
+}
+
 function renderResults(br){
   const el=document.getElementById('rlist');
   if(!el)return;
@@ -619,27 +639,64 @@ function renderResults(br){
     if(lC) places.push({place:2,comp:lC});
   }
 
-  // League: sort by wins — only show results when all matches done
+  // League: wins table; on a tie the admin decides the placements manually
   if(br.type==='league'){
     const allDone=ms.every(m=>m.status==='done');
-    if(allDone){
-      const scores={};
-      br.comps.forEach(c=>scores[c.id]={comp:c,pts:0,wins:0});
-      ms.forEach(m=>{
-        if(m.status!=='done')return;
-        if(m.wComp){scores[m.wComp.id].pts+=2;scores[m.wComp.id].wins++;}
-      });
-      const sorted=Object.values(scores).sort((a,b)=>b.pts-a.pts||b.wins-a.wins);
-      sorted.forEach((s,i)=>places.push({place:i+1,comp:s.comp,pts:s.pts}));
-      el.innerHTML=sorted.map((s,i)=>`
-        <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
-          <div style="width:18px;height:18px;border-radius:50%;${placeStyle(i+1)};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
-          <div style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.comp.name}</div>
-          <div style="font-size:10px;color:var(--text2)">${s.pts}pt</div>
-        </div>`).join('');
-    } else {
+    if(!allDone){
       el.innerHTML='<div style="padding:12px;color:var(--text2);font-size:11px;text-align:center">ממתין לסיום כל הקרבות</div>';
+      return;
     }
+    const scores={};
+    br.comps.forEach(c=>scores[c.id]={comp:c,pts:0,wins:0,losses:0});
+    ms.forEach(m=>{
+      if(m.status!=='done')return;
+      if(m.wComp&&scores[m.wComp.id]){scores[m.wComp.id].pts+=2;scores[m.wComp.id].wins++;}
+      if(m.lComp&&scores[m.lComp.id]){scores[m.lComp.id].losses++;}
+    });
+    const rows=Object.values(scores);
+    const sorted=rows.slice().sort((a,b)=>b.wins-a.wins||b.pts-a.pts);
+
+    // tie = two or more competitors with the same number of wins
+    const winCounts={};
+    rows.forEach(s=>winCounts[s.wins]=(winCounts[s.wins]||0)+1);
+    const hasTie=Object.values(winCounts).some(n=>n>1);
+
+    const manual=getLeaguePlaces(br.catDbId);
+    const hasManual=manual&&Object.keys(manual).length>0;
+
+    if(hasTie&&!hasManual){
+      // Let the tournament manager choose 1 / 2 / 3 by hand
+      el.innerHTML=`
+        <div style="padding:10px 12px;background:rgba(232,200,74,.08);border-bottom:1px solid var(--border);font-size:10px;color:var(--accent);line-height:1.5">
+          ⚖ תיקו בניצחונות — בחר ידנית את המקומות
+        </div>
+        ${sorted.map(s=>`
+          <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px">
+            <div style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.comp.name}</div>
+            <div style="font-size:9px;color:var(--text2);white-space:nowrap">${s.wins}נ' ${s.losses}ה'</div>
+            ${[1,2,3].map(n=>`<button onclick="setLeaguePlace('${br.catDbId}','${s.comp.id}',${n})"
+                style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:4px;font-size:10px;padding:2px 6px;cursor:pointer">${n}</button>`).join('')}
+          </div>`).join('')}`;
+      return;
+    }
+
+    const ranked = hasManual
+      ? rows.slice().sort((a,b)=>(manual[a.comp.id]||99)-(manual[b.comp.id]||99)||b.wins-a.wins)
+      : sorted;
+
+    el.innerHTML=ranked.map((s,i)=>{
+      const place=hasManual?(manual[s.comp.id]||i+1):i+1;
+      return `
+        <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <div style="width:18px;height:18px;border-radius:50%;${placeStyle(place)};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${place}</div>
+          <div style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.comp.name}</div>
+          <div style="font-size:9px;color:var(--text2);white-space:nowrap">${s.wins}נ' ${s.losses}ה'</div>
+          <div style="font-size:10px;color:var(--text2)">${s.pts}pt</div>
+        </div>`;
+    }).join('')
+    + (hasManual?`<div style="padding:8px 12px;text-align:center">
+        <button onclick="clearLeaguePlaces('${br.catDbId}')" style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:5px;font-size:10px;padding:3px 10px;cursor:pointer">↺ אפס בחירה ידנית</button>
+      </div>`:'');
     return;
   }
 
@@ -653,8 +710,9 @@ function renderResults(br){
     if(m.wComp) places.push({place:3,comp:m.wComp});
     if(m.lComp) places.push({place:5,comp:m.lComp});
   });
-  // place='5th' = consol semi → loser=7th
-  const consolSemis=ms.filter(m=>m.place==='5th'&&m.status==='done');
+  // place='5th' = consol semi → only the 2 most advanced (highest id) losers get 7th
+  const consolSemis=ms.filter(m=>m.place==='5th'&&m.status==='done')
+    .sort((a,b)=>b.id-a.id).slice(0,2);
   const placed7=new Set(places.map(p=>p.comp?.id));
   consolSemis.forEach(m=>{
     if(m.lComp&&!placed7.has(m.lComp.id)){
@@ -747,6 +805,7 @@ function card(m,br){
     ${srow(m,'blue', isR1,bWin,done&&m.sc?`${m.sc.bI??''}${m.sc.bW??''}${m.sc.bY??''}`:'',m.sc?.bS)}
     <div style="height:1px;background:var(--bg)"></div>
     ${srow(m,'white',isR1,wWin,done&&m.sc?`${m.sc.wI??''}${m.sc.wW??''}${m.sc.wY??''}`:'',m.sc?.wS)}
+    ${done?`<div class="mdur">${scoreLine(m)}${m.wr?' · '+m.wr:''}${matchDur(m)?' · ⏱ '+matchDur(m):''}</div>`:''}
     ${m.place==='final'?'<div class="plbl" style="color:var(--accent)">🥇 אלוף</div>':''}
     ${m.place==='3rd'?'<div class="plbl" style="color:#c07840">🥉 מקום 3</div>':''}
     <div class="mact">
@@ -772,6 +831,23 @@ function card(m,br){
     });
   }
   return div;
+}
+
+// Duration between started_at and ended_at → "m:ss"
+function matchDur(m){
+  if(!m.startedAt||!m.endedAt) return '';
+  try{
+    const ms=new Date(m.endedAt)-new Date(m.startedAt);
+    if(ms<0||ms>3600000) return '';
+    const s=Math.floor(ms/1000);
+    return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+  }catch(e){ return ''; }
+}
+// "100 – 000" style score for a finished match
+function scoreLine(m){
+  if(!m.sc) return '';
+  const g=(k)=>m.sc[k]??0;
+  return `${g('bI')}${g('bW')}${g('bY')} – ${g('wI')}${g('wW')}${g('wY')}`;
 }
 
 function srow(m,side,r1,win,sc,shido){
@@ -1035,7 +1111,8 @@ async function init(){
     // Load categories + competitors for active competition
     const cats = await DB.getCategories(compId);
     if(!cats||!cats.length){
-      tabs.innerHTML='<div style="padding:0 14px;font-size:11px;color:var(--txt2)">אין קטגוריות — צור קטגוריות בניהול</div>';
+      tabs.innerHTML='<div style="padding:0 14px;font-size:11px;color:var(--txt2)">אין קטגוריות — צור קטגוריות בניהול <button onclick="init()" style="margin-right:8px;padding:2px 8px;background:#333;color:#fff;border:1px solid #555;border-radius:4px;cursor:pointer;font-size:11px;">🔄 רענן</button></div>';
+      setTimeout(init, 3000);
       return;
     }
     allCategories = cats;
@@ -1179,6 +1256,8 @@ function applyDBResults(br, dbMatches){
         if(!m.sc) m.sc={bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0};
         if(dbM.score && typeof dbM.score==='object') m.sc=dbM.score;
         if(dbM.win_reason) m.wr=dbM.win_reason;
+        m.startedAt=dbM.started_at||null;
+        m.endedAt=dbM.ended_at||dbM.updated_at||null;
         // For knockout: propagate in memory to fill next matches
         if(br.type!=='league') prop(m, br.matches);
       }
