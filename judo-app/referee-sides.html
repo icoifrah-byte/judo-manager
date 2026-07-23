@@ -35,7 +35,9 @@ body.fullscreen #app{height:100vh;width:100vw;}
 .half.white{background:#f0f0f0;border-left:2px solid #cccccc;}
 .white .sc-lbl{color:#aaaaaa;}
 .white .info-strip{
-  flex-shrink:0;padding:8px 14px;
+  flex:1 1 0;min-height:0;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:8px 14px;
   border-bottom:1px solid rgba(255,255,255,.07);
 }
 
@@ -44,18 +46,18 @@ body.fullscreen #app{height:100vh;width:100vw;}
   flex-shrink:0;padding:8px 14px;
   border-bottom:1px solid rgba(255,255,255,.07);
 }
-.player-name{font-size:15px;font-weight:700;line-height:1.2;}
+.player-name{font-size:clamp(18px,4.5vh,40px);font-weight:700;line-height:1.15;}
 /* Fullscreen: bigger name row */
-body.fullscreen .info-strip{padding:16px 20px;}
-body.fullscreen .player-name{font-size:28px;}
-body.fullscreen .player-meta{font-size:13px;margin-top:4px;}
+body.fullscreen .info-strip{padding:10px 20px;}
+body.fullscreen .player-name{font-size:clamp(28px,6vh,58px);}
+body.fullscreen .player-meta{font-size:clamp(12px,2.2vh,22px);margin-top:5px;}
 .blue .player-name{color:#ffffff;}
 .white .player-name{color:#111118;}
 .player-meta{font-size:10px;color:#888898;margin-top:1px;}
 
 /* IWY scoring area — fills remaining space */
 .score-area{
-  flex:1;display:flex;align-items:stretch;min-height:0;
+  flex:2 1 0;display:flex;align-items:stretch;min-height:0;
 }
 .score-col{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
