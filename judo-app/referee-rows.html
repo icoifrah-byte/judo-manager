@@ -122,10 +122,24 @@ body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
 .side-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:6px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
 .side-btn-p{background:#e8c84a;color:#000;}
 .side-btn-s{background:#191c24;color:#f0f0f0;border:1px solid #1e2130;}
+
+/* ambience overlay */
+#amb-ov{position:fixed;inset:0;z-index:900;background:#000;display:none;align-items:center;justify-content:center;}
+#amb-ov.show{display:flex;}
+#amb-ov video,#amb-ov img{width:100%;height:100%;object-fit:contain;}
+#amb-close{position:absolute;top:14px;left:14px;z-index:5;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:8px 16px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;}
+#amb-close:hover{background:rgba(0,0,0,.8);}
+#amb-empty{color:#666;font-size:15px;font-family:'Heebo',sans-serif;text-align:center;padding:24px;}
 </style>
 <script src="db.js"></script>
 </head>
 <body>
+<!-- AMBIENCE SCREEN -->
+<div id="amb-ov">
+  <button id="amb-close" onclick="closeAmbience()">✕ סגור אווירה</button>
+  <div id="amb-body" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"></div>
+</div>
+
 
 <!-- CTRL BAR -->
 <div id="ctrl-bar">
@@ -137,6 +151,7 @@ body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
   <span id="offline-badge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;background:rgba(155,89,182,.2);color:#b07fda;border:1px solid rgba(155,89,182,.4);">◌ לא נרשם</span>
   <button class="ctrl-btn" onclick="openChangeDuration()">⏱ זמן</button>
   <button class="ctrl-btn" onclick="enterFullscreen()" id="fs-btn">⛶ מסך מלא</button>
+  <button class="ctrl-btn" onclick="openAmbience()" title="מסך אווירה">🎬 אווירה</button>
   <button class="ctrl-btn" onclick="location.href='referee.html'">← חזור</button>
   <button class="ctrl-btn" id="mirror-open-btn" onclick="openMirror()">🪞 מראה</button><span style="font-size:9px;color:#555a7a;margin-right:4px;" title="נדרש מסך שני">Win+P→Extend</span>
 </div>
@@ -684,13 +699,72 @@ function swapSides(){
   showToast(sidesSwapped ? '⇅ צדדים הוחלפו' : '⇅ צדדים חזרו');
 }
 
-function toggleOffline(){
-  isOffline=!isOffline;
-  document.getElementById('offline-btn').classList.toggle('on',isOffline);
-  document.getElementById('offline-btn').textContent=isOffline?'◉ אופליין':'◌ אופליין';
-  document.getElementById('offline-badge').style.display=isOffline?'inline':'none';
-  const fb=document.getElementById('offline-fullscreen-badge');
-  if(fb)fb.classList.toggle('show',isOffline);
+async function toggleOffline(){
+  isOffline = !isOffline;
+  const btn = document.getElementById('offline-btn');
+  const badge = document.getElementById('offline-badge');
+  btn.classList.toggle('on', isOffline);
+  btn.textContent = isOffline ? '◉ אופליין' : '◌ אופליין';
+  if(badge) badge.style.display = isOffline ? 'inline' : 'none';
+  const fsBadge = document.getElementById('offline-fullscreen-badge');
+  if(fsBadge) fsBadge.style.display = isOffline ? 'flex' : 'none';
+
+  const p=new URLSearchParams(location.search);
+  const tatamiId=p.get('tatami');
+
+  if(isOffline){
+    // 1. Postpone the real match that was loaded (push it back in the queue)
+    const curId=p.get('matchid');
+    if(curId && typeof DB!=='undefined'){
+      try{ await postponeMatch(curId, tatamiId); }catch(e){ console.warn('postpone:',e); }
+    }
+    // 2. Detach from the tournament — no match id means nothing gets saved
+    ['matchid','blue','white','blueid','whiteid','bclub','wclub','bluemeta','whitemeta','stage','dur'].forEach(k=>p.delete(k));
+    history.replaceState(null,'', location.pathname+'?'+p.toString());
+    // 3. Blank, unrecorded match
+    resetMatch();
+    setNames('—','—','','');
+    const bn=document.getElementById('banner-text');
+    if(bn) bn.textContent='קרב אופליין — מחוץ לתחרות';
+    showToast('◉ קרב אופליין — הקרב הקודם נדחה בתור');
+  } else {
+    resetMatch();
+    const bn=document.getElementById('banner-text');
+    if(bn&&tatamiId) bn.textContent='מזרן '+tatamiId;
+    showToast('◌ חוזר לתחרות...');
+    if(tatamiId) await loadNextMatch(tatamiId);
+  }
+}
+
+function setNames(b,w,bm,wm){
+  const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+  set('r-bname',b); set('r-wname',w);
+  set('r-bclub',bm); set('r-wclub',wm);
+}
+
+// Push a match back in its tatami queue (used by offline + delay)
+async function postponeMatch(matchId, tatamiId){
+  const rows=await supaFetch('matches?id=eq.'+matchId+'&select=order_in_tatami,category_id');
+  const curOrder=(rows&&rows[0])?rows[0].order_in_tatami||999:999;
+  const compId=localStorage.getItem('judo_active_comp');
+  const cats=await DB.getCategories(compId);
+  const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
+  const allPending=[];
+  tatamiCats.forEach(cat=>{
+    (cat.matches||[])
+      .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==matchId)
+      .forEach(m=>allPending.push(m));
+  });
+  allPending.sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
+  const target=allPending[2];
+  let newOrder;
+  if(target){
+    const after=allPending[3];
+    newOrder=after?Math.round((target.order_in_tatami+after.order_in_tatami)/2):target.order_in_tatami+1;
+  } else {
+    newOrder=(allPending[allPending.length-1]?.order_in_tatami||curOrder)+1;
+  }
+  await DB.updateMatch(matchId,{status:'pending', order_in_tatami:Math.round(newOrder)});
 }
 
 function openDelay(){document.getElementById('delay-ov').classList.remove('h');}
@@ -701,33 +775,7 @@ async function confirmDelay(){
   const tatamiId=p.get('tatami');
   if(!matchId||typeof DB==='undefined'){ showToast('⏭ קרב נדחה'); return; }
   try{
-    // Get current match order
-    const rows=await supaFetch('matches?id=eq.'+matchId+'&select=order_in_tatami,category_id');
-    const curOrder=(rows&&rows[0])?rows[0].order_in_tatami||999:999;
-    
-    // Collect all pending matches in this tatami, sorted by order
-    const compId=localStorage.getItem('judo_active_comp');
-    const cats=await DB.getCategories(compId);
-    const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
-    const allPending=[];
-    tatamiCats.forEach(cat=>{
-      (cat.matches||[])
-        .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==matchId)
-        .forEach(m=>allPending.push(m));
-    });
-    allPending.sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
-    
-    // Place after 3rd pending match
-    const target=allPending[2];
-    let newOrder;
-    if(target){
-      const after=allPending[3];
-      newOrder=after?Math.round((target.order_in_tatami+after.order_in_tatami)/2):target.order_in_tatami+1;
-    } else {
-      newOrder=(allPending[allPending.length-1]?.order_in_tatami||curOrder)+1;
-    }
-    
-    await DB.updateMatch(matchId,{status:'pending', order_in_tatami:Math.round(newOrder)});
+    await postponeMatch(matchId, tatamiId);
     showToast('⏭ קרב נדחה ב-3 קרבות');
     if(tatamiId) await loadNextMatch(tatamiId, matchId);
   }catch(e){
@@ -937,6 +985,43 @@ function openMirror(){
   document.getElementById('mirror-open-btn').textContent = '🪞 מראה ✓';
   document.getElementById('mirror-open-btn').classList.add('on');
 }
+
+// ════ AMBIENCE SCREEN ════
+let _ambUrl=null;
+async function openAmbience(){
+  const ov=document.getElementById('amb-ov');
+  const body=document.getElementById('amb-body');
+  if(!ov||!body) return;
+  body.innerHTML='<div id="amb-empty">טוען…</div>';
+  ov.classList.add('show');
+  try{
+    if(typeof MediaStore==='undefined') throw new Error('no MediaStore');
+    const rec=await MediaStore.get('ambience');
+    if(!rec?.blob){
+      body.innerHTML='<div id="amb-empty">לא הועלה מסך אווירה.<br>העלה סרטון או תמונה בהגדרות התחרות בלוח הבקרה.</div>';
+      return;
+    }
+    if(_ambUrl) URL.revokeObjectURL(_ambUrl);
+    _ambUrl=URL.createObjectURL(rec.blob);
+    const type=rec.meta?.type||'';
+    if(type.startsWith('video')){
+      body.innerHTML=`<video src="${_ambUrl}" autoplay loop muted playsinline></video>`;
+    } else {
+      body.innerHTML=`<img src="${_ambUrl}">`;
+    }
+  }catch(e){
+    console.error('ambience:',e);
+    body.innerHTML='<div id="amb-empty">שגיאה בטעינת מסך האווירה</div>';
+  }
+}
+function closeAmbience(){
+  const ov=document.getElementById('amb-ov');
+  const body=document.getElementById('amb-body');
+  if(ov) ov.classList.remove('show');
+  if(body) body.innerHTML='';
+  if(_ambUrl){ URL.revokeObjectURL(_ambUrl); _ambUrl=null; }
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAmbience(); });
 
 function showToast(msg){
   const t=document.createElement('div');
