@@ -108,6 +108,13 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 /* suspended countdown badge */
 .susp-countdown{font-size:9px;font-weight:700;color:#b07fda;}
 
+/* drag & drop rows */
+.up-row{position:relative;}
+.drag-handle{cursor:grab;color:var(--txt3);font-size:15px;line-height:1;padding:0 2px;user-select:none;flex-shrink:0;}
+.drag-handle:active{cursor:grabbing;}
+.up-row.dragging{opacity:.4;}
+.up-row.drop-before{box-shadow:inset 0 3px 0 0 var(--accent);}
+.up-row.drop-after{box-shadow:inset 0 -3px 0 0 var(--accent);}
 /* category strip */
 .cat-bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);}
 .cat-chip{display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 5px 3px 7px;}
@@ -325,7 +332,12 @@ function renderTatami(t){
   upcoming.forEach((m,i)=>{
     const b=cname(m.blue,m.bRole,m.bRef), w=cname(m.white,m.wRole,m.wRef);
     const isSusp=m.status==='suspended';
-    rows+=`<div class="match-row ${isSusp?'row-susp':''}" id="mr-${m.id}">
+    rows+=`<div class="match-row up-row ${isSusp?'row-susp':''}" id="mr-${m.id}"
+        draggable="true"
+        data-mid="${m.id}" data-tid="${t.id}"
+        ondragstart="dragStart(event)" ondragend="dragEnd(event)"
+        ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropRow(event)">
+      <div class="drag-handle" title="גרור לשינוי סדר">⠿</div>
       <div class="dot ${isSusp?'dot-susp':'dot-up'}"></div>
       <div class="rnum">${i+1}</div>
       <div class="minfo">
@@ -378,6 +390,73 @@ function renderTatami(t){
     ${catBar}
     ${rows}
   </div>`;
+}
+
+// ═══════════════════════════════════
+// DRAG & DROP — reorder upcoming matches
+// ═══════════════════════════════════
+let _dragMid=null, _dragTid=null;
+
+function dragStart(e){
+  const row=e.target.closest('.up-row');
+  if(!row) return;
+  _dragMid=row.dataset.mid;
+  _dragTid=row.dataset.tid;
+  row.classList.add('dragging');
+  e.dataTransfer.effectAllowed='move';
+  try{ e.dataTransfer.setData('text/plain',_dragMid); }catch(_){}
+}
+function dragEnd(e){
+  document.querySelectorAll('.up-row').forEach(r=>r.classList.remove('dragging','drop-before','drop-after'));
+  _dragMid=null; _dragTid=null;
+}
+function dragOver(e){
+  const row=e.target.closest('.up-row');
+  if(!row||row.dataset.mid===_dragMid) return;
+  if(row.dataset.tid!==_dragTid) return;      // only within the same tatami
+  e.preventDefault();
+  const rect=row.getBoundingClientRect();
+  const after=(e.clientY-rect.top)>rect.height/2;
+  row.classList.toggle('drop-after',after);
+  row.classList.toggle('drop-before',!after);
+}
+function dragLeave(e){
+  const row=e.target.closest('.up-row');
+  if(row) row.classList.remove('drop-before','drop-after');
+}
+async function dropRow(e){
+  const row=e.target.closest('.up-row');
+  if(!row||!_dragMid) return;
+  e.preventDefault();
+  const targetMid=row.dataset.mid;
+  const tid=+row.dataset.tid;
+  const after=row.classList.contains('drop-after');
+  row.classList.remove('drop-before','drop-after');
+  if(targetMid===_dragMid) return;
+
+  const t=STATE.tatami.find(x=>x.id===tid);
+  if(!t) return;
+
+  // Reorder within the non-done queue, preserving done matches in place
+  const queue=t.matches.filter(m=>m.status!=='done');
+  const done=t.matches.filter(m=>m.status==='done');
+  const from=queue.findIndex(m=>String(m.id)===String(_dragMid));
+  let to=queue.findIndex(m=>String(m.id)===String(targetMid));
+  if(from<0||to<0) return;
+  const [moved]=queue.splice(from,1);
+  to=queue.findIndex(m=>String(m.id)===String(targetMid));   // recompute after removal
+  const insertAt=after?to+1:to;
+  queue.splice(insertAt,0,moved);
+
+  t.matches=[...done,...queue];
+  render();
+  try{
+    await persistQueue(t);
+    toast('✓ הסדר עודכן');
+  }catch(err){
+    console.error('drop persist:',err);
+    toast('⚠ שגיאה בשמירת הסדר');
+  }
 }
 
 // ═══════════════════════════════════
@@ -615,7 +694,7 @@ function tick(){
     }
   }));
 }
-setInterval(()=>{tick();render();},5000); // re-render every 5s for countdowns
+setInterval(()=>{ if(_dragMid) return; tick(); render(); },5000); // re-render every 5s (skip while dragging)
 
 async function loadRealMatches(){
   const compId=localStorage.getItem('judo_active_comp');
