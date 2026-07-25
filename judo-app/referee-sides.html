@@ -13,6 +13,8 @@ html,body{height:100%;width:100%;overflow:hidden;background:#0d0e14;color:#f0f0f
    LAYOUT: banner / halves / timer
    ════════════════════════════════ */
 #app{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+body:not(.fullscreen) #app{min-height:560px;}
+body:not(.fullscreen){overflow:auto;}
 :fullscreen #app{height:100vh;width:100vw;}
 :fullscreen #banner{position:relative;z-index:10;}
 :-webkit-full-screen #app{height:100vh;width:100vw;}
@@ -30,7 +32,7 @@ body.fullscreen #app{height:100vh;width:100vw;}
 /* HALVES ROW */
 #halves{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0;}
 
-.half{display:flex;flex-direction:column;overflow:hidden;}
+.half{display:flex;flex-direction:column;overflow:hidden;min-height:0;}
 .half.blue{background:#0033aa;}
 .half.white{background:#f0f0f0;border-left:2px solid #cccccc;}
 .white .sc-lbl{color:#aaaaaa;}
@@ -43,7 +45,7 @@ body.fullscreen #app{height:100vh;width:100vw;}
   padding:8px 14px;
   border-bottom:1px solid rgba(255,255,255,.07);
 }
-.player-name{font-size:clamp(18px,4.5vh,40px);font-weight:700;line-height:1.15;}
+.player-name{font-size:clamp(22px,4.5vh,44px);font-weight:700;line-height:1.15;overflow:hidden;text-overflow:ellipsis;}
 /* Fullscreen: bigger name row */
 body.fullscreen .info-strip{padding:10px 20px;}
 body.fullscreen .player-name{font-size:clamp(28px,6vh,58px);}
@@ -378,7 +380,8 @@ body.fullscreen #app{background:#0a0a0e;}
   <div id="win-label">מנצח</div>
   <div id="win-name">—</div>
   <div id="win-reason"></div>
-  <div style="display:flex;gap:10px;margin-top:8px">
+  <div id="ov-btns" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;justify-content:center">
+    <button class="ov-btn ov-next" id="ov-next-btn" onclick="goNextFromOverlay()" style="display:none;background:var(--acc,#e8c84a);color:#000;font-weight:700">⏭ קרב הבא</button>
     <button class="ov-btn" onclick="document.getElementById('winner-overlay').classList.remove('show')">המשך</button>
     <button class="ov-btn" onclick="resetMatch()">קרב חדש</button>
   </div>
@@ -739,17 +742,19 @@ async function declareWinner(side,reason){ if(reason==='Ippon'||reason==='Waza-a
     }catch(e){console.error('save result:',e);}
   }
 
-  // Add "קרב הבא" button to overlay
-  const ovBtns=document.querySelector('#winner-overlay div[style*="gap"]')||document.querySelector('#winner-overlay .ov-btns');
-  if(ovBtns&&tatamiId){
-    const nextBtn=document.createElement('button');
-    nextBtn.className='ov-btn';
-    nextBtn.textContent='⏭ קרב הבא';
-    nextBtn.style.cssText='background:var(--acc,#e8c84a);color:#000;font-weight:700;';
-    const _currentMatchId=matchId;
-    nextBtn.onclick=()=>loadNextMatch(tatamiId, _currentMatchId);
-    ovBtns.appendChild(nextBtn);
+  // Show the permanent "next match" button on the overlay
+  const nextBtn=document.getElementById('ov-next-btn');
+  if(nextBtn){
+    if(tatamiId){ nextBtn.style.display=''; nextBtn.dataset.mid=matchId||''; nextBtn.dataset.tid=tatamiId; }
+    else nextBtn.style.display='none';
   }
+}
+
+function goNextFromOverlay(){
+  const b=document.getElementById('ov-next-btn');
+  const tid=b?.dataset.tid, mid=b?.dataset.mid||null;
+  document.getElementById('winner-overlay').classList.remove('show');
+  if(tid) loadNextMatch(tid, mid);
 }
 
 async function loadNextMatch(tatamiId, skipMatchId=null){
@@ -874,6 +879,7 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
 
 function resetMatch(){
   pauseMain(); stopOsaeInterval();
+  { const _nb=document.getElementById('ov-next-btn'); if(_nb) _nb.style.display='none'; }
   SC.blue={I:0,W:0,Y:0,S:0}; SC.white={I:0,W:0,Y:0,S:0};
   SHIDO.blue=[false,false,false]; SHIDO.white=[false,false,false];
   hist.length=0;
@@ -1091,17 +1097,18 @@ function confirmDuration(){
 // FULLSCREEN
 // ═══════════════════════════
 function enterFullscreen(){
-  const appEl = document.getElementById('app');
-  if(!document.fullscreenElement){
-    const req = appEl.requestFullscreen || appEl.webkitRequestFullscreen || appEl.mozRequestFullScreen;
-    if(req) req.call(appEl).catch(()=>{});
+  // Fullscreen the WHOLE page so overlays (winner / ambience) stay visible
+  const el = document.documentElement;
+  if(!document.fullscreenElement && !document.webkitFullscreenElement){
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+    if(req) req.call(el).catch(()=>{});
     document.body.classList.add('fullscreen');
-    document.getElementById('fs-btn').textContent='⛶ יציאה';
+    const b=document.getElementById('fs-btn'); if(b) b.textContent='⛶ יציאה';
   } else {
     const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
     if(exit) exit.call(document).catch(()=>{});
     document.body.classList.remove('fullscreen');
-    document.getElementById('fs-btn').textContent='⛶ מסך מלא';
+    const b=document.getElementById('fs-btn'); if(b) b.textContent='⛶ מסך מלא';
   }
 }
 
