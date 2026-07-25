@@ -114,25 +114,25 @@ let selectedStyle = 'rows';
 // BUILD TATAMI BUTTONS
 // ═══════════════════════════════
 async function ensureActiveComp(){
-  // If no active comp, load the most recent one
-  if(!localStorage.getItem('judo_active_comp')){
-    try{
-      const comps=await DB.getCompetitions();
-      if(comps&&comps.length){
-        localStorage.setItem('judo_active_comp', comps[0].id);
-        localStorage.setItem('judo_config', JSON.stringify({
-          ref_code: comps[0].ref_code||'1234',
-          tatami_count: comps[0].tatami_count||3,
-          match_duration: comps[0].match_duration||180,
-        }));
-        // Reload config
-        Object.assign(CFG, {
-          ref_code: comps[0].ref_code||'1234',
-          tatami_count: comps[0].tatami_count||3,
-        });
-        ensureActiveComp().then(()=>buildTatamiGrid());
-      }
-    }catch(e){console.error('ensureActiveComp:',e);}
+  try{
+    let compId = localStorage.getItem('judo_active_comp');
+    const comps = await DB.getCompetitions();
+    if(!comps || !comps.length) return;
+
+    // pick active comp, or fall back to the most recent one
+    let comp = compId ? comps.find(c=>c.id===compId) : null;
+    if(!comp){ comp = comps[0]; localStorage.setItem('judo_active_comp', comp.id); }
+
+    // ALWAYS refresh config from the DB record (tatami count may have changed)
+    const cfg = {
+      ref_code: comp.ref_code || '1234',
+      tatami_count: comp.tatami_count || 3,
+      match_duration: comp.match_duration || 180,
+    };
+    localStorage.setItem('judo_config', JSON.stringify(cfg));
+    Object.assign(CFG, cfg);
+  }catch(e){
+    console.error('ensureActiveComp:', e);
   }
 }
 
@@ -279,6 +279,7 @@ document.addEventListener('keydown', e=>{
 });
 
 buildTatamiGrid();
+ensureActiveComp().then(buildTatamiGrid);
 </script>
 </body>
 </html>
