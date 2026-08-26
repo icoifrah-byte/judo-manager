@@ -187,7 +187,7 @@ body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
         <div class="shido-dot" onclick="toggleShido('white',2)"></div>
       </div>
       <div class="r-nameblock">
-        <div class="r-name" id="r-wname">—</div>
+        <div class="r-name" id="r-wname" onclick="openEditName('white')" style="cursor:pointer" title="לחץ לעריכת שם">—</div>
         <div class="r-club" id="r-wclub"></div>
       </div>
     </div>
@@ -214,7 +214,7 @@ body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
         <div class="shido-dot" onclick="toggleShido('blue',2)"></div>
       </div>
       <div class="r-nameblock">
-        <div class="r-name" id="r-bname">—</div>
+        <div class="r-name" id="r-bname" onclick="openEditName('blue')" style="cursor:pointer" title="לחץ לעריכת שם">—</div>
         <div class="r-club" id="r-bclub"></div>
       </div>
     </div>
@@ -1116,6 +1116,64 @@ document.addEventListener('touchstart',e=>{
 ['touchend','touchmove','touchcancel'].forEach(ev=>
   document.addEventListener(ev,()=>clearTimeout(_lpTimer),{passive:true}));
 
+// ════ EDIT NAME — permanent (saves to DB) or temporary (this match only) ════
+let _editSide=null;
+function openEditName(side){
+  _editSide=side;
+  const p=new URLSearchParams(location.search);
+  const curName = side==='blue'
+    ? document.getElementById('r-bname').textContent
+    : document.getElementById('r-wname').textContent;
+  const hasId = !!(side==='blue'?p.get('blueid'):p.get('whiteid'));
+  const inp=document.getElementById('edit-name-input');
+  inp.value = (curName==='—'?'':curName);
+  document.getElementById('edit-name-title').textContent = 'עריכת שם — '+(side==='blue'?'כחול':'לבן');
+  // permanent option only makes sense for a real tournament competitor
+  const permBtn=document.getElementById('edit-name-perm');
+  permBtn.style.display = hasId ? '' : 'none';
+  document.getElementById('edit-name-hint').textContent = hasId
+    ? 'קבוע = מתקן בכל המערכת · זמני = רק לקרב הזה'
+    : 'קרב ללא מתחרה רשום — השם יהיה זמני בלבד';
+  document.getElementById('edit-name-ov').classList.remove('h');
+  setTimeout(()=>inp.focus(),50);
+}
+
+function _applyNameToScreen(side,newName){
+  if(side==='blue'){ document.getElementById('r-bname').textContent=newName||'—'; }
+  else { document.getElementById('r-wname').textContent=newName||'—'; }
+  broadcastState && broadcastState();
+}
+
+// Temporary: only this match's display, nothing saved
+function saveNameTemp(){
+  const newName=document.getElementById('edit-name-input').value.trim();
+  if(!newName){ document.getElementById('edit-name-ov').classList.add('h'); return; }
+  _applyNameToScreen(_editSide,newName);
+  document.getElementById('edit-name-ov').classList.add('h');
+  showToast('✎ שם זמני עודכן (לקרב זה בלבד)');
+}
+
+// Permanent: update the competitor record → shows everywhere
+async function saveNamePerm(){
+  const newName=document.getElementById('edit-name-input').value.trim();
+  if(!newName){ document.getElementById('edit-name-ov').classList.add('h'); return; }
+  const p=new URLSearchParams(location.search);
+  const compId = _editSide==='blue' ? p.get('blueid') : p.get('whiteid');
+  _applyNameToScreen(_editSide,newName);
+  document.getElementById('edit-name-ov').classList.add('h');
+  if(compId && typeof DB!=='undefined'){
+    try{
+      await DB.updateCompetitor(compId,{name:newName});
+      // reflect in this URL so a refresh keeps it
+      if(_editSide==='blue') p.set('blue',newName); else p.set('white',newName);
+      history.replaceState(null,'',location.pathname+'?'+p.toString());
+      showToast('✓ השם עודכן בכל המערכת');
+    }catch(e){ console.error('name save:',e); showToast('⚠ שגיאה בשמירת השם'); }
+  } else {
+    showToast('✎ שם עודכן');
+  }
+}
+
 function showToast(msg){
   const t=document.createElement('div');
   t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111318;border:1px solid #1e2130;border-radius:7px;padding:8px 16px;font-size:12px;color:#4ae89a;z-index:999;pointer-events:none;white-space:nowrap;';
@@ -1137,5 +1195,24 @@ if(p.get('wclub')) document.getElementById('r-wclub').textContent=p.get('wclub')
 
 syncMainClock();syncClockSub();syncOsaeClock();
 </script>
+
+<!-- EDIT NAME MODAL -->
+<div class="side-ov h" id="edit-name-ov">
+  <div class="side-md">
+    <div class="side-mh"><div class="side-mt" id="edit-name-title">עריכת שם</div>
+      <button class="side-btn side-btn-s" onclick="document.getElementById('edit-name-ov').classList.add('h')">✕</button></div>
+    <div class="side-mb">
+      <div class="side-fg"><label>שם</label>
+        <input type="text" class="side-fc" id="edit-name-input" onkeydown="if(event.key==='Enter')saveNamePerm()">
+      </div>
+      <div id="edit-name-hint" style="font-size:11px;color:#8a8fa0;margin-top:8px"></div>
+    </div>
+    <div class="side-mf" style="gap:8px;flex-wrap:wrap">
+      <button class="side-btn side-btn-s" onclick="saveNameTemp()">✎ זמני (קרב זה)</button>
+      <button class="side-btn side-btn-p" id="edit-name-perm" onclick="saveNamePerm()">✓ קבוע (כל המערכת)</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
