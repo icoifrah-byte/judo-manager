@@ -108,6 +108,18 @@ html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--bg);color:
 </style>
 </head>
 <body>
+<div id="buildall-ov" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(8,9,14,.96);flex-direction:column;align-items:center;justify-content:center;gap:22px;font-family:'Heebo',sans-serif;color:#e8eaf6;">
+  <div style="font-size:22px;font-weight:700;color:#e8c84a">🏗️ בונה את כל הקרבות</div>
+  <div id="ba-status" style="font-size:15px;color:#8a90b0">מתחיל…</div>
+  <div style="width:min(440px,80vw);height:10px;background:#1a1d27;border-radius:6px;overflow:hidden">
+    <div id="ba-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#e8c84a,#f0d868);transition:width .3s"></div>
+  </div>
+  <div id="ba-detail" style="font-size:12px;color:#555a7a;text-align:center;max-width:80vw;min-height:18px"></div>
+  <div id="ba-actions" style="display:none;gap:10px">
+    <button onclick="location.href='control.html'" style="padding:9px 22px;border-radius:8px;border:none;background:#e8c84a;color:#000;font-weight:700;font-size:13px;cursor:pointer">← חזרה לשליטה בתחרות</button>
+    <button onclick="document.getElementById('buildall-ov').style.display='none'" style="padding:9px 22px;border-radius:8px;border:1px solid #2e3348;background:transparent;color:#e8eaf6;font-size:13px;cursor:pointer">הישאר בעצים</button>
+  </div>
+</div>
 <div class="topbar">
   <div class="logo">JUDO</div><div class="sep"></div>
   <div class="cname" id="tbn">—</div>
@@ -1095,6 +1107,61 @@ function toast(msg){
 const bracketCache={};   // catDbId → bracket object
 let allCategories=[];    // [{id, name, competitors:[]}]
 
+// ═══════════════════════════════════════════
+// BUILD ALL — create every category's matches in one pass
+// (uses the existing buildBracket + saveAllMatchesToDB — no duplication)
+// ═══════════════════════════════════════════
+async function buildAllCategories(){
+  const ov=document.getElementById('buildall-ov');
+  const setStatus=(t)=>{const e=document.getElementById('ba-status'); if(e)e.textContent=t;};
+  const setDetail=(t)=>{const e=document.getElementById('ba-detail'); if(e)e.textContent=t;};
+  const setBar=(p)=>{const e=document.getElementById('ba-bar'); if(e)e.style.width=p+'%';};
+  ov.style.display='flex';
+
+  const compId=localStorage.getItem('judo_active_comp');
+  if(!compId){ setStatus('אין תחרות פעילה'); document.getElementById('ba-actions').style.display='flex'; return; }
+
+  let cats;
+  try{ cats=await DB.getCategories(compId); }
+  catch(e){ setStatus('שגיאת חיבור'); document.getElementById('ba-actions').style.display='flex'; return; }
+  if(!cats||!cats.length){ setStatus('אין קטגוריות'); document.getElementById('ba-actions').style.display='flex'; return; }
+
+  allCategories=cats;
+  window._buildingAll=true;
+  let built=0, skipped=0, empty=0, failed=0;
+  const total=cats.length;
+
+  for(let i=0;i<total;i++){
+    const cat=cats[i];
+    setStatus(`קטגוריה ${i+1} מתוך ${total}`);
+    setDetail(cat.name);
+    setBar(Math.round((i/total)*100));
+
+    const comps=(cat.competitors||[]).map(cp=>({id:cp.id,dbId:cp.id,name:cp.name,club:cp.club||''}));
+    if(comps.length<2){ empty++; continue; }
+
+    // already has matches? skip (don't clobber results)
+    let existing=[];
+    try{ existing=await DB.getMatches(cat.id)||[]; }catch(e){}
+    if(existing.length){ skipped++; continue; }
+
+    try{
+      const br=buildBracket(comps);
+      if(!br){ empty++; continue; }
+      br.catName=cat.name; br.catDbId=cat.id;
+      await saveAllMatchesToDB(br, cat.id);
+      built++;
+    }catch(e){ console.error('build',cat.name,e); failed++; }
+    await new Promise(r=>setTimeout(r,120)); // let the UI breathe
+  }
+
+  window._buildingAll=false;
+  setBar(100);
+  setStatus('✓ הסתיים');
+  setDetail(`נבנו ${built} · דילוג ${skipped} (כבר קיימים) · ${empty} ללא מספיק מתחרים${failed?' · '+failed+' נכשלו':''}`);
+  document.getElementById('ba-actions').style.display='flex';
+}
+
 async function init(){
   const tabs=document.getElementById('tabs');
   const compId=localStorage.getItem('judo_active_comp');
@@ -1218,8 +1285,8 @@ async function saveAllMatchesToDB(br, catId){
   }));
   try{
     await DB.upsertMatches(rows);
-    toast(`✓ ${rows.length} קרבות נשמרו`+(tatamiId?` למזרן ${tatamiId}`:''));
-  }catch(e){console.error('save all matches:',e);toast('⚠ שגיאה בשמירת קרבות');}
+    if(!window._buildingAll) toast(`✓ ${rows.length} קרבות נשמרו`+(tatamiId?` למזרן ${tatamiId}`:''));
+  }catch(e){console.error('save all matches:',e); if(!window._buildingAll) toast('⚠ שגיאה בשמירת קרבות'); throw e;}
 }
 
 // Force reload a category bracket (clear cache)
@@ -1275,7 +1342,11 @@ async function saveMatchToDB(br, matchId){
 }
 
 // Init after page load
-init();
+(function(){
+  const qp=new URLSearchParams(location.search);
+  if(qp.get('buildall')==='1') buildAllCategories();
+  else init();
+})();
 </script>
 </body>
 </html>
