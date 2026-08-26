@@ -139,6 +139,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
   <div class="logo">JUDO</div>
   <div class="h-title" id="h-title">שליטה בתחרות</div>
   <div style="flex:1"></div>
+  <button class="btn btn-primary btn-sm" onclick="buildAllMatches()" title="בונה קרבות לכל הקטגוריות בבת אחת">🏗️ בנה את כל הקרבות</button>
   <button class="btn btn-secondary btn-sm" onclick="location.href='index.html'">← ניהול</button>
 </div>
 
@@ -684,6 +685,11 @@ function tick(){
   }));
 }
 setInterval(()=>{ if(_dragMid) return; tick(); render(); },5000); // re-render every 5s (skip while dragging)
+
+function buildAllMatches(){
+  if(!confirm('לבנות קרבות לכל הקטגוריות?\n\nקטגוריות שכבר יש להן קרבות יידלגו (התוצאות נשמרות).')) return;
+  location.href='bracket.html?buildall=1';
+}
 
 async function loadRealMatches(){
   const compId=localStorage.getItem('judo_active_comp');
