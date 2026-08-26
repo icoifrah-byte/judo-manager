@@ -420,7 +420,7 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
         // League: one pending match at a time
         const next = allMatches
           .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==skipMatchId)
-          .sort((a,b)=>(a.order_in_tatami||a.match_num||99)-(b.order_in_tatami||b.match_num||99));
+          .sort((a,b)=>(a.order_in_tatami??9999)-(b.order_in_tatami??9999)||(a.match_num||0)-(b.match_num||0));
         return next.length ? [next[0]] : [];
       }
       
@@ -428,7 +428,7 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
       const hasDone = allMatches.some(m=>m.status==='done'&&m.win_reason!=='bye');
       const pending = allMatches
         .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==skipMatchId)
-        .sort((a,b)=>(a.order_in_tatami||a.match_num||99)-(b.order_in_tatami||b.match_num||99));
+        .sort((a,b)=>(a.order_in_tatami??9999)-(b.order_in_tatami??9999)||(a.match_num||0)-(b.match_num||0));
       
       if(!pending.length) return [];
       
@@ -507,6 +507,7 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
         bclub:blue?.club||'', wclub:white?.club||'',
         stage:nextCat.name+(next.stage?' · '+next.stage:''),
         banner:'מזרן '+tatamiId+' · '+nextCat.name,
+        dur:String(matchDuration),
       });
       location.href=target+'?'+params.toString();
     }else{
@@ -755,40 +756,53 @@ function setNames(b,w,bm,wm){
 }
 
 // Push a match back in its tatami queue (used by offline + delay)
-async function postponeMatch(matchId, tatamiId){
-  const rows=await supaFetch('matches?id=eq.'+matchId+'&select=order_in_tatami,category_id');
-  const curOrder=(rows&&rows[0])?rows[0].order_in_tatami||999:999;
+async function postponeMatch(matchId, tatamiId, gap){
+  gap = Math.max(1, gap||3);
   const compId=localStorage.getItem('judo_active_comp');
   const cats=await DB.getCategories(compId);
   const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
-  const allPending=[];
+
+  // Full pending queue for this tatami, in current order (BYE + done excluded)
+  const queue=[];
   tatamiCats.forEach(cat=>{
     (cat.matches||[])
-      .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==matchId)
-      .forEach(m=>allPending.push(m));
+      .filter(m=>(m.status==='pending'||m.status==='suspended')&&m.blue_id&&m.white_id&&m.win_reason!=='bye')
+      .forEach(m=>queue.push(m));
   });
-  allPending.sort((a,b)=>(a.order_in_tatami||99)-(b.order_in_tatami||99));
-  const target=allPending[2];
-  let newOrder;
-  if(target){
-    const after=allPending[3];
-    newOrder=after?Math.round((target.order_in_tatami+after.order_in_tatami)/2):target.order_in_tatami+1;
-  } else {
-    newOrder=(allPending[allPending.length-1]?.order_in_tatami||curOrder)+1;
-  }
-  await DB.updateMatch(matchId,{status:'pending', order_in_tatami:Math.round(newOrder)});
+  queue.sort((a,b)=>(a.order_in_tatami??9999)-(b.order_in_tatami??9999)||(a.match_num||0)-(b.match_num||0));
+
+  const from=queue.findIndex(m=>String(m.id)===String(matchId));
+  if(from<0) return;
+  const [moved]=queue.splice(from,1);
+  // insert `gap` matches later (clamped to the end)
+  const insertAt=Math.min(from+gap, queue.length);
+  queue.splice(insertAt, 0, moved);
+
+  // Renumber the whole queue 1..N and persist only what changed
+  const jobs=[];
+  queue.forEach((m,i)=>{
+    const ord=i+1;
+    if(m.order_in_tatami!==ord){
+      m.order_in_tatami=ord;
+      jobs.push(DB.updateMatch(m.id,{status:'pending', order_in_tatami:ord}));
+    }
+  });
+  // make sure the moved match is marked pending even if its number didn't change
+  if(!jobs.length) jobs.push(DB.updateMatch(matchId,{status:'pending'}));
+  await Promise.all(jobs);
 }
 
 function openDelay(){document.getElementById('delay-ov').classList.remove('h');}
 async function confirmDelay(){
+  const gap=Math.max(1, +(document.getElementById('delay-n')?.value)||3);
   document.getElementById('delay-ov').classList.add('h');
   const p=new URLSearchParams(location.search);
   const matchId=p.get('matchid');
   const tatamiId=p.get('tatami');
   if(!matchId||typeof DB==='undefined'){ showToast('⏭ קרב נדחה'); return; }
   try{
-    await postponeMatch(matchId, tatamiId);
-    showToast('⏭ קרב נדחה ב-3 קרבות');
+    await postponeMatch(matchId, tatamiId, gap);
+    showToast('⏭ קרב נדחה ב-'+gap+' קרבות');
     if(tatamiId) await loadNextMatch(tatamiId, matchId);
   }catch(e){
     console.error('delay:',e);
@@ -1116,6 +1130,7 @@ if(p.get('bluemeta'))  document.getElementById('r-bmeta').textContent=p.get('blu
 if(p.get('whitemeta')) document.getElementById('r-wmeta').textContent=p.get('whitemeta');
 if(p.get('banner')) document.getElementById('banner-text').textContent=p.get('banner');
 if(p.get('dur')){matchDuration=+p.get('dur');timeLeft=matchDuration;}
+try{ const _tt=p.get('tatami'); const _sd=_tt&&localStorage.getItem('judo_dur_tatami_'+_tt); if(_sd){ matchDuration=+_sd; timeLeft=matchDuration; } }catch(e){}
 if(p.get('stage')) document.getElementById('banner-stage').textContent=p.get('stage');
 if(p.get('bclub')) document.getElementById('r-bclub').textContent=p.get('bclub');
 if(p.get('wclub')) document.getElementById('r-wclub').textContent=p.get('wclub');
