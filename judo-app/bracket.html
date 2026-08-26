@@ -117,7 +117,7 @@ html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--bg);color:
   <div id="ba-detail" style="font-size:12px;color:#555a7a;text-align:center;max-width:80vw;min-height:18px"></div>
   <div id="ba-actions" style="display:none;gap:10px">
     <button onclick="location.href='control.html'" style="padding:9px 22px;border-radius:8px;border:none;background:#e8c84a;color:#000;font-weight:700;font-size:13px;cursor:pointer">← חזרה לשליטה בתחרות</button>
-    <button onclick="document.getElementById('buildall-ov').style.display='none'" style="padding:9px 22px;border-radius:8px;border:1px solid #2e3348;background:transparent;color:#e8eaf6;font-size:13px;cursor:pointer">הישאר בעצים</button>
+    <button onclick="document.getElementById('buildall-ov').style.display='none'; if(typeof allCategories==='undefined'||!allCategories||!allCategories.length){ init(); }" style="padding:9px 22px;border-radius:8px;border:1px solid #2e3348;background:transparent;color:#e8eaf6;font-size:13px;cursor:pointer">הישאר בעצים</button>
   </div>
 </div>
 <div class="topbar">
@@ -1111,6 +1111,103 @@ let allCategories=[];    // [{id, name, competitors:[]}]
 // BUILD ALL — create every category's matches in one pass
 // (uses the existing buildBracket + saveAllMatchesToDB — no duplication)
 // ═══════════════════════════════════════════
+async function rebuildCategory(catId, keepMode, removedId){
+  const ov=document.getElementById('buildall-ov');
+  const setStatus=(t)=>{const e=document.getElementById('ba-status'); if(e)e.textContent=t;};
+  const setDetail=(t)=>{const e=document.getElementById('ba-detail'); if(e)e.textContent=t;};
+  const setBar=(x)=>{const e=document.getElementById('ba-bar'); if(e)e.style.width=x+'%';};
+  document.querySelector('#buildall-ov > div').textContent='🔧 בונה מחדש קטגוריה';
+  ov.style.display='flex';
+  setStatus('טוען נתונים...'); setBar(15);
+
+  const compId=localStorage.getItem('judo_active_comp');
+  let cats;
+  try{ cats=await DB.getCategories(compId); }
+  catch(e){ setStatus('שגיאת חיבור'); document.getElementById('ba-actions').style.display='flex'; return; }
+  const cat=(cats||[]).find(c=>String(c.id)===String(catId));
+  if(!cat){ setStatus('קטגוריה לא נמצאה'); document.getElementById('ba-actions').style.display='flex'; return; }
+  setDetail(cat.name);
+
+  // 1. Remember finished matches BEFORE we wipe (pair of competitor-ids → result)
+  let oldMatches=[];
+  try{ oldMatches=await DB.getMatches(catId)||[]; }catch(e){}
+  const doneByPair={};
+  if(keepMode==='keep'){
+    oldMatches.forEach(m=>{
+      if(m.status!=='done'||m.win_reason==='bye'||!m.winner_id) return;
+      if(!m.blue_id||!m.white_id) return;
+      if(removedId&&(String(m.blue_id)===String(removedId)||String(m.white_id)===String(removedId))) return; // drop matches involving removed player
+      const key=[m.blue_id,m.white_id].sort().join('|');
+      doneByPair[key]={winner_id:m.winner_id, win_reason:m.win_reason, score:m.score, started_at:m.started_at, ended_at:m.ended_at};
+    });
+  }
+
+  setStatus('בונה עץ חדש...'); setBar(45);
+
+  // 2. Build fresh bracket from current competitor list
+  const comps=(cat.competitors||[]).map(cp=>({id:cp.id,dbId:cp.id,name:cp.name,club:cp.club||''}));
+  if(comps.length<2){
+    // nothing to build — just clear matches
+    try{ await DB.deleteMatches(catId); }catch(e){}
+    setStatus('✓ הקטגוריה עודכנה'); setDetail('פחות מ-2 מתחרים — אין קרבות'); setBar(100);
+    document.getElementById('ba-actions').style.display='flex'; return;
+  }
+  const br=buildBracket(comps);
+  if(!br){ setStatus('שגיאה בבניית העץ'); document.getElementById('ba-actions').style.display='flex'; return; }
+  br.catName=cat.name; br.catDbId=catId;
+
+  // 3. Re-apply finished results onto matching pairs in the new tree
+  let kept=0;
+  if(keepMode==='keep'){
+    br.matches.forEach(m=>{
+      if(!m.bC||!m.wC) return;
+      const key=[m.bC.dbId,m.wC.dbId].sort().join('|');
+      const res=doneByPair[key];
+      if(res){
+        m.status='done';
+        m.wComp = res.winner_id===m.bC.dbId ? m.bC : m.wC;
+        m.lComp = res.winner_id===m.bC.dbId ? m.wC : m.bC;
+        m.wId=m.wComp.id; m.lId=m.lComp.id;
+        m.sc=res.score||m.sc; m.wr=res.win_reason;
+        m._keptResult=res;
+        if(br.type!=='league') prop(m,br.matches);
+        kept++;
+      }
+    });
+  }
+
+  setStatus('שומר...'); setBar(70);
+
+  // 4. Wipe old matches and save the rebuilt tree
+  try{
+    await DB.deleteMatches(catId);
+  }catch(e){ console.error('wipe:',e); }
+
+  const tatamiId=cat.tatami_id||null;
+  const rows=br.matches.map(m=>({
+    category_id:catId, match_num:m.id, stage:m.stage, stage_type:m.type,
+    tatami_id:tatamiId,
+    blue_id:m.bC?.dbId||null, white_id:m.wC?.dbId||null,
+    status: m.status==='done'?'done':(m.status==='bye'?'bye':'pending'),
+    winner_id: m.status==='done'?(m.wComp?.dbId||null):(m.status==='bye'&&m.wComp?.dbId?m.wComp.dbId:null),
+    win_reason: m.status==='done'?(m.wr||null):(m.status==='bye'?'bye':null),
+    score: m._keptResult?.score || {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0},
+    started_at: m._keptResult?.started_at || null,
+    ended_at: m._keptResult?.ended_at || null,
+    is_offline:false, order_in_tatami:m.id, susp:null,
+    w_to_match:m.wTo?.id||null, w_to_side:m.wTo?.s||null,
+    l_to_match:m.lTo?.id||null, l_to_side:m.lTo?.s||null,
+  }));
+  try{
+    await DB.upsertMatches(rows);
+  }catch(e){ console.error('save rebuilt:',e); setStatus('⚠ שגיאה בשמירה'); document.getElementById('ba-actions').style.display='flex'; return; }
+
+  setBar(100);
+  setStatus('✓ הקטגוריה נבנתה מחדש');
+  setDetail(keepMode==='keep' ? `נשמרו ${kept} קרבות שהסתיימו · ${rows.length} קרבות בסך הכל` : `${rows.length} קרבות נוצרו (עץ נקי)`);
+  document.getElementById('ba-actions').style.display='flex';
+}
+
 async function buildAllCategories(){
   const ov=document.getElementById('buildall-ov');
   const setStatus=(t)=>{const e=document.getElementById('ba-status'); if(e)e.textContent=t;};
@@ -1345,6 +1442,7 @@ async function saveMatchToDB(br, matchId){
 (function(){
   const qp=new URLSearchParams(location.search);
   if(qp.get('buildall')==='1') buildAllCategories();
+  else if(qp.get('rebuild')) rebuildCategory(qp.get('rebuild'), qp.get('keep')||'fresh', qp.get('removed')||null);
   else init();
 })();
 </script>
