@@ -115,6 +115,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 .up-row.dragging{opacity:.4;}
 .up-row.drop-before{box-shadow:inset 0 3px 0 0 var(--accent);}
 .up-row.drop-after{box-shadow:inset 0 -3px 0 0 var(--accent);}
+/* competitor-edit tabs */
+.ce-tab{flex:1;padding:6px 4px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--txt2);font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
+.ce-tab.on{background:var(--acc);color:#000;border-color:var(--acc);}
+.ce-pane .fg{margin-bottom:10px;}
 /* category strip */
 .cat-bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);}
 .cat-chip{display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 5px 3px 7px;}
@@ -124,6 +128,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 .cc-btn:hover:not(:disabled){color:#fff;border-color:#4a4f60;}
 .cc-btn:disabled{opacity:.25;cursor:default;}
 .cc-move{color:#e8c84a;border-color:rgba(232,200,74,.4);}
+.cc-edit{color:#6ea8ff;border-color:rgba(110,168,255,.4);}
 
 /* empty tatami */
 .tc-idle{padding:16px 14px;text-align:center;font-size:11px;color:var(--txt3);}
@@ -167,6 +172,58 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
     <div class="mf">
       <button class="btn btn-secondary btn-sm" onclick="closeModal('move-ov')">ביטול</button>
       <button class="btn btn-primary btn-sm" onclick="confirmMove()">✓ העבר</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDIT COMPETITORS -->
+<div class="ov h" id="cat-edit-ov">
+  <div class="modal" style="max-width:440px">
+    <div class="mh"><div class="mt">✏️ עריכת מתחרים</div><button class="btn btn-secondary btn-sm" onclick="closeModal('cat-edit-ov')">✕</button></div>
+    <div class="mb">
+      <div id="ce-catname" style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:4px"></div>
+      <div id="ce-warn" style="font-size:11px;color:#e8c84a;margin-bottom:12px"></div>
+
+      <div class="ce-tabs" style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="ce-tab on" data-tab="swap" onclick="ceTab('swap')">החלפה</button>
+        <button class="ce-tab" data-tab="add" onclick="ceTab('add')">הוספה</button>
+        <button class="ce-tab" data-tab="del" onclick="ceTab('del')">הסרה</button>
+      </div>
+
+      <!-- SWAP -->
+      <div class="ce-pane" id="ce-swap">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">בחר מתחרה והחלף את שמו. הקרבות נשמרים — רק השם משתנה בכל המערכת.</div>
+        <div class="fg"><label>מתחרה</label><select class="fc" id="ce-swap-sel"></select></div>
+        <div class="fg"><label>שם חדש</label><input class="fc" id="ce-swap-name" placeholder="שם מלא"></div>
+        <button class="btn btn-primary btn-sm" style="width:100%;margin-top:6px" onclick="ceSwap()">✓ החלף שם</button>
+      </div>
+
+      <!-- ADD -->
+      <div class="ce-pane" id="ce-add" style="display:none">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">הוספת מתחרה בונה מחדש את העץ של הקטגוריה.</div>
+        <div class="fg"><label>שם המתחרה החדש</label><input class="fc" id="ce-add-name" placeholder="שם מלא"></div>
+        <div class="fg"><label>מועדון (רשות)</label><input class="fc" id="ce-add-club" placeholder="מועדון"></div>
+        <div class="fg"><label>קרבות שכבר נעשו</label>
+          <select class="fc" id="ce-add-keep">
+            <option value="keep">שמור קרבות שהסתיימו — החדש ישובץ מול מי שטרם נלחם</option>
+            <option value="fresh">התחל עץ נקי מאפס</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" style="width:100%;margin-top:6px" onclick="ceAdd()">✓ הוסף מתחרה</button>
+      </div>
+
+      <!-- DELETE -->
+      <div class="ce-pane" id="ce-del" style="display:none">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">הסרת מתחרה בונה מחדש את העץ (4→3 עשוי להפוך לליגה).</div>
+        <div class="fg"><label>מתחרה להסרה</label><select class="fc" id="ce-del-sel"></select></div>
+        <div class="fg"><label>קרבות שכבר נעשו</label>
+          <select class="fc" id="ce-del-keep">
+            <option value="keep">שמור קרבות שהסתיימו (שלא כללו את המוסר)</option>
+            <option value="fresh">התחל עץ נקי מאפס</option>
+          </select>
+        </div>
+        <button class="btn btn-danger btn-sm" style="width:100%;margin-top:6px;background:#c0392b;color:#fff" onclick="ceDel()">✕ הסר מתחרה</button>
+      </div>
     </div>
   </div>
 </div>
@@ -365,6 +422,7 @@ function renderTatami(t){
         <button class="cc-btn" onclick="moveCatOrder(${t.id},'${cid}',-1)" ${idx===0?'disabled':''} title="הקדם קטגוריה">▲</button>
         <button class="cc-btn" onclick="moveCatOrder(${t.id},'${cid}',1)" ${idx===catIds.length-1?'disabled':''} title="אחר קטגוריה">▼</button>
         <button class="cc-btn cc-move" onclick="openCatMove('${cid}','${nm.replace(/'/g,"")}')" title="העבר קטגוריה למזרן אחר">↔</button>
+        <button class="cc-btn cc-edit" onclick="openCatEdit('${cid}')" title="ערוך מתחרים">✏️</button>
       </div>`;
     }).join('')+'</div>';
   }
@@ -686,6 +744,85 @@ function tick(){
 }
 setInterval(()=>{ if(_dragMid) return; tick(); render(); },5000); // re-render every 5s (skip while dragging)
 
+let _ceCatId=null;
+
+function openCatEdit(catId){
+  _ceCatId=catId;
+  const cat=STATE.allCats.find(c=>c.id===catId);
+  if(!cat){ toast('שגיאה: קטגוריה לא נמצאה'); return; }
+  document.getElementById('ce-catname').textContent=cat.name;
+
+  const comps=cat.competitors||[];
+  const doneCount=(cat.matches||[]).filter(m=>m.status==='done'&&m.win_reason!=='bye').length;
+  document.getElementById('ce-warn').textContent = doneCount
+    ? `⚠ ${doneCount} קרבות כבר הסתיימו — הוספה/הסרה עלולה לשנות אותם`
+    : '';
+
+  // populate selects
+  const opts=comps.map(cp=>`<option value="${cp.id}">${cp.name}</option>`).join('');
+  document.getElementById('ce-swap-sel').innerHTML=opts;
+  document.getElementById('ce-del-sel').innerHTML=opts;
+  // sync swap name field to first competitor
+  document.getElementById('ce-swap-name').value='';
+  document.getElementById('ce-add-name').value='';
+  document.getElementById('ce-add-club').value='';
+
+  ceTab('swap');
+  document.getElementById('cat-edit-ov').classList.remove('h');
+}
+
+function ceTab(tab){
+  document.querySelectorAll('.ce-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  document.getElementById('ce-swap').style.display = tab==='swap'?'':'none';
+  document.getElementById('ce-add').style.display  = tab==='add' ?'':'none';
+  document.getElementById('ce-del').style.display  = tab==='del' ?'':'none';
+}
+
+// ── SWAP: rename a competitor. Matches untouched. ──
+async function ceSwap(){
+  const compId=document.getElementById('ce-swap-sel').value;
+  const newName=document.getElementById('ce-swap-name').value.trim();
+  if(!compId||!newName){ toast('בחר מתחרה והקלד שם'); return; }
+  try{
+    await DB.updateCompetitor(compId,{name:newName});
+    closeModal('cat-edit-ov');
+    toast('✓ השם הוחלף — הקרבות נשמרו');
+    await loadRealMatches();
+  }catch(e){ console.error('swap:',e); toast('⚠ שגיאה בהחלפת השם'); }
+}
+
+// ── ADD: add a competitor, then rebuild via bracket.html ──
+async function ceAdd(){
+  const name=document.getElementById('ce-add-name').value.trim();
+  const club=document.getElementById('ce-add-club').value.trim();
+  const keep=document.getElementById('ce-add-keep').value; // keep | fresh
+  if(!name){ toast('הקלד שם'); return; }
+  const cat=STATE.allCats.find(c=>c.id===_ceCatId);
+  if(!cat){ toast('שגיאה'); return; }
+  if(!confirm(`להוסיף את "${name}" ולבנות מחדש את הקטגוריה?`)) return;
+  try{
+    await DB.upsertCompetitors([{category_id:_ceCatId,name,club:club||''}]);
+    toast('⏳ בונה מחדש...');
+    // hand off to bracket rebuild
+    location.href=`bracket.html?rebuild=${_ceCatId}&keep=${keep}`;
+  }catch(e){ console.error('add:',e); toast('⚠ שגיאה בהוספה'); }
+}
+
+// ── DELETE: remove a competitor, then rebuild ──
+async function ceDel(){
+  const compId=document.getElementById('ce-del-sel').value;
+  const keep=document.getElementById('ce-del-keep').value;
+  if(!compId){ toast('בחר מתחרה'); return; }
+  const cat=STATE.allCats.find(c=>c.id===_ceCatId);
+  const cp=(cat?.competitors||[]).find(c=>c.id===compId);
+  if(!confirm(`להסיר את "${cp?cp.name:''}" ולבנות מחדש את הקטגוריה?`)) return;
+  try{
+    await DB.deleteCompetitor(compId);
+    toast('⏳ בונה מחדש...');
+    location.href=`bracket.html?rebuild=${_ceCatId}&keep=${keep}&removed=${compId}`;
+  }catch(e){ console.error('del:',e); toast('⚠ שגיאה בהסרה'); }
+}
+
 function buildAllMatches(){
   if(!confirm('לבנות קרבות לכל הקטגוריות?\n\nקטגוריות שכבר יש להן קרבות יידלגו (התוצאות נשמרות).')) return;
   location.href='bracket.html?buildall=1';
@@ -748,7 +885,12 @@ async function loadRealMatches(){
     // keep queue order stable inside each tatami
     STATE.tatami.forEach(t=>t.matches.sort((a,b)=>(a.order??999)-(b.order??999)||(a.matchNum||0)-(b.matchNum||0)));
 
-    STATE.allCats=cats.map(c=>({id:c.id,name:c.name,tatami:Number(c.tatami_id)||null}));
+    STATE.allCats=cats.map(c=>({
+      id:c.id, name:c.name, tatami:Number(c.tatami_id)||null,
+      method:c.method||'knockout',
+      competitors:(c.competitors||[]).map(cp=>({id:cp.id,name:cp.name,club:cp.club||''})),
+      matches:(c.matches||[]),
+    }));
     document.getElementById('h-title').textContent=`שליטה — ${compName}`;
     render();
   }catch(e){
