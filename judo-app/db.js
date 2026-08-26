@@ -104,6 +104,14 @@ const DB = {
   async updateMatch(id, data) {
     return supa('PATCH', `matches?id=eq.${id}`, data);
   },
+  // Delete all matches of a category (used when rebuilding a bracket)
+  async deleteMatches(categoryId) {
+    return supa('DELETE', `matches?category_id=eq.${categoryId}`);
+  },
+  // Delete a single match by id
+  async deleteMatch(id) {
+    return supa('DELETE', `matches?id=eq.${id}`);
+  },
 
   // After a match is done, propagate winner/loser to next matches
   async propagateResult(matchId, winnerId, loserId){
