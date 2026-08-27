@@ -235,6 +235,23 @@ html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--bg);color:
   </div>
 </div>
 
+<!-- EDIT NAME MODAL -->
+<div class="ov h" id="nameov">
+  <div class="md">
+    <div class="mh"><div class="mt">✏ עריכת שם מתחרה</div><button class="btn bs bsm" onclick="document.getElementById('nameov').classList.add('h')">✕</button></div>
+    <div class="mb">
+      <div class="fg"><label>שם חדש (מתעדכן בכל המערכת)</label>
+        <input type="text" class="fc" id="name-input" placeholder="שם מלא" onkeydown="if(event.key==='Enter')saveNameEdit()">
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:8px">השינוי ישתקף בעץ, בקרבות הבאים ובמדליות.</div>
+    </div>
+    <div class="mf">
+      <button class="btn bs bsm" onclick="document.getElementById('nameov').classList.add('h')">ביטול</button>
+      <button class="btn bp bsm" onclick="saveNameEdit()">✓ שמור</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────────
 // CONSTANTS
@@ -866,7 +883,7 @@ function srow(m,side,r1,win,sc,shido){
   const c=side==='blue'?m.bC:m.wC;
   let cls='slot'+(win?' wn':'')+(m.status==='bye'&&!c?' bye':'')+((!c&&r1)?' emp':'')+(c&&r1?' drg':'');
   const bar=side==='blue'?'background:var(--wc)':'background:var(--bc)';
-  const nm=c?`<span class="sn">${c.name}</span>`
+  const nm=c?`<span class="sn" onclick="event.stopPropagation();openNameEdit('${c.dbId||c.id}','${(c.name||'').replace(/'/g,"\\'")}')" title="לחץ לעריכת שם" style="cursor:text">${c.name}</span>`
     :(r1?`<span class="sn sne" onclick="event.stopPropagation();oA(${m.id},'${side}')">+ הוסף</span>`
         :`<span class="sn sne">—</span>`);
   return `<div class="${cls}" data-s="${side}" draggable="${!!(c&&r1)}">
@@ -1095,6 +1112,34 @@ function fit(){
   document.getElementById('ow').style.transform=`scale(${zoom})`;
   document.getElementById('zl').textContent=Math.round(zoom*100)+'%';
 }
+// ════ EDIT COMPETITOR NAME (permanent, updates everywhere) ════
+let _nameEditId=null;
+function openNameEdit(compId, curName){
+  _nameEditId=compId;
+  const inp=document.getElementById('name-input');
+  inp.value=curName||'';
+  document.getElementById('nameov').classList.remove('h');
+  setTimeout(()=>{inp.focus();inp.select();},50);
+}
+async function saveNameEdit(){
+  const newName=document.getElementById('name-input').value.trim();
+  if(!newName||!_nameEditId){ document.getElementById('nameov').classList.add('h'); return; }
+  document.getElementById('nameov').classList.add('h');
+  try{
+    await DB.updateCompetitor(_nameEditId,{name:newName});
+    // update in-memory cache so a re-render shows it immediately
+    (allCategories||[]).forEach(cat=>{
+      (cat.competitors||[]).forEach(cp=>{ if(String(cp.id)===String(_nameEditId)) cp.name=newName; });
+    });
+    toast('✓ השם עודכן בכל המערכת');
+    // reload the currently open category to redraw every match with the new name
+    if(CB&&CB.catDbId){
+      const tab=document.querySelector('.tab.on');
+      await ldCat(CB.catDbId, tab);
+    }
+  }catch(e){ console.error('name edit:',e); toast('⚠ שגיאה בשמירת השם'); }
+}
+
 function toast(msg){
   const t=document.createElement('div');
   t.style.cssText='position:fixed;bottom:36px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;font-size:12px;color:var(--green);z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.5)';
