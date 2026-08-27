@@ -212,10 +212,19 @@ body.fullscreen #app{background:#0a0a0e;}
 .ctrl-btn.on{background:rgba(155,89,182,.2);color:#9b59b6;border-color:#9b59b6;}
 
 
+/* ambience overlay */
+#amb-ov{position:fixed;inset:0;z-index:900;background:#000;display:none;align-items:center;justify-content:center;}
+#amb-ov.show{display:flex;}
+#amb-ov video,#amb-ov img{width:100%;height:100%;object-fit:contain;}
+#amb-empty{color:#666;font-size:15px;font-family:'Heebo',sans-serif;text-align:center;padding:24px;}
 </style>
 <script src="db.js"></script>
 </head>
 <body>
+<!-- AMBIENCE SCREEN (mirror — follows the main referee screen) -->
+<div id="amb-ov">
+  <div id="amb-body" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"></div>
+</div>
 
 <div id="ctrl-bar">
   <button class="ctrl-btn" onclick="undoLast()" title="ביטול אחרון">↺</button>
@@ -1184,9 +1193,44 @@ function playSound(type){
 function broadcastState(){} // no-op in mirror
 
 // Listen for state requests from mirror window
+
+// ════ AMBIENCE (mirror side) — opened/closed by broadcast from the main screen ════
+let _ambUrl=null;
+async function mirrorOpenAmbience(){
+  const ov=document.getElementById('amb-ov');
+  const body=document.getElementById('amb-body');
+  if(!ov||!body) return;
+  body.innerHTML='<div id="amb-empty">טוען…</div>';
+  ov.classList.add('show');
+  try{
+    if(typeof MediaStore==='undefined') throw new Error('no MediaStore');
+    const rec=await MediaStore.get('ambience');
+    if(!rec?.blob){ body.innerHTML='<div id="amb-empty">לא הועלה מסך אווירה</div>'; return; }
+    if(_ambUrl) URL.revokeObjectURL(_ambUrl);
+    _ambUrl=URL.createObjectURL(rec.blob);
+    const type=rec.meta?.type||'';
+    body.innerHTML = type.startsWith('video')
+      ? `<video src="${_ambUrl}" autoplay loop muted playsinline></video>`
+      : `<img src="${_ambUrl}">`;
+  }catch(e){ console.error('mirror ambience:',e); body.innerHTML='<div id="amb-empty">שגיאה בטעינה</div>'; }
+}
+function mirrorCloseAmbience(){
+  const ov=document.getElementById('amb-ov');
+  const body=document.getElementById('amb-body');
+  if(ov) ov.classList.remove('show');
+  if(body) body.innerHTML='';
+  if(_ambUrl){ URL.revokeObjectURL(_ambUrl); _ambUrl=null; }
+}
+
 mirrorChannel.onmessage = e => {
   const d = e.data;
   if(!d||d.type==='request_state') return;
+  // Ambience commands from the main screen
+  if(d.type==='ambience'){
+    if(d.action==='open') mirrorOpenAmbience();
+    else mirrorCloseAmbience();
+    return;
+  }
   // Show winner overlay
   if(d.winner!==undefined){
     if(d.winner){
