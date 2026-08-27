@@ -130,6 +130,7 @@ html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--bg);color:
     <span id="zl" style="font-size:11px;color:var(--text2);min-width:34px;text-align:center">100%</span>
     <button class="btn bs bsm" onclick="z(1)">+</button>
     <button class="btn bs bsm" style="margin-left:5px" onclick="fit()">⊡</button>
+    <button class="btn bs bsm" onclick="openTreeEdit()" title="הוסף/הסר מתחרים ובנה מחדש">✏️ ערוך מתחרים</button>
     <button class="btn bp bsm" onclick="location.href='index.html'">← ניהול</button>
   </div>
 </div>
@@ -231,6 +232,38 @@ html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--bg);color:
     <div class="mf">
       <button class="btn bs bsm" onclick="document.getElementById('aov').classList.add('h')">ביטול</button>
       <button class="btn bp bsm" onclick="cA()">✓ הוסף</button>
+    </div>
+  </div>
+</div>
+
+<!-- TREE EDIT MODAL (add / remove competitors → rebuild) -->
+<div class="ov h" id="treeov">
+  <div class="md">
+    <div class="mh"><div class="mt">✏️ עריכת מתחרים בעץ</div><button class="btn bs bsm" onclick="document.getElementById('treeov').classList.add('h')">✕</button></div>
+    <div class="mb">
+      <div id="te-catname" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px"></div>
+      <div id="te-struct" style="font-size:11px;color:var(--text2);margin-bottom:12px"></div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">מתחרים נוכחיים</div>
+      <div id="te-list" style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px"></div>
+
+      <div class="dv"></div>
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin:10px 0 6px">הוספת מתחרה</div>
+      <div class="fg"><label>שם *</label><input type="text" class="fc" id="te-name" placeholder="שם מלא" onkeydown="if(event.key==='Enter')teAdd()"></div>
+      <div class="fg"><label>מועדון</label><input type="text" class="fc" id="te-club" placeholder="מועדון (רשות)"></div>
+      <button class="btn bs bsm" style="width:100%" onclick="teAdd()">➕ הוסף לרשימה</button>
+
+      <div class="dv" style="margin-top:14px"></div>
+      <div class="fg" style="margin-top:10px"><label>קרבות שכבר נעשו</label>
+        <select class="fc" id="te-keep">
+          <option value="keep">שמור קרבות שהסתיימו (במידת האפשר)</option>
+          <option value="fresh">בנה עץ נקי מאפס</option>
+        </select>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bs bsm" onclick="document.getElementById('treeov').classList.add('h')">ביטול</button>
+      <button class="btn bp bsm" onclick="teApply()">✓ בנה מחדש</button>
     </div>
   </div>
 </div>
@@ -1112,6 +1145,110 @@ function fit(){
   document.getElementById('ow').style.transform=`scale(${zoom})`;
   document.getElementById('zl').textContent=Math.round(zoom*100)+'%';
 }
+// ════ TREE EDIT — add/remove competitors, rebuild the bracket ════
+let _teCatId=null, _teComps=[], _teRemoved=new Set(), _teAdded=[];
+
+function openTreeEdit(){
+  if(!CB||!CB.catDbId){ toast('פתח קטגוריה קודם'); return; }
+  _teCatId=CB.catDbId;
+  const cat=(allCategories||[]).find(c=>String(c.id)===String(_teCatId));
+  _teComps=(cat?.competitors||[]).map(cp=>({id:cp.id,name:cp.name,club:cp.club||''}));
+  _teRemoved=new Set();
+  _teAdded=[];
+  document.getElementById('te-catname').textContent=cat?cat.name:'';
+  document.getElementById('te-name').value='';
+  document.getElementById('te-club').value='';
+  renderTeList();
+  document.getElementById('treeov').classList.remove('h');
+}
+
+function structLabel(n){
+  if(n<2) return 'אין מספיק מתחרים';
+  if(n===2) return 'ליגה (2)';
+  if(n===3) return 'ליגה (3)';
+  if(n<=4) return 'נוקאאוט 4';
+  if(n<=8) return 'נוקאאוט 8';
+  if(n<=16) return 'נוקאאוט 16';
+  return 'נוקאאוט '+n;
+}
+
+function renderTeList(){
+  const live=_teComps.filter(c=>!_teRemoved.has(String(c.id)));
+  const total=live.length+_teAdded.length;
+  document.getElementById('te-struct').textContent=`מבנה נוכחי: ${structLabel(_teComps.length)} → מבנה חדש: ${structLabel(total)} · ${total} מתחרים`;
+
+  const rows=[];
+  _teComps.forEach(c=>{
+    const removed=_teRemoved.has(String(c.id));
+    rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;${removed?'opacity:.45;text-decoration:line-through':''}">
+      <span style="flex:1;font-size:12px">${c.name}${c.club?` <span style="color:var(--text2);font-size:10px">· ${c.club}</span>`:''}</span>
+      <button class="btn bs bsm" onclick="teToggleRemove('${c.id}')">${removed?'↺ שחזר':'✕ הסר'}</button>
+    </div>`);
+  });
+  _teAdded.forEach((c,i)=>{
+    rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px dashed var(--accent);border-radius:6px;background:rgba(232,200,74,.06)">
+      <span style="flex:1;font-size:12px">➕ ${c.name}${c.club?` <span style="color:var(--text2);font-size:10px">· ${c.club}</span>`:''}</span>
+      <button class="btn bs bsm" onclick="teUndoAdd(${i})">✕</button>
+    </div>`);
+  });
+  document.getElementById('te-list').innerHTML=rows.join('')||'<div style="font-size:11px;color:var(--text3)">אין מתחרים</div>';
+}
+
+function teToggleRemove(id){
+  id=String(id);
+  if(_teRemoved.has(id)) _teRemoved.delete(id); else _teRemoved.add(id);
+  renderTeList();
+}
+function teUndoAdd(i){ _teAdded.splice(i,1); renderTeList(); }
+function teAdd(){
+  const name=document.getElementById('te-name').value.trim();
+  const club=document.getElementById('te-club').value.trim();
+  if(!name){ toast('הקלד שם'); return; }
+  _teAdded.push({name,club});
+  document.getElementById('te-name').value='';
+  document.getElementById('te-club').value='';
+  document.getElementById('te-name').focus();
+  renderTeList();
+}
+
+async function teApply(){
+  const keep=document.getElementById('te-keep').value;
+  const removed=[..._teRemoved];
+  if(!removed.length && !_teAdded.length){ toast('לא בוצעו שינויים'); return; }
+  const live=_teComps.filter(c=>!_teRemoved.has(String(c.id))).length + _teAdded.length;
+  if(live<2 && !confirm('פחות מ-2 מתחרים יישארו — הקטגוריה תישאר ללא קרבות. להמשיך?')) return;
+  if(!confirm('לבנות מחדש את העץ?'+(keep==='keep'?' קרבות שהסתיימו יישמרו במידת האפשר.':' העץ ייבנה מאפס.'))) return;
+
+  document.getElementById('treeov').classList.add('h');
+  try{
+    // apply DB changes first
+    if(_teAdded.length){
+      await DB.upsertCompetitors(_teAdded.map(c=>({category_id:_teCatId,name:c.name,club:c.club||''})));
+    }
+    for(const id of removed){ try{ await DB.deleteCompetitor(id); }catch(e){ console.warn('del',id,e); } }
+
+    // refresh allCategories so rebuild reads the new roster
+    const compId=localStorage.getItem('judo_active_comp');
+    allCategories=await DB.getCategories(compId);
+
+    // rebuild (reads updated competitors from DB inside)
+    await rebuildCategory(_teCatId, keep, removed);
+
+    // redraw the open tree after rebuild finishes
+    allCategories=await DB.getCategories(compId);
+    const tab=document.querySelector('.tab.on');
+    await ldCat(_teCatId, tab);
+    // close the build overlay — we're back on the live tree
+    const bov=document.getElementById('buildall-ov');
+    if(bov) bov.style.display='none';
+    document.getElementById('ba-actions').style.display='none';
+    toast('✓ העץ נבנה מחדש');
+  }catch(e){
+    console.error('tree edit apply:',e);
+    toast('⚠ שגיאה בבנייה מחדש');
+  }
+}
+
 // ════ EDIT COMPETITOR NAME (permanent, updates everywhere) ════
 let _nameEditId=null;
 function openNameEdit(compId, curName){
@@ -1173,6 +1310,11 @@ async function rebuildCategory(catId, keepMode, removedId){
   if(!cat){ setStatus('קטגוריה לא נמצאה'); document.getElementById('ba-actions').style.display='flex'; return; }
   setDetail(cat.name);
 
+  const removedSet=new Set(
+    (Array.isArray(removedId)?removedId:(removedId?String(removedId).split(','):[]))
+      .filter(Boolean).map(String)
+  );
+
   // 1. Remember finished matches BEFORE we wipe (pair of competitor-ids → result)
   let oldMatches=[];
   try{ oldMatches=await DB.getMatches(catId)||[]; }catch(e){}
@@ -1181,7 +1323,7 @@ async function rebuildCategory(catId, keepMode, removedId){
     oldMatches.forEach(m=>{
       if(m.status!=='done'||m.win_reason==='bye'||!m.winner_id) return;
       if(!m.blue_id||!m.white_id) return;
-      if(removedId&&(String(m.blue_id)===String(removedId)||String(m.white_id)===String(removedId))) return; // drop matches involving removed player
+      if(removedSet.size&&(removedSet.has(String(m.blue_id))||removedSet.has(String(m.white_id)))) return; // drop matches involving any removed player
       const key=[m.blue_id,m.white_id].sort().join('|');
       doneByPair[key]={winner_id:m.winner_id, win_reason:m.win_reason, score:m.score, started_at:m.started_at, ended_at:m.ended_at};
     });
