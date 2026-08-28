@@ -130,6 +130,12 @@ body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
 #amb-close{position:absolute;top:14px;left:14px;z-index:5;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:8px 16px;font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;}
 #amb-close:hover{background:rgba(0,0,0,.8);}
 #amb-empty{color:#666;font-size:15px;font-family:'Heebo',sans-serif;text-align:center;padding:24px;}
+
+/* osaekomi assign-square blink (while running, side not yet chosen) */
+@keyframes osaeBlinkBlue{0%,100%{background:#0d1f3d;box-shadow:none;}50%{background:#2a6fd8;box-shadow:0 0 10px rgba(42,111,216,.7);}}
+@keyframes osaeBlinkWhite{0%,100%{background:#d0d0d0;box-shadow:none;}50%{background:#ffffff;box-shadow:0 0 10px rgba(255,255,255,.7);}}
+.assign-sq.blink.sq-blue{animation:osaeBlinkBlue .6s ease-in-out infinite;}
+.assign-sq.blink.sq-white{animation:osaeBlinkWhite .6s ease-in-out infinite;}
 </style>
 <script src="db.js"></script>
 </head>
@@ -244,6 +250,7 @@ body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
   <div id="win-reason"></div>
   <div id="ov-btns" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;justify-content:center">
     <button class="ov-btn ov-next" id="ov-next-btn" onclick="goNextFromOverlay()" style="display:none;background:var(--acc,#e8c84a);color:#000;font-weight:700">⏭ קרב הבא</button>
+    <button class="ov-btn ov-fix" onclick="correctResult()" style="background:#c0392b;color:#fff">✎ תקן תוצאה</button>
     <button class="ov-btn" onclick="document.getElementById('winner-overlay').classList.remove('show')">המשך</button>
     <button class="ov-btn" onclick="resetMatch()">קרב חדש</button>
   </div>
@@ -406,6 +413,20 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
     const cats=await DB.getCategories(compId);
     const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
     if(!tatamiCats.length){ showToast('✓ כל הקרבות הסתיימו!'); return; }
+
+    // Safety net: release any match stuck as 'live' on this tatami back to
+    // 'pending', so a match abandoned (e.g. when switching to offline) never
+    // vanishes. The one we're about to load is set to live again below.
+    const stuckLive=[];
+    tatamiCats.forEach(cat=>{
+      (cat.matches||[]).forEach(m=>{
+        if(m.status==='live'){ stuckLive.push(m); m.status='pending'; }
+      });
+    });
+    if(stuckLive.length){
+      try{ await Promise.all(stuckLive.map(m=>DB.updateMatch(m.id,{status:'pending'}))); }
+      catch(e){ console.warn('release stuck live:',e); }
+    }
 
     // For a category, get its next "block" of matches to run
     // League: always 1 match at a time
@@ -572,8 +593,15 @@ function toggleOsae(){
   osaeActive?stopOsae():startOsae();
 }
 
+
+function updateOsaeBlink(){
+  const b=document.getElementById('sq-blue'), w=document.getElementById('sq-white');
+  const blink = osaeActive && !osaeSide;   // running but no side chosen yet
+  if(b) b.classList.toggle('blink', blink);
+  if(w) w.classList.toggle('blink', blink);
+}
 function startOsae(){
-  osaeActive=true; // parallel - no pauseMain
+  osaeActive=true; updateOsaeBlink(); // parallel - no pauseMain
   if(osaeInterval)clearInterval(osaeInterval);
   osaeInterval=setInterval(()=>{
     osaeTime++;
@@ -583,15 +611,15 @@ function startOsae(){
       return;
     }
     if(!osaeSide&&osaeTime>=20){
-      stopOsaeInterval();osaeActive=false;syncOsaeClock();
-      showToast('⚠ בחר צד לריתוק — הגיע ל-20 שניות');return;
+      stopOsaeInterval();osaeActive=false;pauseMain();pendingOsaeTime=osaeTime;updateOsaeBlink();
+      syncOsaeClock();showToast('⚠ בחר צד לריתוק — שני השעונים נעצרו');return;
     }
     syncOsaeClock();
   },1000);
   syncOsaeClock();
 }
 
-function stopOsaeInterval(){if(osaeInterval){clearInterval(osaeInterval);osaeInterval=null;}}
+function stopOsaeInterval(){ updateOsaeBlink&&setTimeout(updateOsaeBlink,0);if(osaeInterval){clearInterval(osaeInterval);osaeInterval=null;}}
 
 function getOsaeKey(s,side){
   if(s>=10&&SC[side].W>=1)return'I';
@@ -632,6 +660,25 @@ function assignOsae(side){
   }
   document.getElementById('sq-blue').classList.toggle('sel',osaeSide==='blue');
   document.getElementById('sq-white').classList.toggle('sel',osaeSide==='white');
+    updateOsaeBlink();
+}
+
+// ════ CORRECT RESULT — reopen a finished match to fix a mistake ════
+async function correctResult(){
+  document.getElementById('winner-overlay').classList.remove('show');
+  // reopen locally: keep the current score, just leave 'done'
+  status = (timeLeft>0) ? 'live' : 'paused';
+  pauseMain();               // don't auto-run; let the ref adjust first
+  const nb=document.getElementById('ov-next-btn'); if(nb) nb.style.display='none';
+  syncMainClock(); syncClockSub();
+  showToast('✎ הקרב נפתח לתיקון — עדכן ניקוד והכרז שוב');
+  // revert the DB record back to live so it isn't counted as finished
+  const p=new URLSearchParams(location.search);
+  const matchId=p.get('matchid');
+  if(matchId && typeof DB!=='undefined'){
+    try{ await DB.updateMatch(matchId,{status:'live', winner_id:null, win_reason:null, ended_at:null}); }
+    catch(e){ console.warn('reopen:',e); }
+  }
 }
 
 function resetMatch(){
@@ -762,17 +809,23 @@ async function postponeMatch(matchId, tatamiId, gap){
   const cats=await DB.getCategories(compId);
   const tatamiCats=(cats||[]).filter(c=>Number(c.tatami_id)===Number(tatamiId));
 
-  // Full pending queue for this tatami, in current order (BYE + done excluded)
+  // Full queue for this tatami, in current order (BYE + done excluded).
+  // IMPORTANT: include 'live' too — the match being postponed may be the one
+  // currently loaded on the clock, otherwise it would vanish (stuck as live).
   const queue=[];
   tatamiCats.forEach(cat=>{
     (cat.matches||[])
-      .filter(m=>(m.status==='pending'||m.status==='suspended')&&m.blue_id&&m.white_id&&m.win_reason!=='bye')
+      .filter(m=>(m.status==='pending'||m.status==='suspended'||m.status==='live')&&m.blue_id&&m.white_id&&m.win_reason!=='bye')
       .forEach(m=>queue.push(m));
   });
   queue.sort((a,b)=>(a.order_in_tatami??9999)-(b.order_in_tatami??9999)||(a.match_num||0)-(b.match_num||0));
 
   const from=queue.findIndex(m=>String(m.id)===String(matchId));
-  if(from<0) return;
+  if(from<0){
+    // match not in queue for some reason — force it back to pending so it never disappears
+    try{ await DB.updateMatch(matchId,{status:'pending'}); }catch(e){}
+    return;
+  }
   const [moved]=queue.splice(from,1);
   // insert `gap` matches later (clamped to the end)
   const insertAt=Math.min(from+gap, queue.length);
@@ -996,6 +1049,7 @@ function broadcastState(){
     winReason: status==='done'?(document.getElementById('win-reason')?.textContent||null):null,
     status: status,
     osaeActive: osaeActive,
+    osaeSide: osaeSide||null,
   });
 }
 
