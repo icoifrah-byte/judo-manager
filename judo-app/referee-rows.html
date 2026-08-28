@@ -560,7 +560,7 @@ function startMain(){
   if(mainInterval)clearInterval(mainInterval);
   mainInterval=setInterval(()=>{
     if(status==='golden')timeLeft++;
-    else{timeLeft--;if(timeLeft<=0){timeLeft=0;clearInterval(mainInterval);mainInterval=null;syncMainClock();stopOsaeInterval();checkTimeEnd();return;}}
+    else{timeLeft--;if(timeLeft<=0){timeLeft=0;clearInterval(mainInterval);mainInterval=null;syncMainClock();if(!osaeActive) stopOsaeInterval();checkTimeEnd();return;}}
     syncMainClock();
   },1000);
 }
@@ -569,7 +569,11 @@ function pauseMain(){if(mainInterval){clearInterval(mainInterval);mainInterval=n
 
 function checkTimeEnd(){
   // If osaekomi is active, stop main clock display at 0:00 but let osae continue
-  if(osaeActive){ status='paused'; timeLeft=0; syncMainClock(); syncClockSub(); return; } playSound('timeup');
+  if(osaeActive){ status='paused'; timeLeft=0; syncMainClock(); syncClockSub(); return; }
+  // If an osaekomi award is waiting for a side to be chosen, do NOT auto-decide by score
+  if(pendingOsaeTime>0){ status='paused'; timeLeft=0; syncMainClock(); syncClockSub();
+    showToast('⚠ בחר צד לריתוק לפני סיום הקרב'); return; }
+  playSound('timeup');
   const b=SC.blue,w=SC.white;
   let win=null;
   if(b.W!==w.W)win=b.W>w.W?'blue':'white';
@@ -586,6 +590,25 @@ function checkTimeEnd(){
     if(el) el.textContent='⚡ לחץ להתחלת גולדן סקור';
   });
   showToast('⏱ לחץ על השעון להתחיל גולדן סקור');
+}
+
+// ════ CANCEL OSAEKOMI — right-click the osae timer; no score awarded ════
+function cancelOsae(){
+  const wasRunning = osaeActive || osaeTime>0 || pendingOsaeTime>0;
+  stopOsaeInterval();
+  if(typeof pendingOsaeTimeout!=='undefined' && pendingOsaeTimeout){ clearTimeout(pendingOsaeTimeout); pendingOsaeTimeout=null; }
+  osaeActive=false;
+  osaeSide=null;
+  osaeTime=0;
+  pendingOsaeTime=0;
+  const oc=document.getElementById('osae-clock'); if(oc) oc.classList.remove('pending-blink');
+  document.getElementById('sq-blue')?.classList.remove('sel');
+  document.getElementById('sq-white')?.classList.remove('sel');
+  updateOsaeBlink&&updateOsaeBlink();
+  syncOsaeClock();
+  // resume the main clock if the bout is still on
+  if(status==='live'||status==='golden') startMain();
+  if(wasRunning) showToast('✕ ריתוק בוטל');
 }
 
 function toggleOsae(){
@@ -1155,6 +1178,12 @@ function removeAt(el){
 }
 
 document.addEventListener('contextmenu',e=>{
+  // Right-click the osaekomi timer → cancel the hold (no score)
+  if(e.target.closest && e.target.closest('#osae-block')){
+    e.preventDefault();
+    cancelOsae();
+    return;
+  }
   const el=_hitCell(e.target);
   if(!el) return;
   e.preventDefault();
