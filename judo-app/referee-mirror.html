@@ -217,6 +217,11 @@ body.fullscreen #app{background:#0a0a0e;}
 #amb-ov.show{display:flex;}
 #amb-ov video,#amb-ov img{width:100%;height:100%;object-fit:contain;}
 #amb-empty{color:#666;font-size:15px;font-family:'Heebo',sans-serif;text-align:center;padding:24px;}
+
+@keyframes osaeBlinkBlue{0%,100%{background:#0d1f3d;box-shadow:none;}50%{background:#2a6fd8;box-shadow:0 0 10px rgba(42,111,216,.7);}}
+@keyframes osaeBlinkWhite{0%,100%{background:#d0d0d0;box-shadow:none;}50%{background:#fff;box-shadow:0 0 10px rgba(255,255,255,.7);}}
+.assign-sq.blink.sq-blue{animation:osaeBlinkBlue .6s ease-in-out infinite;}
+.assign-sq.blink.sq-white{animation:osaeBlinkWhite .6s ease-in-out infinite;}
 </style>
 <script src="db.js"></script>
 </head>
@@ -574,6 +579,7 @@ function stopOsae(){
 function startPendingBlink(){
   // blink the osae clock showing frozen time
   document.getElementById('osae-clock').classList.add('pending-blink');
+  { const _bl=(d.osaeActive&&!d.osaeSide); const _b=document.getElementById('sq-blue'),_w=document.getElementById('sq-white'); if(_b)_b.classList.toggle('blink',_bl); if(_w)_w.classList.toggle('blink',_bl); }
   document.getElementById('osae-clock').textContent=String(pendingOsaeTime).padStart(2,'0');
   // auto-cancel after 10s if no assignment
   if(pendingOsaeTimeout) clearTimeout(pendingOsaeTimeout);
