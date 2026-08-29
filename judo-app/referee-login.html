@@ -61,6 +61,7 @@ html,body{height:100%;background:#0a0a0e;color:#f0f0f0;font-family:'Heebo',sans-
 .style-opt:hover{border-color:#8a8fa0;color:#f0f0f0;}
 .style-opt.selected{border-color:#e8c84a;background:rgba(232,200,74,.1);color:#e8c84a;}
 </style>
+<script>window.JUDO_WRITE_SECRET='judo-2026-CHANGE-ME-a7Kp9mXq';</script>
 <script src="db.js"></script>
 </head>
 <body>
@@ -176,7 +177,15 @@ function checkReady(){
 
 async function tryEnter(){
   const pin = String(document.getElementById('pin-input').value).trim();
-  const correct = String(CFG.ref_code || '1234');
+
+  // Validate the referee code against the LIVE competition record (not localStorage)
+  let correct = String(CFG.ref_code || '1234');
+  try{
+    const compId = localStorage.getItem('judo_active_comp');
+    const comps = await DB.getCompetitions();
+    const comp = compId ? (comps||[]).find(c=>c.id===compId) : (comps||[])[0];
+    if(comp && comp.ref_code!=null && String(comp.ref_code)!=='') correct = String(comp.ref_code);
+  }catch(e){ /* offline → fall back to cached CFG */ }
 
   if(pin !== correct){
     document.getElementById('pin-input').classList.add('error');
@@ -252,14 +261,9 @@ async function tryEnter(){
         params.set('blueid',  nextMatch.blue_id);
         params.set('whiteid', nextMatch.white_id);
         
-        // Reset any live matches on this tatami
-        const _k='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+        // Reset any live matches on this tatami (uses DB method → carries write secret)
         for(const cat of tatamiCats){
-          await fetch(`https://gsejqwqoreufotqeuzdf.supabase.co/rest/v1/matches?category_id=eq.${cat.id}&status=eq.live`,{
-            method:'PATCH',
-            headers:{'apikey':_k,'Authorization':`Bearer ${_k}`,'Content-Type':'application/json'},
-            body:JSON.stringify({status:'pending'})
-          }).catch(()=>{});
+          try{ await DB.releaseLiveMatches(cat.id); }catch(e){}
         }
         // Mark this match as live
         await DB.updateMatch(nextMatch.id, {status:'live', started_at: new Date().toISOString()});
