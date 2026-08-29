@@ -31,7 +31,7 @@ begin
     secret := null;
   end;
   -- ⚠ שנה את הערך הזה לסוד שלך (זהה ל-WRITE_SECRET ב-db.js)
-  return secret = 'judo-2026-CHANGE-ME-a7Kp9mXq';
+  return secret = 'judo-tybPVyd91Be54qH68JPcED4s';
 end;
 $$;
 
