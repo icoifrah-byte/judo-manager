@@ -495,7 +495,10 @@ setInterval(tick,1000); tick();
 // ═══════════════════════════
 // Load real data from Supabase, fall back to demo
 async function loadRealData(){
-  const compId=localStorage.getItem('judo_active_comp');
+  // Competition id: prefer the URL (?comp=...) so a shared link works on ANY device,
+  // then fall back to this browser's saved competition.
+  const _qp=new URLSearchParams(location.search);
+  const compId=_qp.get('comp')||localStorage.getItem('judo_active_comp');
   if(!compId){ renderMain(); renderCats(); return; }
   try{
     const comps=await DB.getCompetitions();
