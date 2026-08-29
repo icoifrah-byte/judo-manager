@@ -5,19 +5,25 @@
 
 const SUPA_URL = 'https://gsejqwqoreufotqeuzdf.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZWpxd3FvcmV1Zm90cWV1emRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkzOTcsImV4cCI6MjA5MTQwNTM5N30.HEUNqkCxdOIZDg04P4OZnOuw2QswajJPB4MDTpTjbwQ';
+// Write secret — admin pages set window.JUDO_WRITE_SECRET *before* loading db.js.
+// The viewer page does NOT set it, so it can only read.
+const WRITE_SECRET = (typeof window!=='undefined' && window.JUDO_WRITE_SECRET) || null;
 
 // ── HTTP helper ──
 async function supa(method, path, body) {
   const prefer = method === 'POST' ? 'return=representation' : 
                  method === 'PATCH' ? 'return=minimal' : 'return=representation';
+  const headers = {
+    'apikey': SUPA_KEY,
+    'Authorization': `Bearer ${SUPA_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': prefer,
+  };
+  // Attach the write secret for anything that changes data
+  if (method !== 'GET' && WRITE_SECRET) headers['x-write-secret'] = WRITE_SECRET;
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
     method,
-    headers: {
-      'apikey': SUPA_KEY,
-      'Authorization': `Bearer ${SUPA_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': prefer,
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
@@ -130,6 +136,10 @@ const DB = {
   },
   async updateMatchesByCategory(categoryId, data) {
     return supa('PATCH', `matches?category_id=eq.${categoryId}`, data);
+  },
+  // Release any 'live' matches of a category back to 'pending' (goes through supa → carries write secret)
+  async releaseLiveMatches(categoryId) {
+    return supa('PATCH', `matches?category_id=eq.${categoryId}&status=eq.live`, {status:'pending'});
   },
   async saveBracket(categoryId, matches) {
     // Full bracket save: upsert all matches for a category
