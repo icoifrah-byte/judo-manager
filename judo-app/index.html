@@ -200,7 +200,8 @@ td{padding:9px 12px;font-size:13px;}
       <div class="tab" onclick="switchTab('t-tatami',this)">🟩 מזרנים</div>
       <div class="tab" onclick="switchTab('t-champ',this)">👑 אלוף האלופים</div>
       <div class="tab" onclick="switchTab('t-settings',this)">⚙️ הגדרות</div>
-      <button class="btn btn-secondary btn-sm" onclick="exportMedals()" style="margin-right:auto;margin-left:8px;" title="ייצוא מדליות לאקסל">🥇 ייצוא מדליות</button>
+      <button class="btn btn-secondary btn-sm" onclick="copyViewerLink()" style="margin-right:auto;margin-left:6px;" title="העתק לינק לצופים לשליחה להורים">📋 לינק לצופים</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportMedals()" style="margin-left:8px;" title="ייצוא מדליות לאקסל">🥇 ייצוא מדליות</button>
     </div>
 
     <!-- COMPETITORS -->
@@ -1418,6 +1419,19 @@ function goToReferee(){
 
 
 // ════ EXPORT MEDALS ════
+async function copyViewerLink(){
+  const c=C();
+  if(!c||!c.dbId){ showAlert('error','⚠ אין תחרות פעילה — בחר תחרות קודם'); return; }
+  const base=location.href.replace(/index\.html.*$/,'').replace(/\/[^/]*$/,'/');
+  const url=base+'viewer.html?comp='+encodeURIComponent(c.dbId);
+  const done=()=>showAlert('success','✓ הלינק הועתק — אפשר לשלוח להורים');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(()=>prompt('העתק את הלינק לצופים:',url));
+  } else {
+    prompt('העתק את הלינק לצופים:',url);
+  }
+}
+
 async function exportMedals(){
   const c=C();
   if(!c){ showAlert('error','אין תחרות פעילה'); return; }
