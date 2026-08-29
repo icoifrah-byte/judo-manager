@@ -137,6 +137,7 @@ body.fullscreen #offline-fullscreen-badge.show{display:none!important;}
 .assign-sq.blink.sq-blue{animation:osaeBlinkBlue .6s ease-in-out infinite;}
 .assign-sq.blink.sq-white{animation:osaeBlinkWhite .6s ease-in-out infinite;}
 </style>
+<script>window.JUDO_WRITE_SECRET='judo-2026-CHANGE-ME-a7Kp9mXq';</script>
 <script src="db.js"></script>
 </head>
 <body>
@@ -923,8 +924,11 @@ const _KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI
 const _H={'apikey':_KEY,'Authorization':`Bearer ${_KEY}`,'Content-Type':'application/json'};
 
 async function supaFetch(path, method='GET', body=null){
+  const _headers = (method!=='GET' && window.JUDO_WRITE_SECRET)
+    ? {..._H, 'x-write-secret': window.JUDO_WRITE_SECRET}
+    : _H;
   const res=await fetch(`${_SUPA}/rest/v1/${path}`,{
-    method, headers:_H, body:body?JSON.stringify(body):undefined
+    method, headers:_headers, body:body?JSON.stringify(body):undefined
   });
   const txt=await res.text();
   return txt?JSON.parse(txt):null;
