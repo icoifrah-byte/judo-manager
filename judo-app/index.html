@@ -1088,22 +1088,76 @@ function renderSidebar(){
             ? '<span style="font-size:9px;font-weight:700;background:var(--accent);color:#000;padding:1px 5px;border-radius:3px;">● פעיל</span>'
             : `<button onclick="event.stopPropagation();activateComp('${comp.id}')" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;">הפעל</button>`
           }
-          <span style="font-size:10px;color:var(--text3)">${comp.competitors.length}</span>
+          <span style="font-size:10px;color:var(--text3)">${comp._loaded?comp.competitors.length:'…'}</span>
+          <button onclick="event.stopPropagation();deleteComp('${comp.id}')" title="מחק תחרות" style="font-size:11px;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:transparent;color:#c0392b;cursor:pointer;">🗑</button>
         </div>
       </div>`;
     }).join('');
 }
 
-function selectComp(id){
+async function loadCompDetails(compId){
+  const comp=S.competitions.find(c=>c.id===compId||c.dbId===compId);
+  if(!comp || comp._loaded) return;
+  try{
+    const cats=await DB.getCategories(comp.dbId);
+    comp.categories=[]; comp.competitors=[];
+    for(const cat of (cats||[])){
+      const localCat={ id:cat.id, dbId:cat.id, name:cat.name,
+        method:cat.method||'knockout', status:cat.status||'pending',
+        tatamiId:cat.tatami_id||null, competitors:[], fromExcel:true };
+      comp.categories.push(localCat);
+      for(const cp of (cat.competitors||[])){
+        if(!comp.competitors.find(x=>x.dbId===cp.id)){
+          comp.competitors.push({ id:cp.id, dbId:cp.id, name:cp.name, club:cp.club||'',
+            category:cat.name, attend_status:cp.attend_status||'unknown',
+            _late:cp.is_late||false, fromExcel:true });
+        }
+        localCat.competitors.push(cp.id);
+      }
+    }
+    comp._loaded=true;
+  }catch(e){ console.error('loadCompDetails:',e); }
+}
+
+async function selectComp(id){
   S.activeId=id;
   setActiveCompId(id);
-  renderSidebar();renderDash();
+  renderSidebar();
+  const comp=S.competitions.find(c=>c.id===id);
+  if(comp && !comp._loaded){
+    document.getElementById('sidebar-comps') && showAlert('success','⏳ טוען תחרות...');
+    await loadCompDetails(id);
+  }
+  renderDash();
   showScreen('admin',document.getElementById('nav-admin'));
+}
+
+async function deleteComp(id){
+  const comp=S.competitions.find(c=>c.id===id);
+  if(!comp){ return; }
+  if(!confirm(`למחוק לצמיתות את "${comp.name}"?\n\nכל הקטגוריות, המתחרים והקרבות יימחקו. פעולה בלתי הפיכה.`)) return;
+  try{
+    if(comp.dbId) await DB.deleteCompetition(comp.dbId);
+    S.competitions=S.competitions.filter(c=>c.id!==id);
+    // if we deleted the active one, pick another (or none)
+    if(S.activeId===id){
+      S.activeId=S.competitions[0]?.id||null;
+      if(S.activeId){ setActiveCompId(S.activeId); await loadCompDetails(S.activeId); }
+      else localStorage.removeItem('judo_active_comp');
+    }
+    renderSidebar(); renderDash();
+    showAlert('success','✓ התחרות נמחקה');
+  }catch(e){
+    console.error('deleteComp:',e);
+    showAlert('error','⚠ שגיאה במחיקת התחרות');
+  }
 }
 
 async function activateComp(id){
   S.activeId=id;
   setActiveCompId(id);
+  const _c=S.competitions.find(x=>x.id===id);
+  if(_c && !_c._loaded){ await loadCompDetails(id); }
   renderSidebar();renderDash();
   // Update all pages by saving to localStorage
   const c=S.competitions.find(x=>x.id===id);
@@ -1651,11 +1705,12 @@ async function initFromDB(){
       renderSidebar(); renderDash();
       return;
     }
-    // Map DB rows → internal format
+    // Map DB rows → lightweight list (ALL competitions, names only).
+    // Categories/competitors are loaded lazily — only for the one you open.
     for(const row of comps){
       const existing = S.competitions.find(c=>c.dbId===row.id);
       if(existing) continue;
-      const comp = {
+      S.competitions.push({
         id: row.id,
         dbId: row.id,
         name: row.name,
@@ -1666,55 +1721,15 @@ async function initFromDB(){
         categories: [],
         champions: [],
         display: 'rows',
+        _loaded: false,          // details not fetched yet
         settings:{
           ref_code: row.ref_code||'1234',
           match_duration: row.match_duration||180,
           ...DEF,
         }
-      };
-      S.competitions.push(comp);
-
-        // Load categories + competitors for this competition
-      try{
-        const cats = await DB.getCategories(row.id);
-        if(cats && cats.length){
-          for(const cat of cats){
-            const localCat = {
-              id: cat.id, dbId: cat.id,
-              name: cat.name, method: cat.method||'knockout',
-              status: cat.status||'pending',
-              tatamiId: cat.tatami_id||null,
-              competitors: [],
-              fromExcel: true,
-            };
-            // Also update competitors tatami based on category assignment
-            if(cat.tatami_id){
-              // Will be set when competitors are loaded below
-            }
-            comp.categories.push(localCat);
-            // Load competitors for this category
-            if(cat.competitors && cat.competitors.length){
-              for(const cp of cat.competitors){
-                const localComp = {
-                  id: cp.id, dbId: cp.id,
-                  name: cp.name, club: cp.club||'',
-                  category: cat.name,
-                  attend_status: cp.attend_status||'unknown',
-                  _late: cp.is_late||false,
-                  fromExcel: true,
-                };
-                // avoid duplicates
-                if(!comp.competitors.find(x=>x.dbId===cp.id)){
-                  comp.competitors.push(localComp);
-                }
-                localCat.competitors.push(cp.id);
-              }
-            }
-          }
-        }
-      }catch(e){ console.error('load cats/comps:',e); }
+      });
     }
-    // Restore active competition
+    // Restore active competition and load ITS details
     const savedId = getActiveCompId();
     const found = S.competitions.find(c=>c.dbId===savedId);
     if(savedId && found){
@@ -1723,8 +1738,9 @@ async function initFromDB(){
       S.activeId = S.competitions[0].id;
       setActiveCompId(S.competitions[0].id);
     }
+    if(S.activeId){ await loadCompDetails(S.activeId); }
     renderSidebar(); renderDash();
-    showAlert('success','✓ מחובר ל-Supabase');
+    showAlert('success',`✓ מחובר — ${S.competitions.length} תחרויות`);
   }catch(e){
     console.error('DB init error:', e);
     showAlert('error','⚠ שגיאה בחיבור ל-Supabase — עובד במצב מקומי');
