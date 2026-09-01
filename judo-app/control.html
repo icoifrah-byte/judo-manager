@@ -42,7 +42,9 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 .tc-header-btns{display:flex;gap:4px;}
 
 /* MATCH ROWS */
-.match-row{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;position:relative;transition:background .15s;}
+.match-row{padding:10px 14px 10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;position:relative;transition:background .15s;}
+.cat-stripe{position:absolute;right:0;top:0;bottom:0;width:5px;}
+.cat-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:4px;color:#fff;white-space:nowrap;}
 .match-row:last-child{border-bottom:none;}
 .match-row:hover{background:rgba(255,255,255,.02);}
 
@@ -146,6 +148,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
   <div class="h-title" id="h-title">שליטה בתחרות</div>
   <div style="flex:1"></div>
   <button class="btn btn-primary btn-sm" onclick="buildAllMatches()" title="בונה קרבות לכל הקטגוריות בבת אחת">🏗️ בנה את כל הקרבות</button>
+  <button class="btn btn-secondary btn-sm" onclick="autoSpreadAll()" title="סדר בסיבובי מזרן — כל קטגוריה נותנת סבב בתורה">🔀 סדר בסיבובים</button>
   <button class="btn btn-secondary btn-sm" onclick="location.href='index.html'">← ניהול</button>
 </div>
 
@@ -289,6 +292,25 @@ const ST={
 };
 const sl=s=>SL[s]||s;
 const st=s=>ST[s]||'W';
+// Distinct color per category — assigned BY POSITION so adjacent categories
+// always get different colors (no hash collisions).
+const _CAT_PALETTE=['#e8574a','#4a90e8','#3fb56b','#e8a13f','#9b5de5','#e85aa8','#2bb6c4','#c98a3f','#7cb342','#5c6bc0','#d4477e','#26a69a','#8d6e63','#ec407a','#66bb6a','#ab47bc'];
+const _catColorMap={};
+function catColor(catId){
+  const key=String(catId||'');
+  if(_catColorMap[key]!==undefined) return _CAT_PALETTE[_catColorMap[key]];
+  // assign the next index based on how many categories we've colored so far
+  const idx=Object.keys(_catColorMap).length % _CAT_PALETTE.length;
+  _catColorMap[key]=idx;
+  return _CAT_PALETTE[idx];
+}
+// Reset color assignments so order follows the category list each render
+function resetCatColors(){
+  const ordered=(STATE.allCats||[]).map(c=>c.id);
+  Object.keys(_catColorMap).forEach(k=>delete _catColorMap[k]);
+  ordered.forEach((id,i)=>{ _catColorMap[String(id)]=i%_CAT_PALETTE.length; });
+}
+
 function badge(s){return `<span class="badge badge-${st(s)}">${sl(s)}</span>`;}
 function cname(name,role,ref){
   if(name)return{k:true,t:name};
@@ -329,6 +351,7 @@ function matchDisplay(m){
 // RENDER
 // ═══════════════════════════════════
 function render(){
+  resetCatColors();
   document.getElementById('tatami-grid').innerHTML=
     STATE.tatami.map(t=>renderTatami(t)).join('');
 }
@@ -380,11 +403,13 @@ function renderTatami(t){
   upcoming.forEach((m,i)=>{
     const b=cname(m.blue,m.bRole,m.bRef), w=cname(m.white,m.wRole,m.wRef);
     const isSusp=m.status==='suspended';
+    const _cc=catColor(m.catId);
     rows+=`<div class="match-row up-row ${isSusp?'row-susp':''}" id="mr-${m.id}"
         draggable="true"
         data-mid="${m.id}" data-tid="${t.id}"
         ondragstart="dragStart(event)" ondragend="dragEnd(event)"
         ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropRow(event)">
+      <div class="cat-stripe" style="background:${_cc}"></div>
       <div class="drag-handle" title="גרור לשינוי סדר">⠿</div>
       <div class="dot ${isSusp?'dot-susp':'dot-up'}"></div>
       <div class="rnum">${i+1}</div>
@@ -394,7 +419,7 @@ function renderTatami(t){
           <span class="nm-vs">מול</span>
           <span class="${w.k?'nm-white':'nm-unknown'}">${w.t}</span>
         </div>
-        <div class="mmeta">${m.category} ${badge(m.stage)} · קרב #${m.matchNum}
+        <div class="mmeta"><span class="cat-tag" style="background:${_cc}">${m.category}</span> ${badge(m.stage)} · קרב #${m.matchNum}
           ${isSusp?'<span class="badge badge-susp">⏸ מושהה</span>':''}</div>
       </div>
       <div class="row-actions">
@@ -417,7 +442,7 @@ function renderTatami(t){
     catBar='<div class="cat-bar">'+catIds.map((cid,idx)=>{
       const nm=(t.matches.find(m=>m.catId===cid)||{}).category||'—';
       const cnt=t.matches.filter(m=>m.catId===cid&&m.status!=='done').length;
-      return `<div class="cat-chip">
+      return `<div class="cat-chip" style="border-right:4px solid ${catColor(cid)}">
         <span class="cc-name" title="${nm}">${nm}</span>
         <span class="cc-count">${cnt}</span>
         <button class="cc-btn" onclick="moveCatOrder(${t.id},'${cid}',-1)" ${idx===0?'disabled':''} title="הקדם קטגוריה">▲</button>
@@ -824,6 +849,95 @@ async function ceDel(){
   }catch(e){ console.error('del:',e); toast('⚠ שגיאה בהסרה'); }
 }
 
+// ═══════════════════════════════════
+// AUTO-SPREAD — space out each competitor's matches (rest between fights)
+// Greedy: at each slot pick the pending match whose competitors rested longest.
+// ═══════════════════════════════════
+// Split a category's pending matches into rounds — each competitor at most once per round
+function _splitRounds(matches){
+  const rounds=[];
+  let pool=matches.slice();
+  let guard=0;
+  while(pool.length && guard++<200){
+    const round=[], used=new Set(), next=[];
+    for(const m of pool){
+      const a=m.blue, b=m.white;
+      if((a!=null&&used.has(a))||(b!=null&&used.has(b))){ next.push(m); }
+      else { round.push(m); if(a!=null)used.add(a); if(b!=null)used.add(b); }
+    }
+    rounds.push(round);
+    pool=next;
+  }
+  return rounds;
+}
+
+// Priority group 0 (goes first each tatami-round): leagues of 3, or any category with 5+ competitors
+function _catPriority(nComp, method){
+  if(method==='league' && nComp===3) return 0;
+  if(nComp>=5) return 0;
+  return 1;
+}
+
+// Round-based spread across the WHOLE tatami:
+// each "tatami round" = one round from every category, priority categories first.
+async function autoSpreadTatami(t, save=true){
+  const done=t.matches.filter(m=>m.status==='done');
+  const queue=t.matches.filter(m=>m.status!=='done');
+  if(queue.length<2){ return; }
+
+  // group pending by category, preserving current order within each
+  const byCat={};
+  const catOrder=[];
+  queue.forEach(m=>{
+    if(!byCat[m.catId]){ byCat[m.catId]=[]; catOrder.push(m.catId); }
+    byCat[m.catId].push(m);
+  });
+
+  // build category descriptors with rounds + priority
+  const cats=catOrder.map((cid,idx)=>{
+    const catMatches=byCat[cid];
+    const catInfo=(STATE.allCats||[]).find(c=>c.id===cid);
+    const nComp = catInfo ? (catInfo.competitors?.length||0) : 0;
+    const method = catInfo ? catInfo.method : 'knockout';
+    return {
+      cid, idx,
+      rounds:_splitRounds(catMatches),
+      ri:0,
+      prio:_catPriority(nComp, method),
+    };
+  });
+
+  // order: priority group first, then original tatami order
+  cats.sort((a,b)=> a.prio-b.prio || a.idx-b.idx);
+
+  // interleave one round per category, per tatami-round
+  const spread=[];
+  let anyLeft=true, guard=0;
+  while(anyLeft && guard++<500){
+    anyLeft=false;
+    for(const c of cats){
+      if(c.ri<c.rounds.length){
+        c.rounds[c.ri].forEach(m=>spread.push(m));
+        c.ri++;
+        if(c.ri<c.rounds.length) anyLeft=true;
+      }
+    }
+  }
+
+  t.matches=[...done,...spread];
+  if(save) await persistQueue(t);
+}
+
+async function autoSpreadAll(){
+  if(!confirm('לסדר את כל המזרנים בסיבובי מזרן?\n\nכל קטגוריה נותנת סבב (קרב לכל מתחרה), עוברים לקטגוריה הבאה, וחוזר חלילה. ליגות של 3 וקטגוריות גדולות (5+) מתחילות כל סבב. קרבות שהסתיימו לא יושפעו.')) return;
+  toast('⏳ מסדר בסיבובי מזרן...');
+  try{
+    for(const t of STATE.tatami){ await autoSpreadTatami(t, true); }
+    render();
+    toast('✓ סודר בסיבובי מזרן — מנוחה בין קרבות');
+  }catch(e){ console.error('spread:',e); toast('⚠ שגיאה בסידור'); }
+}
+
 function buildAllMatches(){
   if(!confirm('לבנות קרבות לכל הקטגוריות?\n\nקטגוריות שכבר יש להן קרבות יידלגו (התוצאות נשמרות).')) return;
   location.href='bracket.html?buildall=1';
@@ -901,7 +1015,20 @@ async function loadRealMatches(){
   }
 }
 
-loadRealMatches();
+// Initial load — and auto-spread if we just came from "build all"
+(async function(){
+  await loadRealMatches();
+  const qp=new URLSearchParams(location.search);
+  if(qp.get('spread')==='1'){
+    // clean the flag so a refresh doesn't re-run it
+    history.replaceState(null,'',location.pathname);
+    try{
+      for(const t of STATE.tatami){ await autoSpreadTatami(t, true); }
+      render();
+      toast('✓ הקרבות סודרו אוטומטית בסיבובי מזרן');
+    }catch(e){ console.error('auto-spread:',e); }
+  }
+})();
 </script>
 </body>
 </html>
