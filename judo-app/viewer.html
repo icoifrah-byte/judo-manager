@@ -113,6 +113,31 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 .match-row{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;}
 .match-row.highlight{border-color:rgba(232,200,74,.4);}
 .match-row.live{border-color:var(--acc);box-shadow:0 0 0 1px rgba(232,200,74,.25);}
+/* nicer bracket cards */
+.vb-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0;margin-bottom:8px;overflow:hidden;transition:border-color .2s;}
+.vb-card.live{border-color:var(--acc);box-shadow:0 0 0 1px rgba(232,200,74,.3);}
+.vb-card.hl{border-color:rgba(232,200,74,.55);}
+.vb-slot{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px;font-weight:600;}
+.vb-slot.win{background:rgba(232,200,74,.10);}
+.vb-slot.win .vb-name{color:var(--acc);font-weight:800;}
+.vb-slot.lose .vb-name{opacity:.55;}
+.vb-slot+.vb-slot{border-top:1px solid var(--border);}
+.vb-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.vb-dot.b{background:#2a6fd8;}
+.vb-dot.w{background:#c9ccd6;border:1px solid #888;}
+.vb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.vb-name.unknown{opacity:.4;font-style:italic;font-weight:500;}
+.vb-sc{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--txt2);min-width:22px;text-align:center;}
+.vb-foot{font-size:10px;color:var(--txt3);text-align:center;padding:5px 8px;border-top:1px solid var(--border);letter-spacing:.3px;}
+.vb-foot.live{color:var(--acc);font-weight:700;}
+.vb-stage-h{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:2px;color:var(--txt3);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+/* podium */
+.vb-podium{background:linear-gradient(135deg,rgba(232,200,74,.08),rgba(232,200,74,.02));border:1px solid rgba(232,200,74,.3);border-radius:12px;padding:14px 16px;margin-bottom:18px;}
+.vb-podium-h{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:var(--acc);margin-bottom:10px;}
+.vb-medal{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:14px;}
+.vb-medal+.vb-medal{border-top:1px solid rgba(232,200,74,.12);}
+.vb-medal-ic{font-size:20px;width:26px;text-align:center;}
+.vb-medal-name{font-weight:700;}
 .mr-players{flex:1;}
 .mr-player{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
 .mr-player:last-child{margin-bottom:0;}
@@ -427,8 +452,7 @@ function openBracket(playerName, catName){
   _openBracketCat=catName; _openBracketPlayer=playerName;
   document.getElementById('search-drop').style.display='none';
   const cat=CATEGORIES.find(c=>c.name===catName);
-  const title=playerName ? `${playerName} — ${catName}` : catName;
-  document.getElementById('ov-title').textContent=title;
+  document.getElementById('ov-title').textContent = playerName ? `${playerName} — ${catName}` : catName;
 
   const matches=(cat&&cat.matches)?cat.matches.slice():[];
   if(!matches.length){
@@ -437,66 +461,101 @@ function openBracket(playerName, catName){
     return;
   }
 
-  // League → standings-style list; Knockout → grouped by stage
-  const isLeague = cat.method==='league';
   let html='';
 
-  if(isLeague){
-    html+='<div style="margin-bottom:14px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:11px;letter-spacing:2px;color:var(--txt3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">כל הקרבות</div>';
-    matches.sort((a,b)=>(a.order??999)-(b.order??999)||(a.matchNum||0)-(b.matchNum||0));
-    matches.forEach(m=>{ html+=matchRowHTML(m,playerName); });
+  // ── Podium (medals) if we can determine them ──
+  const podium=computePlaces(matches, cat.method==='league');
+  if(podium.length){
+    html+='<div class="vb-podium"><div class="vb-podium-h">🏆 מדליות</div>';
+    const ic={1:'🥇',2:'🥈',3:'🥉'};
+    podium.forEach(p=>{
+      html+=`<div class="vb-medal"><div class="vb-medal-ic">${ic[p.place]||p.place}</div>
+        <div class="vb-medal-name">${p.name}</div></div>`;
+    });
     html+='</div>';
+  }
+
+  const isLeague=cat.method==='league';
+  if(isLeague){
+    html+='<div class="vb-stage-h">כל הקרבות</div>';
+    matches.sort((a,b)=>(a.order??999)-(b.order??999)||(a.matchNum||0)-(b.matchNum||0));
+    matches.forEach(m=>{ html+=vbCard(m,playerName); });
   } else {
-    const STAGE_ORDER=['eighth','rep_eighth','quarter','rep_quarter','semi','rep_semi','final','rep_bronze','rep_final','3rd','5th','league'];
+    // group by stage text, in a sensible order
+    const ORDER=['1/16','שמינית גמר','רבע גמר','חצי גמר','גמר','מקום 3','מקום 5','מקום 7'];
     const grouped={};
     matches.forEach(m=>{ const k=m.stage||'קרב'; (grouped[k]||(grouped[k]=[])).push(m); });
-    // known stages first, then any leftover stage names
-    const keys=[...STAGE_ORDER.filter(s=>grouped[s]), ...Object.keys(grouped).filter(k=>!STAGE_ORDER.includes(k))];
+    const keys=[
+      ...ORDER.filter(s=>grouped[s]),
+      ...Object.keys(grouped).filter(k=>!ORDER.includes(k))
+    ];
     keys.forEach(s=>{
-      const info=si(s);
-      html+=`<div style="margin-bottom:20px">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:2px;color:var(--txt3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">${info.lbl||s}</div>`;
+      html+=`<div class="vb-stage-h">${s}</div>`;
       grouped[s].sort((a,b)=>(a.matchNum||0)-(b.matchNum||0));
-      grouped[s].forEach(m=>{ html+=matchRowHTML(m,playerName); });
-      html+='</div>';
+      grouped[s].forEach(m=>{ html+=vbCard(m,playerName); });
     });
   }
 
-  if(!html) html='<div style="color:var(--txt3);text-align:center;padding:40px">אין מידע</div>';
-  document.getElementById('ov-body').innerHTML=html;
+  document.getElementById('ov-body').innerHTML=html||'<div style="color:var(--txt3);text-align:center;padding:40px">אין מידע</div>';
   document.getElementById('bracket-overlay').classList.add('show');
 }
 
-// One match row for the viewer bracket — shows names, result, live badge
-function matchRowHTML(m, playerName){
+// A single nice match card
+function vbCard(m, playerName){
   if(m.status==='bye'||m.reason==='bye') return '';
-  const bName=m.blue||'—', wName=m.white||'—';
-  const hlB=playerName&&m.blue===playerName, hlW=playerName&&m.white===playerName;
-  const isHL=hlB||hlW;
   const done=m.status==='done'&&m.winner;
   const live=m.status==='live';
+  const hlB=playerName&&m.blue===playerName, hlW=playerName&&m.white===playerName;
   const bWin=done&&m.winnerSide==='blue', wWin=done&&m.winnerSide==='white';
 
-  const badge = live
-    ? '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(232,200,74,.15);color:var(--acc)">● פעיל</span>'
-    : done
-      ? `<span style="font-size:9px;color:var(--txt3)">${m.reason||'סיום'}</span>`
-      : `<span style="font-size:9px;color:var(--txt3)">קרב #${m.matchNum||''}</span>`;
+  const sc=m.score||{};
+  const bScore=done?`${sc.bI??''}${sc.bW??''}${sc.bY??''}`:'';
+  const wScore=done?`${sc.wI??''}${sc.wW??''}${sc.wY??''}`:'';
 
-  const nameCls=(win,hl,known)=>`mr-name${hl?' hl':''}${!known?' unknown':''}`+(win?'" style="font-weight:800;color:var(--acc)':'');
-  return `<div class="match-row${isHL?' highlight':''}${live?' live':''}">
-    <div class="mr-players">
-      <div class="mr-player">
-        <div class="mr-dot-b"></div>
-        <div class="${nameCls(bWin,hlB,!!m.blue)}">${bName}${bWin?' ✓':''}</div>
-      </div>
-      <div class="mr-player">
-        <div class="mr-dot-w"></div>
-        <div class="${nameCls(wWin,hlW,!!m.white)}">${wName}${wWin?' ✓':''}</div>
-      </div>
-    </div>
-    <div class="mr-right">${badge}</div>
+  const slot=(name,side,win,lose,hl,score)=>`
+    <div class="vb-slot${win?' win':''}${lose?' lose':''}">
+      <div class="vb-dot ${side==='blue'?'b':'w'}"></div>
+      <div class="vb-name${!name?' unknown':''}">${name||'—'}${hl?' ◄':''}</div>
+      ${score!==''&&score!=null?`<div class="vb-sc">${score}</div>`:''}
+    </div>`;
+
+  const foot = live
+    ? '<div class="vb-foot live">● קרב פעיל עכשיו</div>'
+    : done
+      ? `<div class="vb-foot">${m.reason||'סיום'}</div>`
+      : `<div class="vb-foot">ממתין · קרב #${m.matchNum||''}</div>`;
+
+  return `<div class="vb-card${live?' live':''}${(hlB||hlW)?' hl':''}">
+    ${slot(m.blue,'blue',bWin,done&&!bWin,hlB,bScore)}
+    ${slot(m.white,'white',wWin,done&&!wWin,hlW,wScore)}
+    ${foot}
   </div>`;
+}
+
+// Determine medals from finished matches (final → 1st/2nd, bronze → 3rd)
+function computePlaces(matches, isLeague){
+  const out=[];
+  if(isLeague){
+    // count wins
+    const wins={};
+    matches.forEach(m=>{ if(m.status==='done'&&m.winner) wins[m.winner]=(wins[m.winner]||0)+1; });
+    const done=matches.length && matches.every(m=>m.status==='done');
+    if(!done) return [];
+    const ranked=Object.entries(wins).sort((a,b)=>b[1]-a[1]);
+    ranked.slice(0,3).forEach(([name],i)=>out.push({place:i+1,name}));
+    return out;
+  }
+  // knockout
+  const finalM=matches.find(m=>m.stage==='גמר'&&m.status==='done'&&m.winner);
+  if(finalM){
+    out.push({place:1,name:finalM.winner});
+    const second = finalM.winnerSide==='blue'?finalM.white:finalM.blue;
+    if(second) out.push({place:2,name:second});
+  }
+  // 3rd place match(es)
+  matches.filter(m=>(m.stage==='מקום 3'||m.stage==='גמר ניחומים')&&m.status==='done'&&m.winner)
+    .forEach(m=>{ if(!out.find(p=>p.name===m.winner)) out.push({place:3,name:m.winner}); });
+  return out;
 }
 
 function closeBracket(){
@@ -587,6 +646,10 @@ async function loadRealData(){
             winner:wn?.name||null, winnerSide: m.winner_id? (m.winner_id===m.blue_id?'blue':'white') : null,
             reason:m.win_reason||'', status:m.status||'pending',
             order:m.order_in_tatami??999,
+            score:(function(sc){ if(!sc) return null;
+              if(sc.bI!==undefined||sc.wI!==undefined) return sc;
+              if(sc.blue||sc.white) return {bI:sc.blue?.I,bW:sc.blue?.W,bY:sc.blue?.Y,wI:sc.white?.I,wW:sc.white?.W,wY:sc.white?.Y};
+              return sc; })(m.score),
           };
         }),
       });
