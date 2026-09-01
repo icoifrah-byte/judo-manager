@@ -112,6 +112,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 .ov-body{flex:1;overflow:auto;padding:20px;}
 .match-row{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;}
 .match-row.highlight{border-color:rgba(232,200,74,.4);}
+.match-row.live{border-color:var(--acc);box-shadow:0 0 0 1px rgba(232,200,74,.25);}
 .mr-players{flex:1;}
 .mr-player{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
 .mr-player:last-child{margin-bottom:0;}
@@ -421,61 +422,85 @@ function renderStats(){
 // ═══════════════════════════
 // BRACKET OVERLAY
 // ═══════════════════════════
+let _openBracketCat=null, _openBracketPlayer=null;
 function openBracket(playerName, catName){
+  _openBracketCat=catName; _openBracketPlayer=playerName;
   document.getElementById('search-drop').style.display='none';
   const cat=CATEGORIES.find(c=>c.name===catName);
   const title=playerName ? `${playerName} — ${catName}` : catName;
   document.getElementById('ov-title').textContent=title;
 
-  // Collect all matches for this category
-  const allMatches=[];
-  TATAMI.forEach(t=>{
-    if(t.active&&t.active.category===catName) allMatches.push({...t.active,status:'active'});
-    t.upcoming.filter(u=>u.category===catName).forEach(u=>allMatches.push({...u,status:'upcoming'}));
-  });
+  const matches=(cat&&cat.matches)?cat.matches.slice():[];
+  if(!matches.length){
+    document.getElementById('ov-body').innerHTML='<div style="color:var(--txt3);text-align:center;padding:40px">העץ עדיין לא נבנה</div>';
+    document.getElementById('bracket-overlay').classList.add('show');
+    return;
+  }
 
-  const STAGE_ORDER=['eighth','rep_eighth','quarter','rep_quarter','semi','rep_semi','final','rep_bronze','rep_final','league'];
-  const grouped={};
-  allMatches.forEach(m=>{ (grouped[m.stage]||(grouped[m.stage]=[])).push(m); });
-
+  // League → standings-style list; Knockout → grouped by stage
+  const isLeague = cat.method==='league';
   let html='';
-  STAGE_ORDER.filter(s=>grouped[s]).forEach(s=>{
-    const {lbl,type}=si(s);
-    html+=`<div style="margin-bottom:20px">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:2px;color:var(--txt3);
-        margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);">${lbl}</div>`;
-    grouped[s].forEach(m=>{
-      const b=compStr(m.blue,m.bRole,m.bRef);
-      const w=compStr(m.white,m.wRole,m.wRef);
-      const hlB=playerName&&m.blue===playerName;
-      const hlW=playerName&&m.white===playerName;
-      const isHL=hlB||hlW;
-      const statusBadge=m.status==='active'
-        ?`<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(232,200,74,.15);color:var(--acc)">פעיל</span>`
-        :`<span style="font-size:9px;color:var(--txt3)">קרב #${m.matchNum}</span>`;
-      html+=`<div class="match-row${isHL?' highlight':''}">
-        <div class="mr-players">
-          <div class="mr-player">
-            <div class="mr-dot-b"></div>
-            <div class="mr-name${hlB?' hl':''}${!b.known?' unknown':''}">${b.text}</div>
-          </div>
-          <div class="mr-player">
-            <div class="mr-dot-w"></div>
-            <div class="mr-name${hlW?' hl':''}${!w.known?' unknown':''}">${w.text}</div>
-          </div>
-        </div>
-        <div class="mr-right">${statusBadge}${stageBadgeHTML(s)}</div>
-      </div>`;
-    });
+
+  if(isLeague){
+    html+='<div style="margin-bottom:14px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:11px;letter-spacing:2px;color:var(--txt3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">כל הקרבות</div>';
+    matches.sort((a,b)=>(a.order??999)-(b.order??999)||(a.matchNum||0)-(b.matchNum||0));
+    matches.forEach(m=>{ html+=matchRowHTML(m,playerName); });
     html+='</div>';
-  });
+  } else {
+    const STAGE_ORDER=['eighth','rep_eighth','quarter','rep_quarter','semi','rep_semi','final','rep_bronze','rep_final','3rd','5th','league'];
+    const grouped={};
+    matches.forEach(m=>{ const k=m.stage||'קרב'; (grouped[k]||(grouped[k]=[])).push(m); });
+    // known stages first, then any leftover stage names
+    const keys=[...STAGE_ORDER.filter(s=>grouped[s]), ...Object.keys(grouped).filter(k=>!STAGE_ORDER.includes(k))];
+    keys.forEach(s=>{
+      const info=si(s);
+      html+=`<div style="margin-bottom:20px">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:2px;color:var(--txt3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">${info.lbl||s}</div>`;
+      grouped[s].sort((a,b)=>(a.matchNum||0)-(b.matchNum||0));
+      grouped[s].forEach(m=>{ html+=matchRowHTML(m,playerName); });
+      html+='</div>';
+    });
+  }
 
   if(!html) html='<div style="color:var(--txt3);text-align:center;padding:40px">אין מידע</div>';
   document.getElementById('ov-body').innerHTML=html;
   document.getElementById('bracket-overlay').classList.add('show');
 }
 
+// One match row for the viewer bracket — shows names, result, live badge
+function matchRowHTML(m, playerName){
+  if(m.status==='bye'||m.reason==='bye') return '';
+  const bName=m.blue||'—', wName=m.white||'—';
+  const hlB=playerName&&m.blue===playerName, hlW=playerName&&m.white===playerName;
+  const isHL=hlB||hlW;
+  const done=m.status==='done'&&m.winner;
+  const live=m.status==='live';
+  const bWin=done&&m.winnerSide==='blue', wWin=done&&m.winnerSide==='white';
+
+  const badge = live
+    ? '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(232,200,74,.15);color:var(--acc)">● פעיל</span>'
+    : done
+      ? `<span style="font-size:9px;color:var(--txt3)">${m.reason||'סיום'}</span>`
+      : `<span style="font-size:9px;color:var(--txt3)">קרב #${m.matchNum||''}</span>`;
+
+  const nameCls=(win,hl,known)=>`mr-name${hl?' hl':''}${!known?' unknown':''}`+(win?'" style="font-weight:800;color:var(--acc)':'');
+  return `<div class="match-row${isHL?' highlight':''}${live?' live':''}">
+    <div class="mr-players">
+      <div class="mr-player">
+        <div class="mr-dot-b"></div>
+        <div class="${nameCls(bWin,hlB,!!m.blue)}">${bName}${bWin?' ✓':''}</div>
+      </div>
+      <div class="mr-player">
+        <div class="mr-dot-w"></div>
+        <div class="${nameCls(wWin,hlW,!!m.white)}">${wName}${wWin?' ✓':''}</div>
+      </div>
+    </div>
+    <div class="mr-right">${badge}</div>
+  </div>`;
+}
+
 function closeBracket(){
+  _openBracketCat=null; _openBracketPlayer=null;
   document.getElementById('bracket-overlay').classList.remove('show');
 }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeBracket(); });
@@ -551,6 +576,19 @@ async function loadRealData(){
         method:cat.method||'knockout',
         comps:(cat.competitors||[]).map(c=>c.name),
         status:cat.status||'pending',
+        // full match list with results, for the live bracket view
+        matches:(cat.matches||[]).map(m=>{
+          const bC=cat.competitors?.find(c=>c.id===m.blue_id);
+          const wC=cat.competitors?.find(c=>c.id===m.white_id);
+          const wn=cat.competitors?.find(c=>c.id===m.winner_id);
+          return {
+            stage:m.stage||'', stageType:m.stage_type||'', matchNum:m.match_num,
+            blue:bC?.name||null, white:wC?.name||null,
+            winner:wn?.name||null, winnerSide: m.winner_id? (m.winner_id===m.blue_id?'blue':'white') : null,
+            reason:m.win_reason||'', status:m.status||'pending',
+            order:m.order_in_tatami??999,
+          };
+        }),
       });
     });
 
@@ -570,9 +608,13 @@ async function loadRealData(){
     });
     renderMain();
     renderCats();
+    // If a bracket overlay is open, refresh it live with the new data
+    if(document.getElementById('bracket-overlay')?.classList.contains('show') && _openBracketCat){
+      openBracket(_openBracketPlayer, _openBracketCat);
+    }
 
-    // Refresh every 15 seconds
-    setTimeout(loadRealData, 15000);
+    // Refresh every 8 seconds
+    setTimeout(loadRealData, 8000);
   }catch(e){
     console.error('viewer load error:',e);
     renderMain(); renderCats();
