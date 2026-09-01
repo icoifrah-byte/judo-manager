@@ -44,6 +44,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 /* MATCH ROWS */
 .match-row{padding:10px 14px 10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;position:relative;transition:background .15s;}
 .cat-stripe{position:absolute;right:0;top:0;bottom:0;width:5px;}
+.row-future{opacity:.62;}
+.row-future .drag-handle{opacity:.4;}
 .cat-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:4px;color:#fff;white-space:nowrap;}
 .match-row:last-child{border-bottom:none;}
 .match-row:hover{background:rgba(255,255,255,.02);}
@@ -366,7 +368,7 @@ function renderTatami(t){
   const upcoming=t.matches.filter(m=>
     (m.status==='pending'||m.status==='suspended')&&
     m.win_reason!=='bye'&&
-    (m.blue||m.white)
+    (m.blue||m.white||m.bRef||m.wRef)   // include future matches (source known, players not yet)
   );
   const nonDone=upcoming;
 
@@ -404,7 +406,8 @@ function renderTatami(t){
     const b=cname(m.blue,m.bRole,m.bRef), w=cname(m.white,m.wRole,m.wRef);
     const isSusp=m.status==='suspended';
     const _cc=catColor(m.catId);
-    rows+=`<div class="match-row up-row ${isSusp?'row-susp':''}" id="mr-${m.id}"
+    const _fut=m.future?' row-future':'';
+    rows+=`<div class="match-row up-row ${isSusp?'row-susp':''}${_fut}" id="mr-${m.id}"
         draggable="true"
         data-mid="${m.id}" data-tid="${t.id}"
         ondragstart="dragStart(event)" ondragend="dragEnd(event)"
@@ -855,9 +858,12 @@ async function ceDel(){
 // ═══════════════════════════════════
 // Split a category's pending matches into rounds — each competitor at most once per round
 function _splitRounds(matches){
+  const known=matches.filter(m=>m.blue||m.white);
+  const future=matches.filter(m=>!m.blue&&!m.white);
   const rounds=[];
-  let pool=matches.slice();
-  let guard=0;
+
+  // Known-player matches: each competitor at most once per round
+  let pool=known.slice(), guard=0;
   while(pool.length && guard++<200){
     const round=[], used=new Set(), next=[];
     for(const m of pool){
@@ -867,6 +873,22 @@ function _splitRounds(matches){
     }
     rounds.push(round);
     pool=next;
+  }
+
+  // Future matches (players unknown but structure known): pack into rounds so that
+  // a match is never in the same round as a match that feeds it. All the players
+  // who could reach these matches already fought in earlier rounds, so treating a
+  // future round like a normal round spaces them correctly (final + bronze together).
+  let fpool=future.slice(); guard=0;
+  while(fpool.length && guard++<200){
+    const round=[], placed=new Set(), next=[];
+    for(const m of fpool){
+      const fedByPlaced=(m._feeders||[]).some(f=>placed.has(f));
+      if(fedByPlaced){ next.push(m); }
+      else { round.push(m); placed.add(m.matchNum); }
+    }
+    rounds.push(round);
+    fpool=next;
   }
   return rounds;
 }
@@ -882,6 +904,7 @@ function _catPriority(nComp, method){
 // each "tatami round" = one round from every category, priority categories first.
 async function autoSpreadTatami(t, save=true){
   const done=t.matches.filter(m=>m.status==='done');
+  // Include future matches — _splitRounds knows how to place them by stage/feeder
   const queue=t.matches.filter(m=>m.status!=='done');
   if(queue.length<2){ return; }
 
@@ -966,19 +989,40 @@ async function loadRealMatches(){
     for(const cat of cats){
       const catTat=Number(cat.tatami_id)||null;
       const matches=(cat.matches||[]);
+
+      // Feeder map: for each match, which match feeds its blue/white slot, and with whom (winner/loser)
+      // A match m with w_to_match=X, w_to_side='blue' means: winner of m → blue slot of X.
+      const feed={}; // targetMatchNum → { blue:{role,ref}, white:{role,ref} }
+      matches.forEach(src=>{
+        if(src.w_to_match){ (feed[src.w_to_match]||(feed[src.w_to_match]={}))[src.w_to_side||'blue']={role:'winner',ref:src.match_num}; }
+        if(src.l_to_match){ (feed[src.l_to_match]||(feed[src.l_to_match]={}))[src.l_to_side||'blue']={role:'loser',ref:src.match_num}; }
+      });
+
       matches.sort((a,b)=>(a.order_in_tatami??999)-(b.order_in_tatami??999)||(a.match_num||0)-(b.match_num||0));
       matches.forEach(m=>{
         if(m.win_reason==='bye') return;
-        // Match tatami falls back to its category's tatami (category is source of truth)
         const tid=Number(m.tatami_id)||catTat||1;
         if(tid>maxT) maxT=tid;
         const bName=cat.competitors?.find(c=>c.id===m.blue_id)?.name||null;
         const wName=cat.competitors?.find(c=>c.id===m.white_id)?.name||null;
-        if(!bName&&!wName&&m.status==='pending') return;
+
+        // Where an unknown slot will come from (winner/loser of another match)
+        const f=feed[m.match_num]||{};
+        const bRole=!bName?(f.blue?.role||null):null;
+        const bRef =!bName?(f.blue?.ref ||null):null;
+        const wRole=!wName?(f.white?.role||null):null;
+        const wRef =!wName?(f.white?.ref ||null):null;
+        // match_nums of the matches that feed this one (for round packing of future matches)
+        const _feeders=[f.blue?.ref, f.white?.ref].filter(x=>x!=null);
+
+        // Skip only truly empty matches that have no source either (nothing to show)
+        if(!bName&&!wName&&!bRef&&!wRef&&m.status==='pending') return;
+
         flat.push({tid, row:{
           id:m.id, dbId:m.id,
           blue:bName, white:wName,
-          bRole:null,bRef:null,wRole:null,wRef:null,
+          bRole,bRef,wRole,wRef,_feeders,
+          future: (!bName||!wName),
           category:cat.name, catId:cat.id, catTatami:catTat,
           stage:m.stage||'קרב',
           matchNum:m.match_num,
