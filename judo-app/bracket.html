@@ -1563,6 +1563,9 @@ async function ldCat(catId, el){
   // Build bracket
   const br=buildBracket(comps);
   br.catName=cat.name;
+  br.catTatami=cat.tatami_id||null;
+  // stamp every match with the category's tatami so a later save keeps it
+  br.matches.forEach(m=>{ m.tatamiId=cat.tatami_id||null; });
   br.catDbId=catId;
 
   // Try to load existing match results from DB
