@@ -142,34 +142,30 @@ const DB = {
     return supa('PATCH', `matches?category_id=eq.${categoryId}&status=eq.live`, {status:'pending'});
   },
   async saveBracket(categoryId, matches) {
-    // Full bracket save: upsert all matches for a category.
-    // Mirrors the shape saveAllMatchesToDB uses (NO id field — conflict is on
-    // category_id+match_num — and the w_to/l_to wiring MUST be kept or the tree
-    // loses its structure on reload).
-    const rows = matches.map(m => ({
-      category_id: categoryId,
-      match_num: m.id,
-      stage: m.stage,
-      stage_type: m.type,
-      tatami_id: m.tatamiId || null,
-      blue_id: m.bC?.dbId || null,
-      white_id: m.wC?.dbId || null,
-      status: m.status,
-      winner_id: m.status === 'done' ? (m.wComp?.dbId || null)
-               : (m.status === 'bye' && m.wComp?.dbId ? m.wComp.dbId : null),
-      win_reason: m.status === 'done' ? (m.wr || null)
-                : (m.status === 'bye' ? 'bye' : null),
-      score: (m.status === 'done') ? (m.sc || {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0})
-                                   : {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0},
-      is_offline: false,
-      order_in_tatami: (m.order != null ? m.order : m.id),
-      susp: m.susp || null,
-      w_to_match: m.wTo?.id || null,
-      w_to_side: m.wTo?.s || null,
-      l_to_match: m.lTo?.id || null,
-      l_to_side: m.lTo?.s || null,
-    }));
-    return supa('POST', 'matches?on_conflict=category_id,match_num', rows);
+    // Save via PATCH-by-id for each match (the same path the referee screen uses,
+    // which works reliably). POST+on_conflict was failing for bracket edits.
+    // Only matches that already exist in the DB (have a dbId) can be PATCHed; the
+    // bracket is always saved once on first open, so every match has a dbId by the
+    // time results are edited.
+    const jobs = matches.map(m => {
+      const payload = {
+        blue_id: m.bC?.dbId || null,
+        white_id: m.wC?.dbId || null,
+        status: m.status,
+        winner_id: m.status === 'done' ? (m.wComp?.dbId || null)
+                 : (m.status === 'bye' && m.wComp?.dbId ? m.wComp.dbId : null),
+        win_reason: m.status === 'done' ? (m.wr || null)
+                  : (m.status === 'bye' ? 'bye' : null),
+        score: (m.status === 'done') ? (m.sc || {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0})
+                                     : {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0},
+      };
+      if (m.dbId) {
+        return supa('PATCH', `matches?id=eq.${m.dbId}`, payload);
+      }
+      // Fallback: match has no dbId yet → patch by natural key
+      return supa('PATCH', `matches?category_id=eq.${categoryId}&match_num=eq.${m.id}`, payload);
+    });
+    return Promise.all(jobs);
   },
 
   // ── REALTIME ──
