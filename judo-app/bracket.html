@@ -511,10 +511,20 @@ function buildKO(comps){
     ms[22].place='5th'; ms[23].place='5th'; ms[24].place='final'; ms[25].place='3rd'; ms[26].place='3rd';
   }
 
+  // A BYE match produces a winner but NO loser. Clear its loser-link so the
+  // consolation match it feeds knows that loser will never arrive, and can
+  // auto-advance the other side instead of waiting forever.
+  ms.forEach(m=>{ if(m.status==='bye') m.lTo=null; });
+
   ms.forEach(m=>{
     // Only auto-advance true BYE slots (one side filled, other side has NO feeder at all)
     if(m.status==='bye') prop(m,ms);
     else if(m.status==='pending'||m.status==='empty') chk(m,ms);
+  });
+  // Second pass: consolation matches whose loser-feeder was a BYE now have a
+  // permanently-empty side → auto-advance the present fighter.
+  ms.forEach(m=>{
+    if((m.status==='pending'||m.status==='empty')) chk(m,ms);
   });
   return{type:'knockout',size:sz,matches:ms,comps:[...comps]};
 }
@@ -997,8 +1007,8 @@ function prop(m,ms){
   if(!m.wId)return;
   const wC=m.wComp||(m.wId===m.bC?.id?m.bC:m.wC);
   const lC=m.lComp||(m.lId?(m.lId===m.bC?.id?m.bC:m.wC):null);
-  if(m.wTo&&wC){const nx=ms.find(x=>x.id===m.wTo.id);if(nx){if(m.wTo.s==='blue')nx.bC=wC;else nx.wC=wC;chk(nx,ms);}}
-  if(m.lTo&&lC){const nx=ms.find(x=>x.id===m.lTo.id);if(nx){if(m.lTo.s==='blue')nx.bC=lC;else nx.wC=lC;chk(nx,ms);}}
+  if(m.wTo&&wC){const nx=ms.find(x=>x.id===m.wTo.id);if(nx){if(m.wTo.s==='blue')nx.bC=wC;else nx.wC=wC;nx._dirty=true;chk(nx,ms);}}
+  if(m.lTo&&lC){const nx=ms.find(x=>x.id===m.lTo.id);if(nx){if(m.lTo.s==='blue')nx.bC=lC;else nx.wC=lC;nx._dirty=true;chk(nx,ms);}}
 }
 
 // A slot is a "true bye" (will never be filled) if no other match feeds into it.
@@ -1075,6 +1085,7 @@ function sE(){
   if(!CB||eMid===null)return;
   const m=CB.matches.find(x=>x.id===eMid); if(!m)return;
   const ow=m.wId, ol=m.lId;
+  m._dirty=true;
   m.sc={bI:+document.getElementById('bi').value,bW:+document.getElementById('bw').value,
         bY:+document.getElementById('by').value,bS:+document.getElementById('bs').value,
         wI:+document.getElementById('wi').value,wW:+document.getElementById('ww').value,
@@ -1095,10 +1106,12 @@ function sE(){
   // A correction can ripple through the whole chain → save the ENTIRE bracket,
   // not just the edited match, so every voided downstream match persists.
   if(CB.catDbId){
-    if(winnerChanged || !eW){
-      DB.saveBracket(CB.catDbId, CB.matches).catch(e=>console.warn('save bracket:',e));
-    } else {
-      saveMatchToDB(CB, eMid).catch(()=>{});
+    // Save ONLY the matches that actually changed (this edit + any chain it voided),
+    // sequentially, so unrelated matches are never touched or lost.
+    const changed=CB.matches.filter(x=>x._dirty);
+    changed.forEach(x=>{ delete x._dirty; });
+    if(changed.length){
+      DB.saveBracket(CB.catDbId, changed).catch(e=>console.warn('save bracket:',e));
     }
   }
 }
@@ -1132,11 +1145,15 @@ function clrD(mid,pid,ms){
   if(removed && m.status==='done'){
     const ow=m.wId, ol=m.lId;
     m.wId=null; m.lId=null; m.wComp=null; m.lComp=null; m.status='pending'; m.sc=null; m.wr=null;
+    m._dirty=true;
     if(m.wTo&&ow)clrD(m.wTo.id,ow,ms);
     if(m.lTo&&ol)clrD(m.lTo.id,ol,ms);
   } else if(m.wId===pid){
     const ow=m.wId,ol=m.lId;m.wId=null;m.lId=null;m.status='pending';
+    m._dirty=true;
     if(m.wTo)clrD(m.wTo.id,ow,ms);if(m.lTo)clrD(m.lTo.id,ol,ms);
+  } else if(removed){
+    m._dirty=true;
   }
 }
 
