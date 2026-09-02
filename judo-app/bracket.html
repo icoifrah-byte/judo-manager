@@ -117,7 +117,7 @@ html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--bg);color:
   </div>
   <div id="ba-detail" style="font-size:12px;color:#555a7a;text-align:center;max-width:80vw;min-height:18px"></div>
   <div id="ba-actions" style="display:none;gap:10px">
-    <button onclick="location.href='control.html'" style="padding:9px 22px;border-radius:8px;border:none;background:#e8c84a;color:#000;font-weight:700;font-size:13px;cursor:pointer">← חזרה לשליטה בתחרות</button>
+    <button onclick="location.href='control.html?spread=1'" style="padding:9px 22px;border-radius:8px;border:none;background:#e8c84a;color:#000;font-weight:700;font-size:13px;cursor:pointer">← חזרה לשליטה בתחרות</button>
     <button onclick="document.getElementById('buildall-ov').style.display='none'; if(typeof allCategories==='undefined'||!allCategories||!allCategories.length){ init(); }" style="padding:9px 22px;border-radius:8px;border:1px solid #2e3348;background:transparent;color:#e8eaf6;font-size:13px;cursor:pointer">הישאר בעצים</button>
   </div>
 </div>
@@ -1079,15 +1079,28 @@ function sE(){
         bY:+document.getElementById('by').value,bS:+document.getElementById('bs').value,
         wI:+document.getElementById('wi').value,wW:+document.getElementById('ww').value,
         wY:+document.getElementById('wy').value,wS:+document.getElementById('ws').value};
+  const winnerChanged = ow!==m.wId || (eW && m.status!=='done');
   if(eW){
     const wC=eW==='blue'?m.bC:m.wC, lC=eW==='blue'?m.wC:m.bC;
     m.wId=wC?.id||null; m.wComp=wC; m.lId=lC?.id||null; m.lComp=lC; m.status='done';
     if(ow!==m.wId){if(m.wTo)clrD(m.wTo.id,ow,CB.matches);if(m.lTo)clrD(m.lTo.id,ol,CB.matches);}
     prop(m,CB.matches);
-  }else{m.wId=null;m.lId=null;m.status='pending';}
+  }else{
+    // clearing the result entirely — also pull back whoever advanced from here
+    if(ow&&m.wTo)clrD(m.wTo.id,ow,CB.matches);
+    if(ol&&m.lTo)clrD(m.lTo.id,ol,CB.matches);
+    m.wId=null;m.lId=null;m.wComp=null;m.lComp=null;m.status='pending';
+  }
   cE(); render(CB);
-  // Auto-save to Supabase
-  if(CB.catDbId) saveMatchToDB(CB, eMid).catch(()=>{});
+  // A correction can ripple through the whole chain → save the ENTIRE bracket,
+  // not just the edited match, so every voided downstream match persists.
+  if(CB.catDbId){
+    if(winnerChanged || !eW){
+      DB.saveBracket(CB.catDbId, CB.matches).catch(e=>console.warn('save bracket:',e));
+    } else {
+      saveMatchToDB(CB, eMid).catch(()=>{});
+    }
+  }
 }
 function rM(){
   if(!confirm('לאפס קרב?'))return;
@@ -1111,9 +1124,20 @@ function cE(){document.getElementById('eov').classList.add('h');eMid=null;eW=nul
 function clrD(mid,pid,ms){
   if(!mid||!pid)return;
   const m=ms.find(x=>x.id===mid);if(!m)return;
-  if(m.bC?.id===pid)m.bC=null;if(m.wC?.id===pid)m.wC=null;
-  if(m.wId===pid){const ow=m.wId,ol=m.lId;m.wId=null;m.lId=null;m.status='pending';
-    if(m.wTo)clrD(m.wTo.id,ow,ms);if(m.lTo)clrD(m.lTo.id,ol,ms);}
+  const removed=(m.bC?.id===pid)||(m.wC?.id===pid);
+  if(m.bC?.id===pid)m.bC=null;
+  if(m.wC?.id===pid)m.wC=null;
+  // A finished match that just lost a participant is invalid → void it and cascade,
+  // pulling back whoever it had sent onward (winner AND loser paths).
+  if(removed && m.status==='done'){
+    const ow=m.wId, ol=m.lId;
+    m.wId=null; m.lId=null; m.wComp=null; m.lComp=null; m.status='pending'; m.sc=null; m.wr=null;
+    if(m.wTo&&ow)clrD(m.wTo.id,ow,ms);
+    if(m.lTo&&ol)clrD(m.lTo.id,ol,ms);
+  } else if(m.wId===pid){
+    const ow=m.wId,ol=m.lId;m.wId=null;m.lId=null;m.status='pending';
+    if(m.wTo)clrD(m.wTo.id,ow,ms);if(m.lTo)clrD(m.lTo.id,ol,ms);
+  }
 }
 
 // ─────────────────────────────────────────────────
@@ -1344,11 +1368,35 @@ async function rebuildCategory(catId, keepMode, removedId){
   if(!br){ setStatus('שגיאה בבניית העץ'); document.getElementById('ba-actions').style.display='flex'; return; }
   br.catName=cat.name; br.catDbId=catId;
 
-  // 3. Re-apply finished results onto matching pairs in the new tree
+  // 3. Re-apply finished results — but ONLY where the pairing is structurally valid
+  //    in the NEW tree. A result is kept only if BOTH fighters legitimately occupy
+  //    that match now (round-1 slots, or a slot whose feeder match is itself already
+  //    resolved). This voids a match that a player "won" earlier if their slot is now
+  //    fed by a NEW round-1 match (e.g. a bye replaced by a real newcomer fight).
   let kept=0;
   if(keepMode==='keep'){
-    br.matches.forEach(m=>{
+    // map: for a given match, which matches feed its blue / white slot
+    const feederOf={}; // match id → {blue:feederId, white:feederId}
+    br.matches.forEach(src=>{
+      if(src.wTo){ (feederOf[src.wTo.id]||(feederOf[src.wTo.id]={}))[src.wTo.s]=src.id; }
+      if(src.lTo){ (feederOf[src.lTo.id]||(feederOf[src.lTo.id]={}))[src.lTo.s]=src.id; }
+    });
+    const byId={}; br.matches.forEach(m=>byId[m.id]=m);
+
+    // a slot is "settled" if it has no feeder (real starting player) OR its feeder is done
+    const slotSettled=(matchId, side)=>{
+      const fId=feederOf[matchId]?.[side];
+      if(fId===undefined) return true;         // no feeder → a real player sits here
+      const fm=byId[fId];
+      return fm && fm.status==='done';          // feeder already resolved
+    };
+
+    // apply in match-id order (round 1 first, so feeders resolve before their targets)
+    const ordered=br.matches.slice().sort((a,b)=>a.id-b.id);
+    ordered.forEach(m=>{
       if(!m.bC||!m.wC) return;
+      // both slots must be legitimately occupied in the NEW structure
+      if(!slotSettled(m.id,'blue')||!slotSettled(m.id,'white')) return;
       const key=[m.bC.dbId,m.wC.dbId].sort().join('|');
       const res=doneByPair[key];
       if(res){
