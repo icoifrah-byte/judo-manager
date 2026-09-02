@@ -153,11 +153,13 @@ const DB = {
       blue_id: m.bC?.dbId || null,
       white_id: m.wC?.dbId || null,
       status: m.status,
-      winner_id: m.winnerDbId || null,
-      win_reason: m.winReason || null,
-      score: m.sc,
+      winner_id: m.status === 'done' ? (m.wComp?.dbId || null)
+               : (m.status === 'bye' && m.wComp?.dbId ? m.wComp.dbId : null),
+      win_reason: m.status === 'done' ? (m.wr || null)
+                : (m.status === 'bye' ? 'bye' : null),
+      score: (m.status === 'done') ? (m.sc || null) : null,
       is_offline: false,
-      order_in_tatami: m.orderInTatami || null,
+      order_in_tatami: (m.order != null ? m.order : m.id),
       susp: m.susp || null,
     }));
     return supa('POST', 'matches?on_conflict=category_id,match_num', rows);
