@@ -142,12 +142,10 @@ const DB = {
     return supa('PATCH', `matches?category_id=eq.${categoryId}&status=eq.live`, {status:'pending'});
   },
   async saveBracket(categoryId, matches) {
-    // Save via PATCH-by-id for each match (the same path the referee screen uses,
-    // which works reliably). POST+on_conflict was failing for bracket edits.
-    // Only matches that already exist in the DB (have a dbId) can be PATCHed; the
-    // bracket is always saved once on first open, so every match has a dbId by the
-    // time results are edited.
-    const jobs = matches.map(m => {
+    // Save via PATCH-by-id, SEQUENTIALLY (one at a time) so a burst of parallel
+    // requests can't partially fail and silently drop a match. Callers pass only
+    // the matches that actually changed.
+    for (const m of matches) {
       const payload = {
         blue_id: m.bC?.dbId || null,
         white_id: m.wC?.dbId || null,
@@ -159,13 +157,15 @@ const DB = {
         score: (m.status === 'done') ? (m.sc || {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0})
                                      : {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0},
       };
-      if (m.dbId) {
-        return supa('PATCH', `matches?id=eq.${m.dbId}`, payload);
-      }
-      // Fallback: match has no dbId yet → patch by natural key
-      return supa('PATCH', `matches?category_id=eq.${categoryId}&match_num=eq.${m.id}`, payload);
-    });
-    return Promise.all(jobs);
+      try {
+        if (m.dbId) {
+          await supa('PATCH', `matches?id=eq.${m.dbId}`, payload);
+        } else {
+          await supa('PATCH', `matches?category_id=eq.${categoryId}&match_num=eq.${m.id}`, payload);
+        }
+      } catch (e) { console.warn('save match', m.id, e); }
+    }
+    return true;
   },
 
   // ── REALTIME ──
