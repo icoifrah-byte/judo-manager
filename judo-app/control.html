@@ -304,17 +304,54 @@ const _catColorMap={};
 function soloFighters(catId){
   const cat=(STATE.allCats||[]).find(c=>String(c.id)===String(catId));
   if(!cat) return [];
-  const count={};
-  (cat.competitors||[]).forEach(cp=>{ count[cp.name]=0; });
-  (cat.matches||[]).forEach(m=>{
-    if(m.win_reason==='bye') return;
-    const bN=cat.competitors?.find(c=>c.id===m.blue_id)?.name;
-    const wN=cat.competitors?.find(c=>c.id===m.white_id)?.name;
-    if(bN) count[bN]=(count[bN]||0)+1;
-    if(wN) count[wN]=(count[wN]||0)+1;
+  const matches=(cat.matches||[]).filter(m=>m.win_reason!=='bye');
+  const byNum={}; matches.forEach(m=>{ byNum[m.match_num]=m; });
+  const nameOf=(id)=> id? (cat.competitors?.find(c=>c.id===id)?.name||null) : null;
+
+  // For each competitor, count the MAXIMUM matches they could play:
+  // their current match(es) + every future match reachable through the wiring,
+  // following BOTH the winner path (w_to) and the loser path (l_to).
+  // A future match "counts" as reachable for a competitor if they sit in a match
+  // that feeds it. This treats a guaranteed follow-up (win OR lose leads somewhere)
+  // as a real scheduled second fight.
+  const maxMatches={};
+  (cat.competitors||[]).forEach(cp=>{ maxMatches[cp.id]=0; });
+
+  // Which match(es) does each competitor currently occupy?
+  const occupies={}; // compId → Set(match_num)
+  matches.forEach(m=>{
+    [m.blue_id,m.white_id].forEach(id=>{
+      if(!id) return;
+      (occupies[id]||(occupies[id]=new Set())).add(m.match_num);
+    });
   });
-  // only competitors who actually have matches, with exactly 1
-  return Object.entries(count).filter(([n,c])=>c===1).map(([n])=>n);
+
+  // For each competitor, walk forward: any match they occupy, plus any match
+  // reachable by following w_to / l_to from a match they occupy (they will land
+  // in exactly one of those, so it's a guaranteed additional fight).
+  Object.keys(occupies).forEach(cid=>{
+    const reachable=new Set();
+    const stack=[...occupies[cid]];
+    while(stack.length){
+      const mn=stack.pop();
+      if(reachable.has(mn)) continue;
+      reachable.add(mn);
+      const m=byNum[mn];
+      if(!m) continue;
+      // follow both onward links — the competitor is guaranteed to reach ONE of them
+      // (win→w_to OR lose→l_to). Either way it's a scheduled next fight.
+      if(m.w_to_match) stack.push(m.w_to_match);
+      if(m.l_to_match) stack.push(m.l_to_match);
+    }
+    maxMatches[cid]=reachable.size;
+  });
+
+  // Flag competitors whose maximum possible fights is exactly 1
+  const solo=[];
+  (cat.competitors||[]).forEach(cp=>{
+    if(maxMatches[cp.id]===1) solo.push(cp.name);
+  });
+  return solo;
 }
 
 function catColor(catId){
