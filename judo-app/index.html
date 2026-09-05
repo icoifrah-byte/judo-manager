@@ -1598,6 +1598,15 @@ function calcPlaces(matches, comps, isLeague, catId){
       if(fought) places.push({place:3,comp:cp});
     });
   }
+
+  // Apply manual KO medal overrides (set by clicking a place in the bracket)
+  try{
+    const koManual=JSON.parse(localStorage.getItem('judo_ko_places_'+catId)||'{}');
+    if(Object.keys(koManual).length){
+      places.forEach(p=>{ if(p.comp&&koManual[p.comp.id]!=null) p.place=koManual[p.comp.id]; });
+    }
+  }catch(e){}
+
   return places;
 }
 
