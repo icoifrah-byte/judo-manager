@@ -114,6 +114,53 @@ const DB = {
   async deleteMatches(categoryId) {
     return supa('DELETE', `matches?category_id=eq.${categoryId}`);
   },
+  // Ensure an "offline" category exists for a competition+tatami, return its id.
+  async ensureOfflineCategory(competitionId, tatamiId) {
+    const cats = await this.getCategories(competitionId);
+    const name = '🔌 אופליין מזרן ' + tatamiId;
+    let cat = (cats||[]).find(c => c.name === name);
+    if (cat) return cat.id;
+    const row = await this.createCategory({
+      competition_id: competitionId,
+      name, method: 'offline', status: 'pending',
+      tatami_id: tatamiId,
+    });
+    return row?.id || row?.[0]?.id;
+  },
+  // Create a standalone offline match (no wiring, no advancement).
+  async createOfflineMatch(categoryId, tatamiId, blueName, whiteName, order) {
+    // optional competitors for the names
+    let blueId=null, whiteId=null;
+    const toMake=[];
+    if (blueName)  toMake.push({category_id:categoryId, name:blueName, club:''});
+    if (whiteName) toMake.push({category_id:categoryId, name:whiteName, club:''});
+    if (toMake.length){
+      const made = await this.upsertCompetitors(toMake);
+      let idx=0;
+      if (blueName){ blueId = made?.[idx]?.id || null; idx++; }
+      if (whiteName){ whiteId = made?.[idx]?.id || null; }
+    }
+    // next match_num for this category
+    const existing = await this.getMatches(categoryId) || [];
+    const nextNum = existing.reduce((mx,m)=>Math.max(mx, m.match_num||0), 0) + 1;
+    const row = {
+      category_id: categoryId,
+      match_num: nextNum,
+      stage: 'אופליין',
+      stage_type: 'O',
+      tatami_id: tatamiId,
+      blue_id: blueId, white_id: whiteId,
+      status: 'pending',
+      winner_id: null, win_reason: null,
+      score: {bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0},
+      is_offline: true,
+      order_in_tatami: order || 9999,
+      susp: null,
+      w_to_match: null, w_to_side: null, l_to_match: null, l_to_side: null,
+    };
+    await supa('POST', 'matches?on_conflict=category_id,match_num', [row]);
+    return { blueId, whiteId, match_num: nextNum };
+  },
   // Delete a single match by id
   async deleteMatch(id) {
     return supa('DELETE', `matches?id=eq.${id}`);
