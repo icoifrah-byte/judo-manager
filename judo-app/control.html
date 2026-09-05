@@ -134,6 +134,9 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 .cc-btn:disabled{opacity:.25;cursor:default;}
 .cc-move{color:#e8c84a;border-color:rgba(232,200,74,.4);}
 .cc-edit{color:#6ea8ff;border-color:rgba(110,168,255,.4);}
+.att-flag{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-weight:900;font-size:12px;cursor:help;flex-shrink:0;}
+.att-flag-absent{background:rgba(232,74,74,.18);color:#e84a4a;border:1px solid rgba(232,74,74,.5);}
+.att-flag-late{background:rgba(74,232,154,.15);color:#3fb56b;border:1px solid rgba(74,232,154,.5);}
 .cc-solo{font-size:9px;font-weight:700;color:#e8a13f;background:rgba(232,161,63,.15);border:1px solid rgba(232,161,63,.4);border-radius:4px;padding:1px 5px;cursor:help;}
 
 /* empty tatami */
@@ -302,6 +305,25 @@ const _CAT_PALETTE=['#e8574a','#4a90e8','#3fb56b','#e8a13f','#9b5de5','#e85aa8',
 const _catColorMap={};
 // For a category: how many matches each competitor appears in (by name).
 // Returns array of competitor names who have only ONE planned match.
+// Attendance flag for a match: returns {level, msg} where level is
+// 'absent' (someone not coming), 'late' (someone delayed), or null.
+function matchAttendFlag(m){
+  const cat=(STATE.allCats||[]).find(c=>String(c.id)===String(m.catId));
+  if(!cat) return null;
+  const find=(nm)=> nm ? (cat.competitors||[]).find(c=>c.name===nm) : null;
+  const players=[{n:m.blue,side:'כחול'},{n:m.white,side:'לבן'}]
+    .map(p=>({...p, c:find(p.n)})).filter(p=>p.c);
+  const absent=players.filter(p=>p.c.attend==='absent');
+  const late=players.filter(p=>p.c.late || p.c.attend==='late');
+  if(absent.length){
+    return {level:'absent', msg:'⚠ לא מגיע: '+absent.map(p=>p.n).join(', ')};
+  }
+  if(late.length){
+    return {level:'late', msg:'⏳ מתעכב: '+late.map(p=>p.n).join(', ')};
+  }
+  return null;
+}
+
 function soloFighters(catId){
   const cat=(STATE.allCats||[]).find(c=>String(c.id)===String(catId));
   if(!cat) return [];
@@ -480,6 +502,7 @@ function renderTatami(t){
         ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropRow(event)">
       <div class="cat-stripe" style="background:${_cc}"></div>
       <div class="drag-handle" title="גרור לשינוי סדר">⠿</div>
+      ${(()=>{const _af=matchAttendFlag(m);return _af?`<span class="att-flag att-flag-${_af.level}" title="${_af.msg}">!</span>`:'';})()}
       <div class="dot ${isSusp?'dot-susp':'dot-up'}"></div>
       <div class="rnum">${i+1}</div>
       <div class="minfo">
@@ -1162,7 +1185,7 @@ async function loadRealMatches(){
     STATE.allCats=cats.map(c=>({
       id:c.id, name:c.name, tatami:Number(c.tatami_id)||null,
       method:c.method||'knockout',
-      competitors:(c.competitors||[]).map(cp=>({id:cp.id,name:cp.name,club:cp.club||''})),
+      competitors:(c.competitors||[]).map(cp=>({id:cp.id,name:cp.name,club:cp.club||'',attend:cp.attend_status||'unknown',late:!!cp.is_late})),
       matches:(c.matches||[]),
     }));
     document.getElementById('h-title').textContent=`שליטה — ${compName}`;
