@@ -152,6 +152,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
   <div style="flex:1"></div>
   <button class="btn btn-primary btn-sm" onclick="buildAllMatches()" title="בונה קרבות לכל הקטגוריות בבת אחת">🏗️ בנה את כל הקרבות</button>
   <button class="btn btn-secondary btn-sm" onclick="autoSpreadAll()" title="סדר בסיבובי מזרן — כל קטגוריה נותנת סבב בתורה">🔀 סדר בסיבובים</button>
+  <button class="btn btn-secondary btn-sm" onclick="openOfflineMatch()" title="פתח קרב אופליין (מחוץ לתחרות)">➕ קרב אופליין</button>
   <button class="btn btn-secondary btn-sm" onclick="location.href='index.html'">← ניהול</button>
 </div>
 
@@ -304,52 +305,55 @@ const _catColorMap={};
 function soloFighters(catId){
   const cat=(STATE.allCats||[]).find(c=>String(c.id)===String(catId));
   if(!cat) return [];
-  const matches=(cat.matches||[]).filter(m=>m.win_reason!=='bye');
-  const byNum={}; matches.forEach(m=>{ byNum[m.match_num]=m; });
-  const nameOf=(id)=> id? (cat.competitors?.find(c=>c.id===id)?.name||null) : null;
+  const allM=(cat.matches||[]);
+  const byNum={}; allM.forEach(m=>{ byNum[m.match_num]=m; });
 
-  // For each competitor, count the MAXIMUM matches they could play:
-  // their current match(es) + every future match reachable through the wiring,
-  // following BOTH the winner path (w_to) and the loser path (l_to).
-  // A future match "counts" as reachable for a competitor if they sit in a match
-  // that feeds it. This treats a guaranteed follow-up (win OR lose leads somewhere)
-  // as a real scheduled second fight.
-  const maxMatches={};
-  (cat.competitors||[]).forEach(cp=>{ maxMatches[cp.id]=0; });
-
-  // Which match(es) does each competitor currently occupy?
-  const occupies={}; // compId → Set(match_num)
-  matches.forEach(m=>{
-    [m.blue_id,m.white_id].forEach(id=>{
-      if(!id) return;
-      (occupies[id]||(occupies[id]=new Set())).add(m.match_num);
-    });
+  // Count, per competitor, REAL fights (two named opponents) — done OR pending.
+  const realCount={};
+  (cat.competitors||[]).forEach(cp=>{ realCount[cp.id]=0; });
+  allM.forEach(m=>{
+    if(m.win_reason==='bye') return;
+    if(!m.blue_id || !m.white_id) return;   // needs two real opponents
+    realCount[m.blue_id]=(realCount[m.blue_id]||0)+1;
+    realCount[m.white_id]=(realCount[m.white_id]||0)+1;
   });
 
-  // For each competitor, walk forward: any match they occupy, plus any match
-  // reachable by following w_to / l_to from a match they occupy (they will land
-  // in exactly one of those, so it's a guaranteed additional fight).
-  Object.keys(occupies).forEach(cid=>{
-    const reachable=new Set();
-    const stack=[...occupies[cid]];
-    while(stack.length){
-      const mn=stack.pop();
-      if(reachable.has(mn)) continue;
-      reachable.add(mn);
-      const m=byNum[mn];
-      if(!m) continue;
-      // follow both onward links — the competitor is guaranteed to reach ONE of them
-      // (win→w_to OR lose→l_to). Either way it's a scheduled next fight.
-      if(m.w_to_match) stack.push(m.w_to_match);
-      if(m.l_to_match) stack.push(m.l_to_match);
+  // Add a guaranteed FUTURE real fight: a competitor who WON a match (or got a bye)
+  // and advances into an EMPTY slot of a future match whose other side is filled
+  // or guaranteed. Only count winners still alive (not eliminated).
+  const feedsInto={};
+  allM.forEach(m=>{
+    if(m.w_to_match) feedsInto[m.w_to_match]=(feedsInto[m.w_to_match]||0)+1;
+    if(m.l_to_match) feedsInto[m.l_to_match]=(feedsInto[m.l_to_match]||0)+1;
+  });
+  allM.forEach(m=>{
+    // where does this match's winner go, and who is that winner?
+    let advId=null;
+    if(m.status==='done' && m.winner_id) advId=m.winner_id;
+    else if(m.win_reason==='bye') advId=m.blue_id||m.white_id;
+    if(!advId || !m.w_to_match) return;
+    const tgt=byNum[m.w_to_match]; if(!tgt) return;
+    // already a real player there? then it's already counted
+    if(tgt.blue_id===advId || tgt.white_id===advId) return;
+    // will the target be a real fight? (2 feeders or one slot already filled)
+    const filled=(tgt.blue_id?1:0)+(tgt.white_id?1:0);
+    if((feedsInto[m.w_to_match]||0)>=2 || filled>=1){
+      realCount[advId]=(realCount[advId]||0)+1;
     }
-    maxMatches[cid]=reachable.size;
+    // also the loser path (repechage) — a done loser advances to consolation
+    if(m.status==='done' && m.winner_id && m.l_to_match){
+      const loseId = (m.blue_id===m.winner_id)?m.white_id:m.blue_id;
+      const lt=byNum[m.l_to_match];
+      if(loseId && lt && lt.blue_id!==loseId && lt.white_id!==loseId){
+        const lf=(lt.blue_id?1:0)+(lt.white_id?1:0);
+        if((feedsInto[m.l_to_match]||0)>=2 || lf>=1) realCount[loseId]=(realCount[loseId]||0)+1;
+      }
+    }
   });
 
-  // Flag competitors whose maximum possible fights is exactly 1
   const solo=[];
   (cat.competitors||[]).forEach(cp=>{
-    if(maxMatches[cp.id]===1) solo.push(cp.name);
+    if(realCount[cp.id]===1) solo.push(cp.name);
   });
   return solo;
 }
@@ -503,7 +507,7 @@ function renderTatami(t){
       const cnt=t.matches.filter(m=>m.catId===cid&&m.status!=='done').length;
       const _solo=soloFighters(cid);
       const _soloBadge=_solo.length
-        ? `<span class="cc-solo" title="קרב אחד בלבד: ${_solo.join(', ')}">⚠ ${_solo.length}</span>`
+        ? `<span class="cc-solo" onclick="showSolo('${cid}',${t.id})" title="לחץ לפרטים — ${_solo.length} מתחרים עם קרב אחד בלבד">⚠ ${_solo.length}</span>`
         : '';
       return `<div class="cat-chip" style="border-right:4px solid ${catColor(cid)}">
         <span class="cc-name" title="${nm}">${nm}</span>
@@ -1022,6 +1026,50 @@ async function autoSpreadAll(){
   }catch(e){ console.error('spread:',e); toast('⚠ שגיאה בסידור'); }
 }
 
+function showSolo(catId, tatamiId){
+  const names=soloFighters(catId);
+  if(!names.length){ toast('אין מתחרים עם קרב אחד'); return; }
+  const msg='מתחרים ששיחקו קרב אחד ולא מתוכננים להם עוד קרבות:\n\n• '+names.join('\n• ')
+    +'\n\nלפתוח קרב אופליין במזרן '+tatamiId+' עבור אחד מהם?';
+  if(confirm(msg)){
+    // if only one solo fighter, pre-fill their name as the blue side
+    openOfflineMatch(tatamiId, names.length===1?names[0]:null);
+  }
+}
+
+async function openOfflineMatch(tatamiId, presetBlue){
+  const tats=(STATE.tatami||[]).map(t=>t.id);
+  let tid=tatamiId;
+  if(!tid){
+    if(tats.length===1){ tid=tats[0]; }
+    else{
+      const ans=prompt('לאיזה מזרן להוסיף את קרב האופליין? ('+tats.join(', ')+')', tats[0]||'1');
+      if(ans===null) return;
+      tid=parseInt(ans,10);
+      if(!tats.includes(tid)){ toast('מזרן לא קיים'); return; }
+    }
+  }
+  // names (optional — can be left blank)
+  const blue = (presetBlue!=null) ? presetBlue : (prompt('שם כחול (אפשר להשאיר ריק):','')||'').trim();
+  if(blue===null) return;
+  const white = (prompt('שם לבן (אפשר להשאיר ריק):','')||'').trim();
+
+  const compId=localStorage.getItem('judo_active_comp');
+  if(!compId){ toast('אין תחרות פעילה'); return; }
+
+  toast('⏳ מוסיף קרב אופליין...');
+  try{
+    const catId = await DB.ensureOfflineCategory(compId, tid);
+    if(!catId){ toast('⚠ שגיאה ביצירת קטגוריית אופליין'); return; }
+    // place at the end of the tatami queue
+    const t=STATE.tatami.find(x=>x.id===tid);
+    const maxOrder=(t?.matches||[]).reduce((mx,m)=>Math.max(mx, m.order??0), 0);
+    await DB.createOfflineMatch(catId, tid, blue||null, white||null, maxOrder+1);
+    toast('✓ קרב אופליין נוסף לסוף התור במזרן '+tid);
+    await loadRealMatches();
+  }catch(e){ console.error('offline match:',e); toast('⚠ שגיאה בהוספת קרב אופליין'); }
+}
+
 function buildAllMatches(){
   if(!confirm('לבנות קרבות לכל הקטגוריות?\n\nקטגוריות שכבר יש להן קרבות יידלגו (התוצאות נשמרות).')) return;
   location.href='bracket.html?buildall=1';
@@ -1077,7 +1125,7 @@ async function loadRealMatches(){
         const _feeders=[f.blue?.ref, f.white?.ref].filter(x=>x!=null);
 
         // Skip only truly empty matches that have no source either (nothing to show)
-        if(!bName&&!wName&&!bRef&&!wRef&&m.status==='pending') return;
+        if(!bName&&!wName&&!bRef&&!wRef&&m.status==='pending'&&m.stage!=='אופליין'&&m.win_reason!=='offline') return;
 
         flat.push({tid, row:{
           id:m.id, dbId:m.id,
