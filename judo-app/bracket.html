@@ -353,53 +353,6 @@ function mk(id,stage,type,wcol,bC,wC){
   };
 }
 
-// 5-competitor layout: knockout for gold/silver + round-robin consolation (all bronze)
-function buildKO5(comps){
-  comps.forEach(c=>{ if(c) c.seeded=true; });
-  const [p1,p2,p3,p4,p5]=comps;
-  let id=1; const ms=[];
-  const mkW=(stage,type,bC,wC)=>mk(id++,stage,type,null,bC,wC);
-
-  // Winners bracket
-  const m1=mkW('סיבוב מקדים','W',p4,p5);      // M1: P4 vs P5
-  const m2=mkW('חצי גמר','W',p1,null);          // M2: P1 vs W(M1)
-  const m3=mkW('חצי גמר','W',p2,p3);            // M3: P2 vs P3
-  const m4=mkW('גמר','F',null,null);            // M4: final
-  m4.place='final';
-
-  // Consolation round-robin among the 3 losers (all get bronze)
-  const r1=mk(id++,'ניחומים','R',null,null,null); // L(M2) vs L(M3)
-  const r2=mk(id++,'ניחומים','R',null,null,null); // L(M2) vs L(M1)
-  const r3=mk(id++,'ניחומים','R',null,null,null); // L(M3) vs L(M1)
-  r1.place='3rd'; r2.place='3rd'; r3.place='3rd';
-  r1.repLeague=true; r2.repLeague=true; r3.repLeague=true;
-
-  // Wiring: winners advance
-  m1.wTo={id:m2.id,s:'white'};   // W(M1) → M2 white
-  m2.wTo={id:m4.id,s:'blue'};    // W(M2) → final blue
-  m3.wTo={id:m4.id,s:'white'};   // W(M3) → final white
-
-  // Losers feed the consolation pool. We tag which "pool slot" each loser fills:
-  //   poolA = loser of M1 (the prelim loser)
-  //   poolB = loser of M2
-  //   poolC = loser of M3
-  // The round-robin matches are then r1:B-C, r2:B-A, r3:C-A
-  m1.lPool='A'; m2.lPool='B'; m3.lPool='C';
-  // remember the pool→(match,side) assignments on the bracket for fill logic
-  const repPlan={
-    A:[{id:r2.id,s:'white'},{id:r3.id,s:'white'}],
-    B:[{id:r1.id,s:'blue'},{id:r2.id,s:'blue'}],
-    C:[{id:r1.id,s:'white'},{id:r3.id,s:'blue'}],
-  };
-
-  ms.push(m1,m2,m3,m4,r1,r2,r3);
-  const br={type:'knockout',size:5,special:'ko5',matches:ms,comps:[...comps],repPlan};
-
-  // initial auto-advance for the P1 bye slot etc.
-  ms.forEach(m=>{ if(m.status==='pending'||m.status==='empty') chk(m,ms); });
-  return br;
-}
-
 function buildKO(comps){
   const sz=np2(comps.length);
   const seeds=SEEDS[sz];
@@ -412,14 +365,6 @@ function buildKO(comps){
   //   sz=16: col0(8), col1(4), col2(2), col3(final) → 4 cols → log2(16)=4 ✓
   const nwc=Math.log2(sz);
   let id=1; const ms=[];
-
-  // ── SPECIAL CASE: exactly 5 competitors ──
-  // Winners tree decides 1st/2nd; the 3 losers play a round-robin for bronze
-  // (every consolation player gets a medal, per the academy's rule).
-  const nReal=comps.filter(Boolean).length;
-  if(nReal===5){
-    return buildKO5(comps);
-  }
 
 
   // helper: make winner match
@@ -866,16 +811,56 @@ function renderResults(br){
     .filter(p=>{if(!p.comp||seen.has(p.comp.id))return false;seen.add(p.comp.id);return true;})
     .sort((a,b)=>a.place-b.place);
 
+  // Apply manual medal overrides (set by clicking a place number)
+  const manual=getKoPlaces(br.catDbId);
+  const hasManual=Object.keys(manual).length>0;
+  if(hasManual){
+    sorted.forEach(p=>{ if(manual[p.comp.id]!=null) p.place=manual[p.comp.id]; });
+    sorted.sort((a,b)=>a.place-b.place);
+  }
+
   if(sorted.length===0){
     el.innerHTML='<div style="padding:16px 12px;font-size:11px;color:var(--text3);text-align:center">תוצאות יופיעו כאן</div>';
     return;
   }
   el.innerHTML=sorted.map(p=>`
-    <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
-      <div style="width:18px;height:18px;border-radius:50%;${placeStyle(p.place)};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.place}</div>
+    <div style="padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;">
+      <div class="pl-badge" onclick="editKoPlace('${br.catDbId}','${p.comp.id}','${(p.comp.name||'').replace(/'/g,"")}',${p.place})"
+        title="לחץ לשינוי מדליה ידני"
+        style="width:18px;height:18px;border-radius:50%;${placeStyle(p.place)};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer">${p.place}</div>
       <div style="flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.comp.name}</div>
-    </div>`).join('');
+    </div>`).join('')
+  + (hasManual?`<div style="padding:8px 12px;text-align:center">
+      <button onclick="clearKoPlaces('${br.catDbId}')" style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:5px;font-size:10px;padding:3px 10px;cursor:pointer">↺ אפס מדליות ידניות</button>
+    </div>`:'');
 }
+
+// Click a place badge → pick a new medal manually
+function editKoPlace(catId, compId, name, cur){
+  const opts=[1,2,3,5,7];
+  const choice=prompt('מקום חדש עבור '+name+'\n(1=זהב, 2=כסף, 3=ארד, 5, 7)\nמקום נוכחי: '+cur, cur);
+  if(choice===null) return;
+  const n=parseInt(choice,10);
+  if(!opts.includes(n)){ alert('בחר מקום חוקי: 1, 2, 3, 5 או 7'); return; }
+  setKoPlace(catId, compId, n);
+}
+// ── Manual medal override for knockout (per category) ──
+function koPlaceKey(catId){ return 'judo_ko_places_'+catId; }
+function getKoPlaces(catId){
+  if(!catId) return {};
+  try{ return JSON.parse(localStorage.getItem(koPlaceKey(catId))||'{}'); }catch(e){ return {}; }
+}
+function setKoPlace(catId,compId,place){
+  const cur=getKoPlaces(catId)||{};
+  cur[compId]=place;
+  localStorage.setItem(koPlaceKey(catId),JSON.stringify(cur));
+  if(CB) renderResults(CB);
+}
+function clearKoPlaces(catId){
+  localStorage.removeItem(koPlaceKey(catId));
+  if(CB) renderResults(CB);
+}
+
 function placeStyle(p){
   if(p===1)return 'background:rgba(245,197,24,.2);color:#f5c518';
   if(p===2)return 'background:rgba(160,160,160,.2);color:#c0c0c0';
@@ -1048,34 +1033,42 @@ function cA(){
   const m=CB.matches.find(x=>x.id===aT.mid); if(!m)return;
   const c={id:Date.now(),name,club:document.getElementById('ac').value.trim()};
   CB.comps.push(c);
+
+  // If this slot was a BYE (the other fighter auto-advanced), first pull that
+  // fighter back out of the next match — otherwise they stay advanced and the
+  // new real match can't be played/reset.
+  if(m.status==='bye' && m.wId){
+    if(m.wTo) clrD(m.wTo.id, m.wId, CB.matches);
+    if(m.lTo) clrD(m.lTo.id, m.lId, CB.matches);
+    m.wId=null; m.wComp=null; m.lId=null; m.lComp=null;
+  }
+
   if(aT.side==='blue')m.bC=c; else m.wC=c;
-  if(m.bC&&m.wC){m.status='pending';m.wId=null;}
-  else{m.status='bye';m.wId=c.id;m.wComp=c;prop(m,CB.matches);}
+  if(m.bC&&m.wC){ m.status='pending'; m.wId=null; m.wComp=null; m.lId=null; m.lComp=null; m.sc={bI:0,bW:0,bY:0,bS:0,wI:0,wW:0,wY:0,wS:0}; }
+  else{ m.status='bye'; m.wId=c.id; m.wComp=c; prop(m,CB.matches); }
+
   document.getElementById('aov').classList.add('h');
   document.getElementById('an').value='';document.getElementById('ac').value='';
   render(CB); toast('✓ '+name);
+
+  // persist the change
+  if(CB.catDbId){
+    m._dirty=true;
+    const changed=CB.matches.filter(x=>x._dirty);
+    changed.forEach(x=>{ delete x._dirty; });
+    if(changed.length) DB.saveBracket(CB.catDbId, changed).catch(e=>console.warn('save:',e));
+  }
 }
 
 // ─────────────────────────────────────────────────
 // PROPAGATION
 // ─────────────────────────────────────────────────
-function prop(m,ms,br){
+function prop(m,ms){
   if(!m.wId)return;
   const wC=m.wComp||(m.wId===m.bC?.id?m.bC:m.wC);
   const lC=m.lComp||(m.lId?(m.lId===m.bC?.id?m.bC:m.wC):null);
   if(m.wTo&&wC){const nx=ms.find(x=>x.id===m.wTo.id);if(nx){if(m.wTo.s==='blue')nx.bC=wC;else nx.wC=wC;nx._dirty=true;chk(nx,ms);}}
   if(m.lTo&&lC){const nx=ms.find(x=>x.id===m.lTo.id);if(nx){if(m.lTo.s==='blue')nx.bC=lC;else nx.wC=lC;nx._dirty=true;chk(nx,ms);}}
-  // 5-player consolation: a loser fills BOTH round-robin slots for its pool
-  if(m.lPool && lC){
-    const plan=(br&&br.repPlan)||(CB&&CB.repPlan);
-    const slots=plan&&plan[m.lPool];
-    if(slots){
-      slots.forEach(sl=>{
-        const nx=ms.find(x=>x.id===sl.id);
-        if(nx){ if(sl.s==='blue')nx.bC=lC; else nx.wC=lC; nx._dirty=true; }
-      });
-    }
-  }
 }
 
 // A slot is a "true bye" (will never be filled) if no other match feeds into it.
