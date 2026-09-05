@@ -225,6 +225,15 @@ body.fullscreen #app{background:#0a0a0e;}
 @keyframes osaeBlinkWhite{0%,100%{background:#d0d0d0;box-shadow:none;}50%{background:#ffffff;box-shadow:0 0 10px rgba(255,255,255,.7);}}
 .assign-sq.blink.sq-blue{animation:osaeBlinkBlue .6s ease-in-out infinite;}
 .assign-sq.blink.sq-white{animation:osaeBlinkWhite .6s ease-in-out infinite;}
+
+/* rest clock — red countdown until a fighter has rested 10 min */
+.rest-clock{display:none;align-items:center;gap:5px;margin-top:5px;
+  background:rgba(200,40,40,.15);border:1px solid rgba(220,60,60,.5);
+  border-radius:6px;padding:2px 8px;font-size:clamp(12px,2vh,20px);font-weight:700;color:#ff5a5a;
+  font-family:'Bebas Neue',sans-serif;letter-spacing:1px;width:fit-content;}
+.rest-clock.show{display:inline-flex;}
+.rest-clock .rc-ic{font-size:.85em;}
+.white .rest-clock{background:rgba(200,40,40,.12);}
 </style>
 <script>window.JUDO_WRITE_SECRET='judo-tybPVyd91Be54qH68JPcED4s';</script>
 <script src="db.js"></script>
@@ -268,6 +277,7 @@ body.fullscreen #app{background:#0a0a0e;}
       <div class="info-strip">
         <div class="player-name" id="blue-name" onclick="openEditName('blue')" style="cursor:pointer" title="לחץ לעריכת שם">—</div>
         <div class="player-meta" id="blue-meta"></div>
+        <div class="rest-clock" id="blue-rest"><span class="rc-ic">🛌</span><span id="blue-rest-t">10:00</span></div>
       </div>
       <div class="score-area">
         <div class="score-col" onclick="add('blue','I')">
@@ -295,6 +305,7 @@ body.fullscreen #app{background:#0a0a0e;}
       <div class="info-strip">
         <div class="player-name" id="white-name" onclick="openEditName('white')" style="cursor:pointer" title="לחץ לעריכת שם">—</div>
         <div class="player-meta" id="white-meta"></div>
+        <div class="rest-clock" id="white-rest"><span class="rc-ic">🛌</span><span id="white-rest-t">10:00</span></div>
       </div>
       <div class="score-area">
         <div class="score-col" onclick="add('white','I')">
@@ -460,6 +471,7 @@ function toggleTimer(){
 }
 
 function startMain(){
+  if(typeof hideRest==='function'){ hideRest('blue'); hideRest('white'); }
   if(mainInterval) clearInterval(mainInterval);
   mainInterval = setInterval(()=>{
     if(status==='golden') timeLeft++;
@@ -802,6 +814,23 @@ function goNextFromOverlay(){
   if(tid) loadNextMatch(tid, mid);
 }
 
+// Latest ended_at (ms since epoch) of any finished match this competitor fought,
+// excluding the match we're about to load. Used for the rest clock.
+function lastEndedFor(cats, playerId, exceptMatchId){
+  if(!playerId) return '';
+  let latest=0;
+  (cats||[]).forEach(cat=>{
+    (cat.matches||[]).forEach(m=>{
+      if(m.id===exceptMatchId) return;
+      if(m.status!=='done'||!m.ended_at) return;
+      if(m.blue_id!==playerId && m.white_id!==playerId) return;
+      const t=new Date(m.ended_at).getTime();
+      if(t>latest) latest=t;
+    });
+  });
+  return latest||'';
+}
+
 async function loadNextMatch(tatamiId, skipMatchId=null){
   try{
     const compId=localStorage.getItem('judo_active_comp');
@@ -844,8 +873,9 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
       
       // Knockout: find current stage
       const hasDone = allMatches.some(m=>m.status==='done'&&m.win_reason!=='bye');
+      const _isOffline = cat.method==='offline';
       const pending = allMatches
-        .filter(m=>m.status==='pending'&&m.blue_id&&m.white_id&&m.win_reason!=='bye'&&m.id!==skipMatchId)
+        .filter(m=>m.status==='pending'&&(_isOffline?(m.blue_id||m.white_id||true):(m.blue_id&&m.white_id))&&m.win_reason!=='bye'&&m.id!==skipMatchId)
         .sort((a,b)=>(a.order_in_tatami??9999)-(b.order_in_tatami??9999)||(a.match_num||0)-(b.match_num||0));
       
       if(!pending.length) return [];
@@ -926,6 +956,8 @@ async function loadNextMatch(tatamiId, skipMatchId=null){
         stage:nextCat.name+(next.stage?' · '+next.stage:''),
         banner:'מזרן '+tatamiId+' · '+nextCat.name,
         dur:String(matchDuration),
+        brest:String(lastEndedFor(tatamiCats, next.blue_id, next.id)||''),
+        wrest:String(lastEndedFor(tatamiCats, next.white_id, next.id)||''),
       });
       location.href=target+'?'+params.toString();
     }else{
@@ -1010,6 +1042,9 @@ if(_bm) _bm.textContent=_bclub+(_stage?' · '+_stage:'');
 if(_wm) _wm.textContent=_wclub+(_stage?' · '+_stage:'');
 if(p.get('banner')) document.getElementById('banner-text').textContent=p.get('banner');
 if(p.get('dur')){ matchDuration=+p.get('dur'); timeLeft=matchDuration; }
+// Open directly as a blank OFFLINE match when requested from control
+if(p.get('offline')==='1'){ setTimeout(()=>{ if(typeof toggleOffline==='function' && !isOffline) toggleOffline(); }, 300); }
+setTimeout(initRestClocks,50);
 // A per-tatami saved duration overrides everything (set via "שנה זמן")
 try{
   const _tt=p.get('tatami');
@@ -1550,6 +1585,37 @@ async function saveNamePerm(){
     showToast('✎ שם עודכן');
   }
 }
+
+// ════ REST CLOCKS — red countdown until a fighter has rested 10 minutes ════
+const REST_MS=10*60*1000;   // 10 minutes
+let _restEnds={blue:0,white:0};
+let _restInterval=null;
+function initRestClocks(){
+  const p=new URLSearchParams(location.search);
+  _restEnds={
+    blue: p.get('brest') ? (+p.get('brest')+REST_MS) : 0,
+    white: p.get('wrest') ? (+p.get('wrest')+REST_MS) : 0,
+  };
+  if(_restInterval) clearInterval(_restInterval);
+  tickRest();
+  _restInterval=setInterval(tickRest, 1000);
+}
+function tickRest(){
+  // once the bout starts, hide the rest clocks entirely
+  if(status==='live'||status==='golden'||status==='done'){ hideRest('blue'); hideRest('white'); if(_restInterval){clearInterval(_restInterval);_restInterval=null;} return; }
+  ['blue','white'].forEach(side=>{
+    const end=_restEnds[side];
+    const el=document.getElementById(side+'-rest');
+    const tEl=document.getElementById(side+'-rest-t');
+    if(!el||!tEl) return;
+    const left=end-Date.now();
+    if(!end || left<=0){ el.classList.remove('show'); return; }
+    const s=Math.ceil(left/1000);
+    tEl.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+    el.classList.add('show');
+  });
+}
+function hideRest(side){ const el=document.getElementById(side+'-rest'); if(el) el.classList.remove('show'); }
 
 function showToast(msg){
   const t=document.createElement('div');
