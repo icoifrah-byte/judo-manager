@@ -1109,7 +1109,8 @@ async function loadCompDetails(compId){
       for(const cp of (cat.competitors||[])){
         if(!comp.competitors.find(x=>x.dbId===cp.id)){
           comp.competitors.push({ id:cp.id, dbId:cp.id, name:cp.name, club:cp.club||'',
-            category:cat.name, attend_status:cp.attend_status||'unknown',
+            category:cat.name,
+            _attend:cp.attend_status||'unknown',
             _late:cp.is_late||false, fromExcel:true });
         }
         localCat.competitors.push(cp.id);
@@ -1434,21 +1435,30 @@ function renderAttendance(){
   }).join('');
 }
 
-function setAttend(compId, status){
+async function setAttend(compId, status){
   const c = C(); if(!c) return;
   const comp = c.competitors.find(x=>String(x.id)===String(compId));
   if(!comp) return;
   // toggle: clicking same status resets to unknown
   comp._attend = (comp._attend===status) ? 'unknown' : status;
   renderAttendance();
+  // persist to Supabase so it survives leaving the page
+  if(comp.dbId){
+    try{ await DB.updateCompetitor(comp.dbId, {attend_status: comp._attend}); }
+    catch(e){ console.warn('save attend:',e); }
+  }
 }
 
-function toggleLate(compId){
+async function toggleLate(compId){
   const c = C(); if(!c) return;
   const comp = c.competitors.find(x=>String(x.id)===String(compId));
   if(!comp) return;
   comp._late = !comp._late;
   renderAttendance();
+  if(comp.dbId){
+    try{ await DB.updateCompetitor(comp.dbId, {is_late: comp._late}); }
+    catch(e){ console.warn('save late:',e); }
+  }
 }
 
 function updateAttStats(comps){
