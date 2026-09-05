@@ -1547,6 +1547,7 @@ async function buildAllCategories(){
     setDetail(cat.name);
     setBar(Math.round((i/total)*100));
 
+    if(cat.method==='offline'){ skipped++; continue; }  // offline matches are standalone
     const comps=(cat.competitors||[]).map(cp=>({id:cp.id,dbId:cp.id,name:cp.name,club:cp.club||''}));
     if(comps.length<2){ empty++; continue; }
 
