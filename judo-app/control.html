@@ -305,55 +305,61 @@ const _catColorMap={};
 function soloFighters(catId){
   const cat=(STATE.allCats||[]).find(c=>String(c.id)===String(catId));
   if(!cat) return [];
+  if(cat.method==='offline') return [];   // offline matches are standalone — never flag
   const allM=(cat.matches||[]);
   const byNum={}; allM.forEach(m=>{ byNum[m.match_num]=m; });
 
-  // Count, per competitor, REAL fights (two named opponents) — done OR pending.
-  const realCount={};
-  (cat.competitors||[]).forEach(cp=>{ realCount[cp.id]=0; });
+  // How many feeders point into each match (both winner and loser links).
+  const feedersInto={}; // match_num → count
   allM.forEach(m=>{
-    if(m.win_reason==='bye') return;
-    if(!m.blue_id || !m.white_id) return;   // needs two real opponents
-    realCount[m.blue_id]=(realCount[m.blue_id]||0)+1;
-    realCount[m.white_id]=(realCount[m.white_id]||0)+1;
+    if(m.w_to_match) feedersInto[m.w_to_match]=(feedersInto[m.w_to_match]||0)+1;
+    if(m.l_to_match) feedersInto[m.l_to_match]=(feedersInto[m.l_to_match]||0)+1;
   });
 
-  // Add a guaranteed FUTURE real fight: a competitor who WON a match (or got a bye)
-  // and advances into an EMPTY slot of a future match whose other side is filled
-  // or guaranteed. Only count winners still alive (not eliminated).
-  const feedsInto={};
-  allM.forEach(m=>{
-    if(m.w_to_match) feedsInto[m.w_to_match]=(feedsInto[m.w_to_match]||0)+1;
-    if(m.l_to_match) feedsInto[m.l_to_match]=(feedsInto[m.l_to_match]||0)+1;
-  });
-  allM.forEach(m=>{
-    // where does this match's winner go, and who is that winner?
-    let advId=null;
-    if(m.status==='done' && m.winner_id) advId=m.winner_id;
-    else if(m.win_reason==='bye') advId=m.blue_id||m.white_id;
-    if(!advId || !m.w_to_match) return;
-    const tgt=byNum[m.w_to_match]; if(!tgt) return;
-    // already a real player there? then it's already counted
-    if(tgt.blue_id===advId || tgt.white_id===advId) return;
-    // will the target be a real fight? (2 feeders or one slot already filled)
-    const filled=(tgt.blue_id?1:0)+(tgt.white_id?1:0);
-    if((feedsInto[m.w_to_match]||0)>=2 || filled>=1){
-      realCount[advId]=(realCount[advId]||0)+1;
+  // A match "will be a REAL fight" (two real opponents) if it isn't a bye and
+  // either already has both players, OR two feeders point into it, OR one slot is
+  // filled and one feeder points in.
+  function isRealFight(m){
+    if(!m || m.win_reason==='bye') return false;
+    const filled=(m.blue_id?1:0)+(m.white_id?1:0);
+    const feeds=feedersInto[m.match_num]||0;
+    if(filled>=2) return true;
+    if(filled+feeds>=2) return true;
+    return false;
+  }
+
+  // For a competitor, the MAXIMUM real fights they can play: start from every real
+  // match they currently sit in, then follow BOTH onward paths (win & lose),
+  // counting each real fight once. Optimistic — the most they could get.
+  // If even the max is 1, they are truly a single-fight competitor → flag.
+  function maxRealFights(compId){
+    // starting matches: real matches the competitor is currently in
+    const start=allM.filter(m=>isRealFight(m) && (m.blue_id===compId||m.white_id===compId));
+    if(!start.length){
+      // maybe they only sit in a not-yet-real match (one side filled) — still counts as a potential fight
+      const anyReal=allM.filter(m=>m.win_reason!=='bye' && (m.blue_id===compId||m.white_id===compId));
+      // count reachable from these too
+      if(!anyReal.length) return 0;
     }
-    // also the loser path (repechage) — a done loser advances to consolation
-    if(m.status==='done' && m.winner_id && m.l_to_match){
-      const loseId = (m.blue_id===m.winner_id)?m.white_id:m.blue_id;
-      const lt=byNum[m.l_to_match];
-      if(loseId && lt && lt.blue_id!==loseId && lt.white_id!==loseId){
-        const lf=(lt.blue_id?1:0)+(lt.white_id?1:0);
-        if((feedsInto[m.l_to_match]||0)>=2 || lf>=1) realCount[loseId]=(realCount[loseId]||0)+1;
-      }
+    const seen=new Set();
+    let count=0;
+    const stack=[...allM.filter(m=>m.win_reason!=='bye' && (m.blue_id===compId||m.white_id===compId)).map(m=>m.match_num)];
+    while(stack.length){
+      const mn=stack.pop();
+      if(seen.has(mn)) continue;
+      seen.add(mn);
+      const m=byNum[mn]; if(!m) continue;
+      if(isRealFight(m)) count++;
+      // follow both onward links — the competitor reaches ONE of them for sure
+      if(m.w_to_match) stack.push(m.w_to_match);
+      if(m.l_to_match) stack.push(m.l_to_match);
     }
-  });
+    return count;
+  }
 
   const solo=[];
   (cat.competitors||[]).forEach(cp=>{
-    if(realCount[cp.id]===1) solo.push(cp.name);
+    if(maxRealFights(cp.id)===1) solo.push(cp.name);
   });
   return solo;
 }
