@@ -134,6 +134,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--txt);height
 .cc-btn:disabled{opacity:.25;cursor:default;}
 .cc-move{color:#e8c84a;border-color:rgba(232,200,74,.4);}
 .cc-edit{color:#6ea8ff;border-color:rgba(110,168,255,.4);}
+.cc-solo{font-size:9px;font-weight:700;color:#e8a13f;background:rgba(232,161,63,.15);border:1px solid rgba(232,161,63,.4);border-radius:4px;padding:1px 5px;cursor:help;}
 
 /* empty tatami */
 .tc-idle{padding:16px 14px;text-align:center;font-size:11px;color:var(--txt3);}
@@ -298,6 +299,24 @@ const st=s=>ST[s]||'W';
 // always get different colors (no hash collisions).
 const _CAT_PALETTE=['#e8574a','#4a90e8','#3fb56b','#e8a13f','#9b5de5','#e85aa8','#2bb6c4','#c98a3f','#7cb342','#5c6bc0','#d4477e','#26a69a','#8d6e63','#ec407a','#66bb6a','#ab47bc'];
 const _catColorMap={};
+// For a category: how many matches each competitor appears in (by name).
+// Returns array of competitor names who have only ONE planned match.
+function soloFighters(catId){
+  const cat=(STATE.allCats||[]).find(c=>String(c.id)===String(catId));
+  if(!cat) return [];
+  const count={};
+  (cat.competitors||[]).forEach(cp=>{ count[cp.name]=0; });
+  (cat.matches||[]).forEach(m=>{
+    if(m.win_reason==='bye') return;
+    const bN=cat.competitors?.find(c=>c.id===m.blue_id)?.name;
+    const wN=cat.competitors?.find(c=>c.id===m.white_id)?.name;
+    if(bN) count[bN]=(count[bN]||0)+1;
+    if(wN) count[wN]=(count[wN]||0)+1;
+  });
+  // only competitors who actually have matches, with exactly 1
+  return Object.entries(count).filter(([n,c])=>c===1).map(([n])=>n);
+}
+
 function catColor(catId){
   const key=String(catId||'');
   if(_catColorMap[key]!==undefined) return _CAT_PALETTE[_catColorMap[key]];
@@ -445,9 +464,14 @@ function renderTatami(t){
     catBar='<div class="cat-bar">'+catIds.map((cid,idx)=>{
       const nm=(t.matches.find(m=>m.catId===cid)||{}).category||'—';
       const cnt=t.matches.filter(m=>m.catId===cid&&m.status!=='done').length;
+      const _solo=soloFighters(cid);
+      const _soloBadge=_solo.length
+        ? `<span class="cc-solo" title="קרב אחד בלבד: ${_solo.join(', ')}">⚠ ${_solo.length}</span>`
+        : '';
       return `<div class="cat-chip" style="border-right:4px solid ${catColor(cid)}">
         <span class="cc-name" title="${nm}">${nm}</span>
         <span class="cc-count">${cnt}</span>
+        ${_soloBadge}
         <button class="cc-btn" onclick="moveCatOrder(${t.id},'${cid}',-1)" ${idx===0?'disabled':''} title="הקדם קטגוריה">▲</button>
         <button class="cc-btn" onclick="moveCatOrder(${t.id},'${cid}',1)" ${idx===catIds.length-1?'disabled':''} title="אחר קטגוריה">▼</button>
         <button class="cc-btn cc-move" onclick="openCatMove('${cid}','${nm.replace(/'/g,"")}')" title="העבר קטגוריה למזרן אחר">↔</button>
