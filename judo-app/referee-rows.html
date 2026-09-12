@@ -1326,6 +1326,56 @@ function tickRest(){
 }
 function hideRest(side){ const el=document.getElementById(side+'-rest'); if(el) el.classList.remove('show'); }
 
+// ════ KEYBOARD / PRESENTER-REMOTE SHORTCUTS ════
+// Maps remote/keyboard letters to scoring actions.
+(function(){
+  function nextShido(side){
+    const cur=(SHIDO[side]||[]).filter(Boolean).length;
+    if(cur>=3) return;
+    toggleShido(side, 3); // idx>=cur → adds the next shido in order
+  }
+  const handlers={
+    // ── WHITE (Q W E = yuko/waza/ippon) ──
+    'q':()=>add('white','Y'),
+    'w':()=>add('white','W'),
+    'e':()=>add('white','I'),
+    // ── BLUE (A S D) ──
+    'a':()=>add('blue','Y'),
+    's':()=>add('blue','W'),
+    'd':()=>add('blue','I'),
+    // ── clock / osaekomi ──
+    ' ':()=>toggleTimer(),
+    'z':()=>toggleOsae(),
+    'x':()=>assignOsae('white'),
+    'c':()=>assignOsae('blue'),
+    // ── WHITE shido + undos (R T Y U I) ──
+    'r':()=>nextShido('white'),
+    't':()=>sub('white','Y'),
+    'y':()=>sub('white','W'),
+    'u':()=>sub('white','I'),
+    'i':()=>subShido('white'),
+    // ── BLUE shido + undos (F G H J K) ──
+    'f':()=>nextShido('blue'),
+    'g':()=>sub('blue','Y'),
+    'h':()=>sub('blue','W'),
+    'j':()=>sub('blue','I'),
+    'k':()=>subShido('blue'),
+    // ── next match ──
+    'enter':()=>{ if(typeof goNextFromOverlay==='function') goNextFromOverlay(); },
+  };
+  document.addEventListener('keydown',function(e){
+    // ignore while typing in an input/textarea (e.g. editing a name)
+    const tag=(e.target.tagName||'').toLowerCase();
+    if(tag==='input'||tag==='textarea'||e.target.isContentEditable) return;
+    if(e.ctrlKey||e.metaKey||e.altKey) return;
+    let k=e.key.toLowerCase();
+    if(e.key===' '||e.code==='Space') k=' ';
+    if(e.key==='Enter') k='enter';
+    const fn=handlers[k];
+    if(fn){ e.preventDefault(); fn(); }
+  });
+})();
+
 function showToast(msg){
   const t=document.createElement('div');
   t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111318;border:1px solid #1e2130;border-radius:7px;padding:8px 16px;font-size:12px;color:#4ae89a;z-index:999;pointer-events:none;white-space:nowrap;';
