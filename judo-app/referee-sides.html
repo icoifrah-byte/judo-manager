@@ -12,7 +12,8 @@ html,body{height:100%;width:100%;overflow:hidden;background:#0d0e14;color:#f0f0f
 /* ════════════════════════════════
    LAYOUT: banner / halves / timer
    ════════════════════════════════ */
-#app{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+#app{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative;transition:padding-left .22s ease;}
+body.qpanel-open #app{padding-left:clamp(360px,46vw,820px);}
 body:not(.fullscreen) #app{min-height:560px;}
 body:not(.fullscreen){overflow:auto;}
 :fullscreen #app{height:100vh;width:100vw;}
@@ -234,6 +235,35 @@ body.fullscreen #app{background:#0a0a0e;}
 .rest-clock.show{display:inline-flex;}
 .rest-clock .rc-ic{font-size:.85em;}
 .white .rest-clock{background:rgba(200,40,40,.12);}
+/* ═══ QUEUE PANEL (operator-only; TV runs the separate mirror page) ═══ */
+#queue-tab{
+  position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:201;
+  background:#1b2436;border:1px solid #2a3550;border-left:none;color:#cdd6ea;
+  writing-mode:vertical-rl;text-orientation:mixed;padding:16px 7px;border-radius:0 11px 11px 0;
+  cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;letter-spacing:1px;
+  box-shadow:3px 0 12px rgba(0,0,0,.45);transition:left .22s ease;user-select:none;
+}
+#queue-tab:hover{background:#243150;color:#fff;}
+#queue-tab .qt-count{display:inline-block;background:#e8c84a;color:#000;border-radius:9px;
+  padding:0 6px;font-size:11px;margin-top:6px;font-weight:800;}
+body.qpanel-open #queue-tab{left:clamp(360px,46vw,820px);}
+
+#queue-panel{
+  position:fixed;top:0;bottom:0;left:0;width:clamp(360px,46vw,820px);
+  background:#0b0d14;border-right:2px solid #232838;box-shadow:5px 0 22px rgba(0,0,0,.6);
+  transform:translateX(-102%);transition:transform .22s ease;z-index:200;
+  display:flex;flex-direction:column;direction:rtl;
+}
+body.qpanel-open #queue-panel{transform:translateX(0);}
+#queue-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:12px 14px;border-bottom:1px solid #1c2233;background:#0e1118;}
+#queue-head .qh-title{font-size:15px;font-weight:800;color:#e8c84a;letter-spacing:.5px;}
+#queue-head .qh-btns{display:flex;gap:6px;}
+.qh-btn{background:#1b2436;border:1px solid #2a3550;color:#cdd6ea;border-radius:7px;
+  padding:5px 11px;cursor:pointer;font-family:inherit;font-size:14px;line-height:1;}
+.qh-btn:hover{background:#243150;color:#fff;}
+#queue-note{padding:7px 14px;border-bottom:1px solid #1c2233;font-size:11px;color:#71788c;background:#0e1118;text-align:center;}
+#queue-frame{flex:1;width:100%;border:none;background:#0a0b0f;display:block;}
 </style>
 <script>window.JUDO_WRITE_SECRET='judo-tybPVyd91Be54qH68JPcED4s';</script>
 <script src="db.js"></script>
@@ -345,6 +375,21 @@ body.fullscreen #app{background:#0a0a0e;}
       <!-- white assign square -->
       <div class="assign-sq sq-white" id="sq-white" onclick="assignOsae('white')" title="שייך ריתוק ללבן"></div>
     </div>
+  </div>
+
+  <!-- ═══ QUEUE PANEL — visible only on the operator's screen, never on the TV mirror ═══ -->
+  <div id="queue-tab" onclick="toggleQueuePanel()" title="ניהול תור הקרבות (P)">📋 ניהול</div>
+  <div id="queue-panel">
+    <div id="queue-head">
+      <div class="qh-title">📋 ניהול תור הקרבות</div>
+      <div class="qh-btns">
+        <button class="qh-btn" onclick="reloadQueueFrame()" title="רענן">⟳</button>
+        <button class="qh-btn" onclick="openQueueFull()" title="פתח בחלון מלא">⛶</button>
+        <button class="qh-btn" onclick="closeQueuePanel()" title="סגור">✕</button>
+      </div>
+    </div>
+    <div id="queue-note">מסך הניהול · גרור קרב כדי לשנות סדר · נשמר אוטומטית ומשותף עם מנהל התחרות</div>
+    <iframe id="queue-frame" title="ניהול תור הקרבות"></iframe>
   </div>
 
 </div><!-- /app -->
@@ -1651,6 +1696,8 @@ function hideRest(side){ const el=document.getElementById(side+'-rest'); if(el) 
     'h':()=>sub('blue','W'),
     'j':()=>sub('blue','I'),
     'k':()=>subShido('blue'),
+    // ── queue panel toggle ──
+    'p':()=>toggleQueuePanel(),
     // ── next match ──
     'enter':()=>{ if(typeof goNextFromOverlay==='function') goNextFromOverlay(); },
   };
@@ -1692,5 +1739,31 @@ function showToast(msg){
   </div>
 </div>
 
+<!-- ═══ QUEUE PANEL (embeds the manager / control screen as a split panel; opens on click, hidden otherwise; the TV uses the separate mirror page so this never shows there) ═══ -->
+<script>
+(function(){
+  let _loaded=false;
+  function ensureFrame(){
+    if(_loaded) return;
+    const f=document.getElementById('queue-frame');
+    if(f){ f.src='control.html'; _loaded=true; }   // lazy-load the manager screen on first open
+  }
+  window.openQueuePanel=function(){ document.body.classList.add('qpanel-open'); ensureFrame(); };
+  window.closeQueuePanel=function(){ document.body.classList.remove('qpanel-open'); };
+  window.toggleQueuePanel=function(){ document.body.classList.contains('qpanel-open') ? closeQueuePanel() : openQueuePanel(); };
+  window.reloadQueueFrame=function(){
+    const f=document.getElementById('queue-frame');
+    try{ if(f && f.src){ f.contentWindow.location.reload(); } else { ensureFrame(); } }
+    catch(_){ if(f){ f.src='control.html'; } }
+  };
+  window.openQueueFull=function(){ try{ window.open('control.html','_blank'); }catch(_){ } };
+
+  // Safety: if this screen is ever opened as a mirror (?mirror=1), hide the operator panel entirely
+  if(new URLSearchParams(location.search).get('mirror')==='1'){
+    const t=document.getElementById('queue-tab'); if(t) t.style.display='none';
+    const pnl=document.getElementById('queue-panel'); if(pnl) pnl.style.display='none';
+  }
+})();
+</script>
 </body>
 </html>
