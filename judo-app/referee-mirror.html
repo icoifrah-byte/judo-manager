@@ -1202,8 +1202,9 @@ function broadcastState(){} // no-op in mirror
 // Listen for state requests from mirror window
 
 // ════ AMBIENCE (mirror side) — opened/closed by broadcast from the main screen ════
-let _ambUrl=null;
+let _ambUrl=null, _ambOn=false;
 async function mirrorOpenAmbience(){
+  _ambOn=true;
   const ov=document.getElementById('amb-ov');
   const body=document.getElementById('amb-body');
   if(!ov||!body) return;
@@ -1222,6 +1223,7 @@ async function mirrorOpenAmbience(){
   }catch(e){ console.error('mirror ambience:',e); body.innerHTML='<div id="amb-empty">שגיאה בטעינה</div>'; }
 }
 function mirrorCloseAmbience(){
+  _ambOn=false;
   const ov=document.getElementById('amb-ov');
   const body=document.getElementById('amb-body');
   if(ov) ov.classList.remove('show');
@@ -1237,6 +1239,10 @@ mirrorChannel.onmessage = e => {
     if(d.action==='open') mirrorOpenAmbience();
     else mirrorCloseAmbience();
     return;
+  }
+  // Ambience state rides on every state broadcast — keeps the mirror in sync even if it was opened/refreshed late
+  if(typeof d.ambience==='boolean' && d.ambience!==_ambOn){
+    if(d.ambience) mirrorOpenAmbience(); else mirrorCloseAmbience();
   }
   // Show winner overlay
   if(d.winner!==undefined){
