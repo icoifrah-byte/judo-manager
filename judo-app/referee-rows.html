@@ -1109,6 +1109,7 @@ function broadcastState(){
     status: status,
     osaeActive: osaeActive,
     osaeSide: osaeSide||null,
+    ambience: !!document.getElementById('amb-ov')?.classList.contains('show'),
   });
 }
 
