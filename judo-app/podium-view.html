@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>פודיום — טקס מדליות</title>
+<!-- Audience page: read-only. No write secret is loaded here on purpose. -->
+<script src="db.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0b0f;--surface:#12141b;--surface2:#191c24;--border:#232737;--acc:#e8c84a;--text:#f2f2f2;--text2:#8a8fa0;--gold:#f5c518;--silver:#c9ced8;--bronze:#cd7f32;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{background:var(--bg);color:var(--text);font-family:'Heebo',Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;}
+header{flex:0 0 auto;display:flex;align-items:baseline;justify-content:center;gap:1.6vw;padding:1.4vh 2vw;border-bottom:1px solid var(--border);}
+header .t{font-size:min(4.4vh,3vw);font-weight:900;color:var(--acc);letter-spacing:1px;}
+header .c{font-size:min(2.6vh,1.8vw);color:var(--text2);}
+main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:1.6vw;padding:2vh 1.6vw;}
+.side{min-height:0;display:flex;flex-direction:column;gap:1.6vh;}
+.side-title{font-size:min(3.4vh,2.3vw);font-weight:900;text-align:center;color:var(--text2);letter-spacing:2px;}
+.now{flex:1;min-height:0;background:var(--surface);border:2px solid var(--acc);border-radius:1.6vh;padding:2vh 2vw;display:flex;flex-direction:column;overflow:hidden;}
+.now.none{border-color:var(--border);align-items:center;justify-content:center;color:var(--text2);font-size:min(3vh,2vw);}
+.g-name{font-size:min(6vh,3.6vw);font-weight:900;color:var(--acc);text-align:center;line-height:1.15;margin-bottom:1.4vh;}
+.rows{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:1.2vh;}
+.r{display:flex;align-items:center;gap:1.4vw;background:var(--surface2);border-radius:1.2vh;padding:1.2vh 1.4vw;}
+.pl{flex:0 0 auto;width:min(6.4vh,4vw);height:min(6.4vh,4vw);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:min(3.8vh,2.4vw);color:#111;}
+.pl1{background:var(--gold);}.pl2{background:var(--silver);}.pl3{background:var(--bronze);}
+.nm{font-size:min(5vh,3vw);font-weight:800;line-height:1.1;}
+.club{font-size:min(2.3vh,1.5vw);color:var(--text2);}
+.dense .r{padding:.7vh 1.2vw;}
+.dense .nm{font-size:min(3.8vh,2.4vw);}
+.dense .pl{width:min(5vh,3.2vw);height:min(5vh,3.2vw);font-size:min(3vh,2vw);}
+.next{flex:0 0 auto;background:var(--surface);border:1px solid var(--border);border-radius:1.4vh;padding:1.4vh 1.6vw;}
+.next-lbl{font-size:min(2.1vh,1.4vw);color:var(--text2);letter-spacing:1px;margin-bottom:.4vh;}
+.next-name{font-size:min(3.2vh,2vw);font-weight:800;color:#fff;}
+.next-list{font-size:min(2.3vh,1.5vw);color:#c5cad6;margin-top:.5vh;line-height:1.5;}
+.next-list span{display:inline-block;unicode-bidi:isolate;}
+.next-list b{color:var(--acc);font-weight:800;margin-inline-end:.35em;}
+.next.none{visibility:hidden;}
+#msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);color:var(--text2);font-size:3vh;text-align:center;padding:5vw;}
+@media(max-width:700px){
+  body{overflow:auto;} main{grid-template-columns:1fr;gap:3vh;}
+  header .t{font-size:24px}header .c{font-size:14px}
+  .side-title{font-size:18px}.g-name{font-size:26px}.nm{font-size:22px}.club{font-size:12px}
+  .pl{width:36px;height:36px;font-size:20px}.next-lbl{font-size:12px}.next-name{font-size:18px}.next-list{font-size:14px}
+  .now.none{font-size:16px;padding:30px}
+}
+</style>
+</head>
+<body>
+<header><div class="t">🏆 טקס מדליות</div><div class="c" id="comp-name"></div></header>
+<main>
+  <section class="side"><div class="side-title">פודיום ימין</div><div id="now-right" class="now none"></div><div id="next-right" class="next none"></div></section>
+  <section class="side"><div class="side-title">פודיום שמאל</div><div id="now-left" class="now none"></div><div id="next-left" class="next none"></div></section>
+</main>
+<div id="msg"></div>
+
+<script>
+const compId = new URLSearchParams(location.search).get('comp') || localStorage.getItem('judo_active_comp');
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let _last='';
+
+function msg(t){ const m=document.getElementById('msg'); m.textContent=t||''; m.style.display=t?'flex':'none'; }
+
+function renderSide(side, ids, snap){
+  const now=document.getElementById('now-'+side), next=document.getElementById('next-'+side);
+  const cur=snap[ids[0]], nx=snap[ids[1]];
+  if(cur){
+    now.className='now'+(cur.places.length>4?' dense':'');
+    now.innerHTML=`<div class="g-name">${esc(cur.name)}</div><div class="rows">`+
+      cur.places.map(p=>`<div class="r"><div class="pl pl${p.place}">${p.place}</div><div><div class="nm">${esc(p.name)}</div>${p.club?`<div class="club">${esc(p.club)}</div>`:''}</div></div>`).join('')+`</div>`;
+  } else {
+    now.className='now none'; now.textContent='ממתינים לקטגוריה הבאה';
+  }
+  if(nx){
+    next.className='next';
+    next.innerHTML=`<div class="next-lbl">מתכוננים לעלייה לפודיום:</div><div class="next-name">${esc(nx.name)}</div>`+
+      `<div class="next-list">${nx.places.map(p=>`<span><b>${p.place}</b>${esc(p.name)}</span>`).join(' &nbsp;·&nbsp; ')}</div>`;
+  } else { next.className='next none'; next.innerHTML=''; }
+}
+
+async function tick(){
+  if(!compId){ msg('הלינק חסר מזהה תחרות'); return; }
+  try{
+    const rows=await supa('GET',`competitions?id=eq.${compId}&select=name,podium`);
+    const comp=rows?.[0];
+    if(!comp){ msg('התחרות לא נמצאה'); return; }
+    msg('');
+    const key=JSON.stringify(comp);
+    if(key===_last) return;       // nothing changed — don't touch the screen
+    _last=key;
+    document.getElementById('comp-name').textContent=comp.name||'';
+    const p=comp.podium||{}, snap=p.snap||{};
+    renderSide('right', p.right||[], snap);
+    renderSide('left',  p.left||[],  snap);
+  }catch(e){ console.warn('podium view:',e); }
+}
+tick();
+setInterval(tick,3000);
+</script>
+</body>
+</html>
