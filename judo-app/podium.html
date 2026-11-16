@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>פודיום — Judo Manager</title>
+<script>window.JUDO_WRITE_SECRET='judo-tybPVyd91Be54qH68JPcED4s';</script>
+<script src="db.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e0f13;--surface:#161820;--surface2:#1e2028;--border:#2a2d38;--accent:#e8c84a;--red:#e84a4a;--green:#4ae89a;--text:#f0f0f0;--text2:#8a8fa0;--gold:#f5c518;--silver:#c9ced8;--bronze:#cd7f32;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Heebo',Arial,sans-serif;min-height:100vh;}
+.header{height:54px;display:flex;align-items:center;gap:10px;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent);letter-spacing:2px;}
+.h-title{font-weight:700;font-size:15px;}
+.h-comp{color:var(--text2);font-size:13px;}
+.sp{flex:1;}
+.btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn:hover{border-color:#3d4252;}
+.btn-acc{background:var(--accent);border-color:var(--accent);color:#111;}
+.btn-green{background:#1c7a4c;border-color:#239a60;color:#fff;}
+.btn-sm{padding:4px 9px;font-size:12px;}
+.btn-ghost{background:none;}
+.wrap{padding:16px;max-width:1500px;margin:0 auto;}
+#banner{display:none;background:#3a1717;border:1px solid var(--red);color:#ffd0d0;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:14px;line-height:1.7;}
+#banner code{background:#000;padding:2px 7px;border-radius:5px;direction:ltr;display:inline-block;color:#fff;}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.side{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;min-height:260px;}
+.side-title{font-size:20px;font-weight:900;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.side-title small{font-size:12px;color:var(--text2);font-weight:400;}
+.grp{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;}
+.grp{cursor:grab;}
+.grp.dragging{opacity:.35;}
+.grp.drop-before{box-shadow:0 -4px 0 0 var(--accent);}
+.grp.drop-after{box-shadow:0 4px 0 0 var(--accent);}
+.side.drop-side{border-color:var(--accent);border-style:dashed;}
+.grip{color:#5d6377;font-size:17px;cursor:grab;user-select:none;}
+.grp.cur{border-color:var(--accent);box-shadow:0 0 0 1px rgba(232,200,74,.25);}
+.grp-tag{font-size:11px;letter-spacing:1px;color:var(--text2);font-weight:700;margin-bottom:4px;}
+.grp.cur .grp-tag{color:var(--accent);}
+.grp-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.grp-name{font-size:19px;font-weight:800;cursor:pointer;border-bottom:1px dashed #555;}
+.grp:not(.cur) .grp-name{font-size:15px;}
+.grp-tools{margin-right:auto;display:flex;gap:4px;}
+.row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--border);}
+.pl{flex:0 0 28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#111;}
+.pl1{background:var(--gold);}.pl2{background:var(--silver);}.pl3{background:var(--bronze);}
+.nm{font-weight:700;font-size:16px;}
+.club{color:var(--text2);font-size:12px;}
+.row.miss .nm{text-decoration:line-through;color:var(--text2);}
+.miss-btn{margin-right:auto;}
+.miss-btn.on{background:#5a2323;border-color:var(--red);color:#ffd0d0;}
+.grp:not(.cur) .row{padding:3px 0;}
+.grp:not(.cur) .nm{font-size:13px;font-weight:600;}
+.grp:not(.cur) .pl{flex-basis:20px;height:20px;font-size:11px;}
+.acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.acts .btn{flex:1;padding:11px;font-size:15px;}
+.empty{color:var(--text2);text-align:center;padding:26px 10px;font-size:14px;}
+.lower{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;}
+.card h3{font-size:15px;margin-bottom:10px;}
+.li{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:13px;}
+.li:first-of-type{border-top:none;}
+.li .g{color:var(--text2);font-size:12px;}
+.li .btn{margin-right:auto;}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#222634;border:1px solid var(--border);padding:10px 20px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;}
+#toast.show{opacity:1;}
+@media(max-width:900px){.cols,.lower{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">JUDO</div>
+  <div class="h-title">🏆 פודיום</div>
+  <div class="h-comp" id="h-comp"></div>
+  <div class="sp"></div>
+  <button class="btn btn-sm" onclick="sync(true)">⟳ רענן תוצאות</button>
+  <button class="btn btn-sm" onclick="copyLink()">📋 העתק לינק לקהל</button>
+  <button class="btn btn-sm btn-acc" onclick="openView()">📺 פתח תצוגת קהל</button>
+  <button class="btn btn-sm" onclick="location.href='index.html'">← ניהול</button>
+</div>
+
+<div class="wrap">
+  <div id="banner"></div>
+  <div class="cols">
+    <div class="side" ondragover="sOver(event)" ondragleave="sLeave(event)" ondrop="sDrop(event,'right')"><div class="side-title">פודיום ימין <small id="cnt-right"></small></div><div id="q-right"></div></div>
+    <div class="side" ondragover="sOver(event)" ondragleave="sLeave(event)" ondrop="sDrop(event,'left')"><div class="side-title">פודיום שמאל <small id="cnt-left"></small></div><div id="q-left"></div></div>
+  </div>
+  <div class="lower">
+    <div class="card"><h3>🚫 לא קיבלו מדליה <span class="g" id="cnt-miss"></span></h3><div id="l-miss"></div></div>
+    <div class="card"><h3>✅ קטגוריות שסיימו טקס</h3><div id="l-done"></div></div>
+    <div class="card"><h3>⏳ קטגוריות שעדיין מתחרות</h3><div id="l-wait"></div></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// PODIUM — control screen
+// State lives in competitions.podium (jsonb) so the audience page
+// (podium-view.html, read-only) shows the same thing on any device.
+// ════════════════════════════════════════════════════════════
+const compId = new URLSearchParams(location.search).get('comp') || localStorage.getItem('judo_active_comp');
+let ST = null;          // podium state
+let CATS = [];          // categories from DB
+let WAITING = [];       // names of categories still competing
+let busy = false;
+
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2200); }
+function banner(html){ const b=document.getElementById('banner'); b.innerHTML=html||''; b.style.display=html?'block':'none'; }
+
+function normState(p){
+  p = (p && typeof p==='object') ? p : {};
+  return { v:1, right:[...(p.right||[])], left:[...(p.left||[])], names:{...(p.names||{})},
+           done:[...(p.done||[])], missing:[...(p.missing||[])], marks:{...(p.marks||{})}, snap:{...(p.snap||{})} };
+}
+
+// ── placements: same logic as the medals export in index.html ──
+function calcPlaces(matches, comps, isLeague, catId){
+  const places = [];
+  if(isLeague){
+    const allDone = matches.every(m=>m.status==='done');
+    if(!allDone) return places;
+    const scores={};
+    comps.forEach(c=>scores[c.id]={comp:c,pts:0,wins:0});
+    matches.forEach(m=>{
+      if(m.status!=='done') return;
+      const wComp=comps.find(c=>c.id===m.winner_id);
+      if(wComp){scores[wComp.id].pts+=2;scores[wComp.id].wins++;}
+    });
+    const sorted=Object.values(scores).sort((a,b)=>b.pts-a.pts||b.wins-a.wins);
+    let manual={};
+    try{ manual=JSON.parse(localStorage.getItem('judo_league_places_'+catId)||'{}'); }catch(e){}
+    if(Object.keys(manual).length){
+      sorted.sort((a,b)=>(manual[a.comp.id]||99)-(manual[b.comp.id]||99)||b.pts-a.pts);
+      sorted.forEach((s,i)=>places.push({place:manual[s.comp.id]||i+1,comp:s.comp}));
+    } else {
+      sorted.forEach((s,i)=>places.push({place:i+1,comp:s.comp}));
+    }
+  } else {
+    const fin=matches.find(m=>m.stage==='גמר'&&m.status==='done');
+    if(fin){
+      const wComp=comps.find(c=>c.id===fin.winner_id);
+      const lComp=comps.find(c=>c.id!==fin.winner_id&&(c.id===fin.blue_id||c.id===fin.white_id));
+      if(wComp) places.push({place:1,comp:wComp});
+      if(lComp) places.push({place:2,comp:lComp});
+    }
+    matches.filter(m=>m.win_reason!=='bye'&&m.status==='done')
+      .filter(m=>{
+        const rMs=matches.filter(x=>x.stage_type==='R'&&x.status==='done').sort((a,b)=>b.match_num-a.match_num);
+        return rMs[0]&&m.id===rMs[0].id||rMs[1]&&m.id===rMs[1].id;
+      }).forEach(m=>{
+        const wComp=comps.find(c=>c.id===m.winner_id);
+        const lComp=comps.find(c=>c.id!==m.winner_id&&(c.id===m.blue_id||c.id===m.white_id));
+        if(wComp&&!places.find(p=>p.comp?.id===wComp.id)) places.push({place:3,comp:wComp});
+        if(lComp&&!places.find(p=>p.comp?.id===lComp.id)) places.push({place:5,comp:lComp});
+      });
+  }
+  if(comps.length<=6 && places.length){
+    const seen=new Set(places.map(p=>p.comp?.id));
+    places.forEach(p=>{ if(p.place>2) p.place=3; });
+    comps.forEach(cp=>{
+      if(seen.has(cp.id)) return;
+      const fought=matches.some(m=>m.win_reason!=='bye'&&(m.blue_id===cp.id||m.white_id===cp.id));
+      if(fought) places.push({place:3,comp:cp});
+    });
+  }
+  try{
+    const koManual=JSON.parse(localStorage.getItem('judo_ko_places_'+catId)||'{}');
+    if(Object.keys(koManual).length){
+      places.forEach(p=>{ if(p.comp&&koManual[p.comp.id]!=null) p.place=koManual[p.comp.id]; });
+    }
+  }catch(e){}
+  return places;
+}
+
+// A category goes to the podium only when all its real fights are over and there is a winner
+function catResult(cat){
+  if(cat.method==='offline') return null;
+  const ms=cat.matches||[], comps=cat.competitors||[];
+  if(!ms.some(m=>m.status==='done'&&m.winner_id&&m.win_reason!=='bye')) return null;
+  const open=ms.some(m=>['pending','live','suspended'].includes(m.status)&&m.blue_id&&m.white_id&&m.win_reason!=='bye');
+  if(open) return null;
+  const places=calcPlaces(ms,comps,cat.method==='league',cat.id)
+    .filter(p=>p.comp&&p.place>=1&&p.place<=3)
+    .sort((a,b)=>a.place-b.place||String(a.comp.name).localeCompare(String(b.comp.name),'he'))
+    .map(p=>({place:p.place,id:p.comp.id,name:p.comp.name||'',club:p.comp.club||''}));
+  if(!places.some(p=>p.place===1)) return null;
+  const finishedAt=ms.reduce((mx,m)=>{ const t=m.updated_at?Date.parse(m.updated_at):0; return t>mx?t:mx; },0);
+  return {places, finishedAt};
+}
+
+async function loadComp(){
+  const rows=await supa('GET',`competitions?id=eq.${compId}&select=id,name,podium`);
+  return rows?.[0]||null;
+}
+
+// Merge fresh results into the state: add newly finished categories, refresh snapshots
+function mergeResults(st){
+  const byId={}; CATS.forEach(c=>byId[c.id]=c);
+  const results={}; WAITING=[];
+  CATS.forEach(c=>{ const r=catResult(c); if(r) results[c.id]=r; else if(c.method!=='offline'&&(c.competitors||[]).length) WAITING.push(c.name); });
+  // drop categories that were deleted
+  ['right','left'].forEach(s=>{ st[s]=st[s].filter(id=>byId[id]); });
+  const doneIds=new Set(st.done.map(d=>d.catId));
+  const queued=new Set([...st.right,...st.left]);
+  // newly finished → shorter queue (right first), in order of finishing
+  Object.keys(results).filter(id=>!queued.has(id)&&!doneIds.has(id))
+    .sort((a,b)=>results[a].finishedAt-results[b].finishedAt)
+    .forEach(id=>{ (st.right.length<=st.left.length?st.right:st.left).push(id); });
+  // snapshots for everything in the queues (the audience page renders from these)
+  const snap={};
+  [...st.right,...st.left].forEach(id=>{
+    const nm=st.names[id]||byId[id]?.name||'';
+    if(results[id]) snap[id]={name:nm,places:results[id].places};
+    else if(st.snap[id]) snap[id]={...st.snap[id],name:nm};
+    else snap[id]={name:nm,places:[]};
+  });
+  st.snap=snap;
+  Object.keys(st.marks).forEach(id=>{ if(!snap[id]) delete st.marks[id]; });
+  return st;
+}
+
+async function save(st){
+  await DB.updateCompetition(compId,{podium:st});
+}
+
+// Load → merge → save if changed → render
+async function sync(manual){
+  if(busy||_drag) return;
+  if(!compId){ banner('אין תחרות פעילה. חזור למסך הניהול ובחר תחרות.'); return; }
+  busy=true;
+  try{
+    let comp;
+    try{ comp=await loadComp(); }
+    catch(e){
+      if(/podium/.test(String(e.message))){ banner('צריך להריץ פעם אחת ב-Supabase (SQL Editor) את הקובץ <b>podium-migration.sql</b>:<br><code>alter table competitions add column if not exists podium jsonb;</code>'); return; }
+      throw e;
+    }
+    if(!comp){ banner('התחרות לא נמצאה.'); return; }
+    banner('');
+    document.getElementById('h-comp').textContent='· '+(comp.name||'');
+    CATS=await DB.getCategories(compId)||[];
+    const before=JSON.stringify(normState(comp.podium));
+    const st=mergeResults(normState(comp.podium));
+    if(JSON.stringify(st)!==before) await save(st);
+    ST=st; render();
+    if(manual) toast('✓ התוצאות עודכנו');
+  }catch(e){ console.error('podium sync:',e); if(manual) toast('⚠ שגיאה בטעינה'); }
+  finally{ busy=false; }
+}
+
+// Apply a change on top of the latest DB state, then save
+async function mutate(fn, okMsg){
+  if(busy){ setTimeout(()=>mutate(fn,okMsg),150); return; }
+  busy=true;
+  try{
+    const comp=await loadComp();
+    const st=mergeResults(normState(comp?.podium));
+    fn(st);
+    mergeResults(st);
+    await save(st);
+    ST=st; render();
+    if(okMsg) toast(okMsg);
+  }catch(e){ console.error('podium save:',e); toast('⚠ השינוי לא נשמר'); }
+  finally{ busy=false; }
+}
+
+// ── actions ──
+function finishGroup(side){
+  mutate(st=>{
+    const id=st[side].shift(); if(!id) return;
+    const sn=st.snap[id]||{name:'',places:[]};
+    const marks=st.marks[id]||[];
+    sn.places.filter(p=>marks.includes(p.id)).forEach(p=>{
+      if(!st.missing.some(m=>m.id===p.id&&m.catId===id)) st.missing.push({id:p.id,catId:id,cat:sn.name,name:p.name,club:p.club,place:p.place});
+    });
+    delete st.marks[id];
+    st.done.push({catId:id,name:sn.name,side});
+  },'✓ הקטגוריה הבאה עלתה');
+}
+function toggleMiss(catId,pid){
+  mutate(st=>{
+    const a=st.marks[catId]||[];
+    st.marks[catId]=a.includes(pid)?a.filter(x=>x!==pid):[...a,pid];
+    if(!st.marks[catId].length) delete st.marks[catId];
+  });
+}
+function gotMedal(pid,catId){
+  mutate(st=>{ st.missing=st.missing.filter(m=>!(m.id===pid&&m.catId===catId)); },'✓ סומן שקיבל מדליה');
+}
+function restoreGroup(catId){
+  mutate(st=>{
+    const d=st.done.find(x=>x.catId===catId); if(!d) return;
+    st.done=st.done.filter(x=>x.catId!==catId);
+    const back=st.missing.filter(m=>m.catId===catId).map(m=>m.id);
+    st.missing=st.missing.filter(m=>m.catId!==catId);
+    if(back.length) st.marks[catId]=back;
+    st[d.side==='left'?'left':'right'].unshift(catId);
+  },'↩ הקטגוריה הוחזרה לפודיום');
+}
+function moveSide(catId){
+  mutate(st=>{
+    const from=st.right.includes(catId)?'right':'left', to=from==='right'?'left':'right';
+    st[from]=st[from].filter(x=>x!==catId); st[to].push(catId);
+  });
+}
+function moveUp(catId,dir){
+  mutate(st=>{
+    const s=st.right.includes(catId)?'right':'left', a=st[s], i=a.indexOf(catId), j=i+dir;
+    if(j<0||j>=a.length) return; [a[i],a[j]]=[a[j],a[i]];
+  });
+}
+function renameGroup(catId){
+  const cur=ST?.snap?.[catId]?.name||'';
+  const nm=prompt('שם הקבוצה לתצוגה:',cur);
+  if(nm==null) return;
+  mutate(st=>{ if(nm.trim()) st.names[catId]=nm.trim(); else delete st.names[catId]; });
+}
+
+// ── drag & drop: reorder groups, also between the two podiums ──
+let _drag=null;
+function dClear(){
+  document.querySelectorAll('.grp').forEach(g=>g.classList.remove('dragging','drop-before','drop-after'));
+  document.querySelectorAll('.side').forEach(s=>s.classList.remove('drop-side'));
+}
+function dStart(e){
+  const g=e.currentTarget; _drag=g.dataset.id; g.classList.add('dragging');
+  e.dataTransfer.effectAllowed='move';
+  try{ e.dataTransfer.setData('text/plain',_drag); }catch(_){}
+}
+function dEnd(){ _drag=null; dClear(); }
+function dOver(e){
+  const g=e.currentTarget; if(!_drag) return;
+  e.preventDefault(); e.stopPropagation();
+  if(g.dataset.id===_drag) return;
+  const rc=g.getBoundingClientRect(), after=(e.clientY-rc.top)>rc.height/2;
+  g.classList.toggle('drop-after',after); g.classList.toggle('drop-before',!after);
+}
+function dLeave(e){ e.currentTarget.classList.remove('drop-before','drop-after'); }
+function dDrop(e,side){
+  const g=e.currentTarget; if(!_drag) return;
+  e.preventDefault(); e.stopPropagation();
+  const id=_drag, target=g.dataset.id, after=g.classList.contains('drop-after');
+  dEnd();
+  if(target!==id) moveTo(id,side,target,after);
+}
+// dropping on the empty part of a podium column → end of that podium's queue
+function sOver(e){ if(!_drag) return; e.preventDefault(); e.currentTarget.classList.add('drop-side'); }
+function sLeave(e){ if(!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('drop-side'); }
+function sDrop(e,side){ if(!_drag) return; e.preventDefault(); const id=_drag; dEnd(); moveTo(id,side,null,true); }
+function moveTo(id,side,targetId,after){
+  mutate(st=>{
+    st.right=st.right.filter(x=>x!==id); st.left=st.left.filter(x=>x!==id);
+    const a=st[side], i=targetId?a.indexOf(targetId):-1;
+    if(i<0) a.push(id); else a.splice(after?i+1:i,0,id);
+  },'✓ הסדר עודכן');
+}
+
+// ── links ──
+function viewUrl(){ return location.href.replace(/podium\.html.*$/,'podium-view.html')+'?comp='+encodeURIComponent(compId); }
+function openView(){ window.open(viewUrl(),'_blank'); }
+function copyLink(){
+  const url=viewUrl();
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(()=>toast('✓ הלינק לקהל הועתק')).catch(()=>prompt('העתק את הלינק לקהל:',url));
+  else prompt('העתק את הלינק לקהל:',url);
+}
+
+// ── render ──
+function grpHtml(side,id,i,n){
+  const sn=ST.snap[id]||{name:'',places:[]};
+  const cur=i===0, marks=ST.marks[id]||[];
+  const tag=cur?'● על הפודיום עכשיו':(i===1?'מתכוננים לעלייה לפודיום':'בתור · '+(i+1));
+  const rows=sn.places.map(p=>{
+    const on=marks.includes(p.id);
+    return `<div class="row${on?' miss':''}">
+      <div class="pl pl${p.place}">${p.place}</div>
+      <div><div class="nm">${esc(p.name)}</div>${p.club?`<div class="club">${esc(p.club)}</div>`:''}</div>
+      ${cur?`<button class="btn btn-sm miss-btn${on?' on':''}" onclick="toggleMiss('${id}','${p.id}')">${on?'✕ לא קיבל מדליה':'לא קיבל מדליה'}</button>`:''}
+    </div>`;
+  }).join('')||'<div class="empty">אין תוצאות לקטגוריה</div>';
+  return `<div class="grp${cur?' cur':''}" draggable="true" data-id="${id}"
+      ondragstart="dStart(event)" ondragend="dEnd()" ondragover="dOver(event)" ondragleave="dLeave(event)" ondrop="dDrop(event,'${side}')">
+    <div class="grp-tag">${tag}</div>
+    <div class="grp-head">
+      <span class="grip" title="גרור כדי לשנות מיקום">⠿</span>
+      <div class="grp-name" title="לחץ לשינוי שם" onclick="renameGroup('${id}')">${esc(sn.name)}</div>
+      <div class="grp-tools">
+        ${i>0?`<button class="btn btn-sm btn-ghost" title="הקדם" onclick="moveUp('${id}',-1)">▲</button>`:''}
+        ${i<n-1?`<button class="btn btn-sm btn-ghost" title="אחר כך" onclick="moveUp('${id}',1)">▼</button>`:''}
+        <button class="btn btn-sm btn-ghost" title="העבר לפודיום השני" onclick="moveSide('${id}')">⇄ לפודיום ${side==='right'?'שמאל':'ימין'}</button>
+      </div>
+    </div>
+    ${rows}
+    ${cur?`<div class="acts">
+      <button class="btn btn-green" onclick="finishGroup('${side}')">🏅 קיבלו מדליות</button>
+      <button class="btn" onclick="finishGroup('${side}')">עבור לקטגוריה הבאה ›</button>
+    </div>`:''}
+  </div>`;
+}
+function render(){
+  if(!ST) return;
+  ['right','left'].forEach(s=>{
+    const a=ST[s];
+    document.getElementById('q-'+s).innerHTML=a.length?a.map((id,i)=>grpHtml(s,id,i,a.length)).join(''):'<div class="empty">אין קטגוריה שמחכה לפודיום הזה</div>';
+    document.getElementById('cnt-'+s).textContent=a.length?`(${a.length} בתור)`:'';
+  });
+  document.getElementById('cnt-miss').textContent=ST.missing.length?`(${ST.missing.length})`:'';
+  document.getElementById('l-miss').innerHTML=ST.missing.length?ST.missing.map(m=>`<div class="li">
+      <div class="pl pl${m.place}" style="flex-basis:22px;height:22px;font-size:12px">${m.place}</div>
+      <div><b>${esc(m.name)}</b> <span class="g">· ${esc(m.cat)}${m.club?' · '+esc(m.club):''}</span></div>
+      <button class="btn btn-sm" onclick="gotMedal('${m.id}','${m.catId}')">✓ קיבל</button></div>`).join(''):'<div class="empty">אין מתחרים ברשימה</div>';
+  document.getElementById('l-done').innerHTML=ST.done.length?ST.done.slice().reverse().map(d=>`<div class="li">
+      <div>${esc(d.name)}</div><button class="btn btn-sm" onclick="restoreGroup('${d.catId}')">↩ החזר לפודיום</button></div>`).join(''):'<div class="empty">עדיין לא חולקו מדליות</div>';
+  document.getElementById('l-wait').innerHTML=WAITING.length?WAITING.map(n=>`<div class="li"><div>${esc(n)}</div></div>`).join(''):'<div class="empty">כל הקטגוריות הסתיימו</div>';
+}
+
+sync();
+setInterval(()=>sync(false),10000);   // picks up categories that finish while the screen is open
+</script>
+</body>
+</html>
